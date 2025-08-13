@@ -1,31 +1,37 @@
-[project]
+[tool.poetry]
 name = "efi-corpus"
 version = "0.1.0"
-description = "Local corpus building framework with MediaCloud integration"
-authors = [
-    {name = "HT"}
-]
+description = "EFI Corpus Building and Analysis Tools"
+authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-requires-python = "^3.10"
-dependencies = [
-    "zstandard (>=0.23.0,<0.24.0)",
-    "requests (>=2.32.4,<3.0.0)",
-    "python-decouple (>=3.8,<4.0)",
-    "mediacloud (>=4.4.1,<5.0.0)",
-    "beautifulsoup4 (>=4.13.4,<5.0.0)",
-    "newspaper3k (>=0.2.8,<0.3.0)",
-    "lxml[html-clean] (>=6.0.0,<7.0.0)"
+packages = [
+    {include = "efi_corpus"},
+    {include = "efi_analyser"},
+    {include = "efi_findings"}
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.4.1",
-    "pytest-mock>=3.14.1"
-]
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.31.0"
+zstandard = "^0.22.0"
+newspaper3k = "^0.2.8"
+beautifulsoup4 = "^4.12.0"
+mediacloud = "^4.0.0"
+pyyaml = "^6.0.1"
+openai = "^1.0.0"
+PyPDF2 = "^3.0.0"
+python-dotenv = "^1.1.1"
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.group.analysis]
+optional = true
+
+[tool.poetry.group.analysis.dependencies]
+sentence-transformers = "^2.2.0"
+scikit-learn = "^1.3.0"
+numpy = "^1.24.0"
+pandas = "^2.0.0"
+matplotlib = "^3.7.0"
+seaborn = "^0.12.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

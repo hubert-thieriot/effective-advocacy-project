@@ -26,3 +26,15 @@ class DiscoveryItem:
     language: Optional[str] = None
     authors: Optional[List[str]] = None
     extra: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class Document:
+    """Represents a document from a corpus"""
+    doc_id: str
+    url: str
+    title: Optional[str]
+    text: str
+    published_at: Optional[str]
+    language: Optional[str]
+    meta: Dict[str, Any]

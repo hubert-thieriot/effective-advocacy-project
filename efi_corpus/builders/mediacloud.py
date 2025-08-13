@@ -187,6 +187,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         """
         extra = params.extra or {}
         # Raw queries list provided
+        
         if isinstance(extra.get('queries'), list) and extra.get('queries'):
             return [str(q).strip() for q in extra['queries'] if str(q).strip()]
         # Keywords mapping provided

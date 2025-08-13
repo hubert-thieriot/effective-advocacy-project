@@ -1,6 +1,9 @@
 # Cache and corpus
 cache/
 corpora/
+failed_to_extract/
+results/
+libraries/
 
 
 

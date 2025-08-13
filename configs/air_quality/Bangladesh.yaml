@@ -1,0 +1,24 @@
+builder: mediacloud
+
+corpus:
+  base_dir: corpora/air_quality/bangladesh
+
+parameters:
+  queries:
+    - '("air pollution" OR "air quality" OR "বায়ু দূষণ" OR "বায়ু মান")'
+  collections:
+    - id: 34412132
+      name: Bangladesh - National
+  date_from: 2025-07-13
+  date_to: today
+  rate_limit:
+    requests_per_minute: 3
+    min_interval: 20.0
+    enabled: true
+
+extra_meta:
+  country_iso3: BGD
+  comment: National air quality corpus for Bangladesh
+  topic: air_quality
+
+

@@ -223,7 +223,10 @@ class LibraryBuilder:
     def export_library(self, export_path: Optional[Path] = None) -> Path:
         """Export the findings library"""
         if export_path is None:
-            export_path = Path(f"{self.name}_findings_export.json")
+            # Ensure results directory exists and use it for default export
+            results_dir = Path("results")
+            results_dir.mkdir(exist_ok=True)
+            export_path = results_dir / f"{self.name}_findings_export.json"
         
         # Get all findings
         all_findings = self.storer.list_all_findings()

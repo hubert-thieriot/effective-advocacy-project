@@ -36,7 +36,7 @@ class BaseCorpusBuilder(ABC):
     """Abstract parent for all corpus builders"""
     
     def __init__(self, corpus_dir: Path, fetcher: Fetcher = None, cache_root: Path = None):
-        self.corpus = CorpusHandle(corpus_dir)
+        self.corpus = CorpusHandle(corpus_dir, read_only=False)
         
         # Use provided fetcher or create default one
         if fetcher is not None:
@@ -93,7 +93,7 @@ class BaseCorpusBuilder(ABC):
             params = BuilderParams(**merged)
 
         # Persist (current) params to manifest before run
-        manifest.setdefault("name", self.corpus.dir.name)
+        manifest.setdefault("name", self.corpus.corpus_path.name)
         manifest.setdefault("source", self.__class__.__name__.replace("Builder", "").lower())
         manifest["params"] = params.__dict__
         manifest.setdefault("history", [])

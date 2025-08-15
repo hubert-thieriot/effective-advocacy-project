@@ -1,23 +1,35 @@
 """
-EFI Corpus - Local corpus building framework with MediaCloud integration
+EFI Corpus - Corpus management and processing tools
 """
 
+from .types import (
+    BuilderParams, DiscoveryItem, Document,
+    ChunkerSpec, EmbedderSpec, DocState,
+    Chunker, Embedder, AnnIndex
+)
+from .layout import LocalFilesystemLayout, ChunkerSpec, EmbedderSpec
 from .corpus_handle import CorpusHandle
-from .fetcher import Fetcher
-from .text_extractor import TextExtractor
-from .rate_limiter import RateLimiter, RateLimitConfig
-from .types import BuilderParams, DiscoveryItem, Document
-from .corpus_reader import CorpusReader
+from .stores import ChunkStore, EmbeddingStore, DocStateStore
+from .build_controller import BuildController
+from .indexes import NumpyScanIndex
 
-__version__ = "0.1.0"
 __all__ = [
-    "CorpusHandle", 
-    "Fetcher", 
-    "TextExtractor", 
-    "RateLimiter", 
-    "RateLimitConfig",
-    "BuilderParams",
-    "DiscoveryItem",
-    "Document",
-    "CorpusReader"
+    # Core types
+    "BuilderParams", "DiscoveryItem", "Document",
+    
+    # New chunking and embedding types
+    "ChunkerSpec", "EmbedderSpec", "DocState",
+    "Chunker", "Embedder", "AnnIndex",
+    
+    # Layout and interface
+    "LocalFilesystemLayout", "CorpusHandle",
+    
+    # Stores
+    "ChunkStore", "EmbeddingStore", "DocStateStore",
+    
+    # Build controller
+    "BuildController",
+    
+    # Indexes
+    "NumpyScanIndex",
 ]

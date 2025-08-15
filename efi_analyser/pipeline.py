@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from .types import Filter, Processor, AnalysisResult, Aggregator, AggregatedResult, AnalysisPipelineResult
 from efi_corpus.types import Document
-from efi_corpus.corpus_reader import CorpusReader
+from efi_corpus.corpus_handle import CorpusHandle
 
 
 class AnalysisPipeline:
@@ -39,8 +39,8 @@ class AnalysisPipeline:
         self.output_path = Path(output_path) if output_path else None
         self.keep_processed_results = keep_processed_results
         
-        # Initialize corpus reader
-        self.corpus_reader = CorpusReader(self.corpus_path)
+        # Initialize corpus interface (read-only for analysis)
+        self.corpus = CorpusHandle(self.corpus_path, read_only=True)
         
         # Results storage
         self.results: List[AnalysisResult] = []
@@ -62,10 +62,10 @@ class AnalysisPipeline:
         print(f"Aggregators: {len(self.aggregators)}")
         
         self.stats["start_time"] = time.time()
-        self.stats["total_documents"] = self.corpus_reader.get_document_count()
+        self.stats["total_documents"] = self.corpus.get_document_count()
         
         # Process each document
-        for i, document in enumerate(self.corpus_reader.read_documents(), 1):
+        for i, document in enumerate(self.corpus.read_documents(), 1):
             if i % 100 == 0:
                 print(f"Processed {i}/{self.stats['total_documents']} documents...")
             

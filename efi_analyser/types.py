@@ -1,10 +1,26 @@
 """
-Type definitions for the analysis system
+EFI Analyser - Analysis types and data structures
 """
 
-from typing import Protocol, Dict, Any, List, Optional
+from typing import Dict, Any, Optional, List, Protocol
 from dataclasses import dataclass
+
+# Re-export core types from efi_corpus for convenience
 from efi_corpus.types import Document
+
+
+class Filter(Protocol):
+    """Protocol for document filters"""
+    def apply(self, document: Document) -> bool:
+        """Apply filter to document, return True if document passes"""
+        ...
+
+
+class Processor(Protocol):
+    """Protocol for document processors"""
+    def process(self, document: Document) -> Dict[str, Any]:
+        """Process document and return results"""
+        ...
 
 
 @dataclass
@@ -40,22 +56,15 @@ class AnalysisPipelineResult:
             self.stats = {}
 
 
-class Filter(Protocol):
-    """Protocol for document filters"""
-    def apply(self, document: Document) -> bool:
-        """Apply filter to document, return True if document passes"""
-        ...
+@dataclass
+class PipelineResult:
+    """Result from running a pipeline"""
+    data: Any
+    metadata: Dict[str, Any]
 
 
-class Processor(Protocol):
-    """Protocol for document processors"""
-    def process(self, document: Document) -> Dict[str, Any]:
-        """Process document and return results"""
-        ...
-
-
-class Aggregator(Protocol):
-    """Protocol for result aggregators"""
-    def aggregate(self, results: List[AnalysisResult]) -> AggregatedResult:
-        """Aggregate a list of analysis results into a single aggregated result"""
-        ...
+@dataclass 
+class AppResult:
+    """Result from running an application"""
+    data: Any
+    metadata: Dict[str, Any]

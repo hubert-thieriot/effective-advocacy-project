@@ -7,20 +7,9 @@ import hashlib
 import zstandard as zstd
 from pathlib import Path
 from typing import List, Dict, Any, Iterator, Optional
-from functools import wraps
 
 from .types import Document
 from .layout import LocalFilesystemLayout
-
-
-def write_only(func):
-    """Decorator to ensure method is only called when not in read-only mode"""
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if self.read_only:
-            raise RuntimeError(f"Cannot call {func.__name__} in read-only mode")
-        return func(self, *args, **kwargs)
-    return wrapper
 
 
 class CorpusHandle:
@@ -42,24 +31,23 @@ class CorpusHandle:
         self.corpus_path = Path(corpus_path)
         self.read_only = read_only
         
-        # Initialize layout (no workspace needed for basic corpus operations)
-        self.layout = LocalFilesystemLayout(self.corpus_path, None)
+        # Core paths
+        self.index_path = self.corpus_path / "index.jsonl"
+        self.manifest_path = self.corpus_path / "manifest.json"
+        self.docs_dir = self.corpus_path / "documents"
         
         # Validate paths
         if not self.corpus_path.exists():
             raise ValueError(f"Corpus path does not exist: {corpus_path}")
         
-        if not self.layout.index_path.exists():
-            raise ValueError(f"Index file not found: {self.layout.index_path}")
+        if not self.index_path.exists():
+            raise ValueError(f"Index file not found: {self.index_path}")
         
         # Create documents directory if writing is enabled
         if not self.read_only:
-            self.layout.docs_dir.mkdir(parents=True, exist_ok=True)
-            self.layout.index_path.touch(exist_ok=True)
-            self.layout.manifest_path.touch(exist_ok=True)
-        
-        # Ensure workspace directories exist
-        self.layout.ensure_workspace_dirs()
+            self.docs_dir.mkdir(parents=True, exist_ok=True)
+            self.index_path.touch(exist_ok=True)
+            self.manifest_path.touch(exist_ok=True)
 
     # ============================================================================
     # READING OPERATIONS (always available)
@@ -68,7 +56,7 @@ class CorpusHandle:
     def list_ids(self) -> List[str]:
         """Get list of all document IDs in the corpus"""
         doc_ids = []
-        with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+        with open(self.index_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
                     try:
@@ -82,7 +70,7 @@ class CorpusHandle:
 
     def read_text(self, doc_id: str) -> str:
         """Read document text by ID"""
-        text_path = self.layout.text_path(doc_id)
+        text_path = self.docs_dir / doc_id / "text.txt"
         if not text_path.exists():
             raise FileNotFoundError(f"Text file not found for document {doc_id}: {text_path}")
         
@@ -90,7 +78,7 @@ class CorpusHandle:
 
     def read_metadata(self, doc_id: str) -> Dict[str, Any]:
         """Read document metadata by ID"""
-        meta_path = self.layout.meta_path(doc_id)
+        meta_path = self.docs_dir / doc_id / "meta.json"
         if not meta_path.exists():
             return {}
         
@@ -101,7 +89,7 @@ class CorpusHandle:
 
     def read_fetch_info(self, doc_id: str) -> Dict[str, Any]:
         """Read document fetch information by ID"""
-        fetch_path = self.layout.fetch_path(doc_id)
+        fetch_path = self.docs_dir / doc_id / "fetch.json"
         if not fetch_path.exists():
             return {}
         
@@ -115,7 +103,7 @@ class CorpusHandle:
         try:
             # Get metadata from index
             doc_meta = None
-            with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+            with open(self.index_path, 'r', encoding='utf-8') as f:
                 for line in f:
                     if line.strip():
                         try:
@@ -165,15 +153,14 @@ class CorpusHandle:
     def get_corpus_info(self) -> Dict[str, Any]:
         """Get basic information about the corpus"""
         manifest = {}
-        if self.layout.manifest_path.exists():
+        if self.manifest_path.exists():
             try:
-                manifest = json.loads(self.layout.manifest_path.read_text(encoding='utf-8'))
+                manifest = json.loads(self.manifest_path.read_text(encoding='utf-8'))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 pass
         
         return {
             "corpus_path": str(self.corpus_path),
-            "workspace_path": str(self.layout.workspace_root) if self.layout.workspace_root else None,
             "document_count": self.get_document_count(),
             "read_only": self.read_only,
             "manifest": manifest
@@ -184,28 +171,23 @@ class CorpusHandle:
         text = self.read_text(doc_id)
         return hashlib.sha1(text.encode()).hexdigest()
 
-    def load_manifest(self) -> Dict[str, Any]:
-        """Load the manifest.json file"""
-        try:
-            content = self.layout.manifest_path.read_text(encoding='utf-8')
-            return json.loads(content) if content.strip() else {}
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
-
     # ============================================================================
     # WRITING OPERATIONS (only available when read_only=False)
     # ============================================================================
     
-    @write_only
     def has_doc(self, stable_id: str) -> bool:
         """Check if a document with the given stable_id exists"""
-        return self.layout.doc_dir(stable_id).exists()
+        if self.read_only:
+            raise RuntimeError("Cannot check document existence in read-only mode")
+        return (self.docs_dir / stable_id).exists()
 
-    @write_only
     def write_document(self, *, stable_id: str, meta: Dict[str, Any], text: str,
                        raw_bytes: bytes, raw_ext: str, fetch_info: Dict[str, Any]):
         """Write a document to the corpus"""
-        doc_dir = self.layout.doc_dir(stable_id)
+        if self.read_only:
+            raise RuntimeError("Cannot write documents in read-only mode")
+        
+        doc_dir = self.docs_dir / stable_id
         doc_dir.mkdir(parents=True, exist_ok=True)
         
         # meta.json
@@ -227,16 +209,28 @@ class CorpusHandle:
             encoding="utf-8"
         )
 
-    @write_only
     def append_index(self, row: Dict[str, Any]):
         """Append a row to the index.jsonl file"""
-        with open(self.layout.index_path, "a", encoding="utf-8") as f:
+        if self.read_only:
+            raise RuntimeError("Cannot modify index in read-only mode")
+        
+        with open(self.index_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-    @write_only
+    def load_manifest(self) -> Dict[str, Any]:
+        """Load the manifest.json file"""
+        try:
+            content = self.manifest_path.read_text(encoding='utf-8')
+            return json.loads(content) if content.strip() else {}
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
     def save_manifest(self, manifest: Dict[str, Any]):
         """Save the manifest.json file"""
-        self.layout.manifest_path.write_text(
+        if self.read_only:
+            raise RuntimeError("Cannot modify manifest in read-only mode")
+        
+        self.manifest_path.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False), 
             encoding="utf-8"
         )

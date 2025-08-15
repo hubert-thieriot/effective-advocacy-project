@@ -1,27 +1,46 @@
 """
-EFI Findings - Extract and store key findings from documents using LLM
+EFI Findings - Library for extracting and managing findings from various sources
 """
 
 from .types import Finding, DocumentFindings, ExtractionConfig, StorageConfig
-from .url_processor import URLProcessor
-from .library_builder import LibraryBuilder
 from .collectors import BaseURLCollector, CREAPublicationsCollector
-from .extractors import BaseFindingExtractor, FindingExtractorFromText, FindingExtractorFromUrl
+from .extractors import BaseFindingExtractor, FindingExtractorFromText, FindingExtractorFromUrl, FindingsExtractor
 from .storers import BaseStorer, JSONStorer
+from .library_builder import LibraryBuilder
+from .library_reader import LibraryReader
+from .url_processor import URLProcessor
+from .rate_limiter import DomainRateLimiter, DomainRateLimit, RateLimitedSession
 
 __version__ = "0.1.0"
+
 __all__ = [
-    'Finding',
-    'DocumentFindings', 
-    'ExtractionConfig',
-    'StorageConfig',
-    'URLProcessor',
-    'LibraryBuilder',
-    'BaseURLCollector',
-    'CREAPublicationsCollector',
-    'BaseFindingExtractor',
-    'FindingExtractorFromText',
-    'FindingExtractorFromUrl',
-    'BaseStorer',
-    'JSONStorer'
+    # Types
+    "Finding",
+    "DocumentFindings", 
+    "ExtractionConfig",
+    "StorageConfig",
+    
+    # Collectors
+    "BaseURLCollector",
+    "CREAPublicationsCollector",
+    
+    # Extractors
+    "BaseFindingExtractor",
+    "FindingExtractorFromText",
+    "FindingExtractorFromUrl",
+    "FindingsExtractor",
+    
+    # Storers
+    "BaseStorer",
+    "JSONStorer",
+    
+    # Core components
+    "LibraryBuilder",
+    "LibraryReader",
+    "URLProcessor",
+    
+    # Rate limiting
+    "DomainRateLimiter",
+    "DomainRateLimit", 
+    "RateLimitedSession",
 ]

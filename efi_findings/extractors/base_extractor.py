@@ -22,7 +22,8 @@ class BaseFindingExtractor(ABC):
     def __init__(self, 
                  name: str,
                  extraction_config: Optional[ExtractionConfig] = None,
-                 cache_dir: str = "cache"):
+                 cache_dir: str = "cache",
+                 rate_limiter: Optional['DomainRateLimiter'] = None):
         """
         Initialize the base extractor
         
@@ -30,10 +31,12 @@ class BaseFindingExtractor(ABC):
             name: Name of the extractor
             extraction_config: Configuration for extraction
             cache_dir: Base cache directory
+            rate_limiter: Optional rate limiter for HTTP requests
         """
         self.name = name
         self.extraction_config = extraction_config or ExtractionConfig()
         self.cache_dir = Path(cache_dir)
+        self.rate_limiter = rate_limiter
         
         # Set up cache directories
         self.cache_base = self.cache_dir / f"finding_extraction_{self.name.lower()}"

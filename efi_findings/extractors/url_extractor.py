@@ -13,15 +13,17 @@ class FindingExtractorFromUrl(BaseFindingExtractor):
     
     def __init__(self, 
                  extraction_config: Optional[ExtractionConfig] = None,
-                 cache_dir: str = "cache"):
+                 cache_dir: str = "cache",
+                 rate_limiter: Optional['DomainRateLimiter'] = None):
         """
         Initialize the URL-based extractor
         
         Args:
             extraction_config: Configuration for LLM extraction
             cache_dir: Base cache directory
+            rate_limiter: Optional rate limiter for HTTP requests
         """
-        super().__init__("url", extraction_config, cache_dir)
+        super().__init__("url", extraction_config, cache_dir, rate_limiter)
     
     def _extract_findings_impl(self, url: str, **kwargs) -> Optional[DocumentFindings]:
         """

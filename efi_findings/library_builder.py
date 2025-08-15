@@ -48,16 +48,12 @@ class LibraryBuilder:
         logger.info(f"  Storer: {storer.__class__.__name__}")
     
     def build_library(self, 
-                     max_sources: Optional[int] = None,
-                     batch_size: int = 5,
-                     delay: float = 2.0) -> Dict[str, Any]:
+                     max_sources: Optional[int] = None) -> Dict[str, Any]:
         """
         Build the findings library
         
         Args:
             max_sources: Maximum number of sources to process
-            batch_size: Number of sources to process in each batch
-            delay: Delay between batches in seconds
             
         Returns:
             Build summary statistics
@@ -77,24 +73,15 @@ class LibraryBuilder:
             logger.warning("No URLs collected. Check collector configuration.")
             return self._get_empty_build_summary()
         
-        # Step 2: Process URLs in batches
+        # Step 2: Process URLs (rate limiter handles per-domain limits automatically)
         logger.info("Step 2: Processing URLs...")
         results = []
         
-        for i in range(0, len(urls), batch_size):
-            batch = urls[i:i + batch_size]
-            batch_num = i // batch_size + 1
-            total_batches = (len(urls) + batch_size - 1) // batch_size
+        for i, url in enumerate(urls):
+            logger.info(f"Processing URL {i+1}/{len(urls)}: {url}")
             
-            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} URLs)")
-            
-            batch_results = self._process_batch(batch)
-            results.extend(batch_results)
-            
-            # Add delay between batches
-            if i + batch_size < len(urls) and delay > 0:
-                logger.info(f"Waiting {delay} seconds before next batch...")
-                time.sleep(delay)
+            url_results = self._process_urls([url])
+            results.extend(url_results)
         
         # Step 3: Generate build summary
         logger.info("Step 3: Generating build summary...")
@@ -107,8 +94,8 @@ class LibraryBuilder:
         
         return summary
     
-    def _process_batch(self, urls: List[str]) -> List[DocumentFindings]:
-        """Process a batch of URLs"""
+    def _process_urls(self, urls: List[str]) -> List[DocumentFindings]:
+        """Process a list of URLs"""
         results = []
         
         for url in urls:

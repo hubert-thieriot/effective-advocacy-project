@@ -48,9 +48,11 @@ class TextExtractor:
             "security challenge"
         ]
         
-        # Create failed extraction directory
-        self.failed_dir = Path("failed_to_extract")
-        self.failed_dir.mkdir(exist_ok=True)
+        # Create failed extraction directory - use project root relative path
+        # Try to find the project root by looking for pyproject.toml
+        project_root = Path(__file__).parent.parent
+        self.failed_dir = project_root / "debug" / "failed_to_extract"
+        self.failed_dir.mkdir(parents=True, exist_ok=True)
     
     def _save_failed_extraction(self, url: str, raw_bytes: bytes, raw_ext: str, 
                                extraction_attempts: Dict[str, Any], error: str = None):

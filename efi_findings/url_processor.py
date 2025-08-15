@@ -13,6 +13,7 @@ from newspaper import Article
 from bs4 import BeautifulSoup
 import logging
 from .utils import normalize_date
+from .rate_limiter import DomainRateLimiter, RateLimitedSession
 
 logger = logging.getLogger(__name__)
 
@@ -20,17 +21,21 @@ logger = logging.getLogger(__name__)
 class URLProcessor:
     """Process URLs to extract text content from PDFs and webpages"""
     
-    def __init__(self, timeout: int = 30, user_agent: Optional[str] = None):
+    def __init__(self, timeout: int = 30, user_agent: Optional[str] = None, 
+                 rate_limiter: Optional[DomainRateLimiter] = None):
         """
         Initialize URL processor
         
         Args:
             timeout: Request timeout in seconds
             user_agent: Custom user agent string
+            rate_limiter: Optional rate limiter for HTTP requests
         """
         self.timeout = timeout
         self.user_agent = user_agent or "Mozilla/5.0 (compatible; EFI-Findings/1.0)"
-        self.session = requests.Session()
+        
+        # Use rate-limited session, DomainRateLimiter handles None internally
+        self.session = RateLimitedSession(rate_limiter)
         self.session.headers.update({'User-Agent': self.user_agent})
     
     def process_url(self, url: str) -> Dict[str, Any]:

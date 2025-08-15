@@ -76,11 +76,12 @@ class TestAnalysisPipeline:
             processors=[]
         )
         
-        results = pipeline.run()
+        pipeline_result = pipeline.run()
         
-        assert len(results) == 1
-        assert results[0].passed_filters is True
-        assert results[0].processing_results == {}
+        assert pipeline_result.processed_results is not None
+        assert len(pipeline_result.processed_results) == 1
+        assert pipeline_result.processed_results[0].passed_filters is True
+        assert pipeline_result.processed_results[0].processing_results == {}
     
     def test_pipeline_with_filter(self, temp_corpus):
         """Test pipeline with a filter"""
@@ -92,11 +93,12 @@ class TestAnalysisPipeline:
             processors=[]
         )
         
-        results = pipeline.run()
+        pipeline_result = pipeline.run()
         
-        assert len(results) == 1
-        assert results[0].passed_filters is True
-        assert results[0].filter_results["text_contains_1_terms"] is True
+        assert pipeline_result.processed_results is not None
+        assert len(pipeline_result.processed_results) == 1
+        assert pipeline_result.processed_results[0].passed_filters is True
+        assert pipeline_result.processed_results[0].filter_results["text_contains_1_terms"] is True
     
     def test_pipeline_with_processor(self, temp_corpus):
         """Test pipeline with a processor"""
@@ -108,13 +110,14 @@ class TestAnalysisPipeline:
             processors=[processor]
         )
         
-        results = pipeline.run()
+        pipeline_result = pipeline.run()
         
-        assert len(results) == 1
-        assert results[0].passed_filters is True
-        assert "keyword_extractor" in results[0].processing_results
+        assert pipeline_result.processed_results is not None
+        assert len(pipeline_result.processed_results) == 1
+        assert pipeline_result.processed_results[0].passed_filters is True
+        assert "keyword_extractor" in pipeline_result.processed_results[0].processing_results
         
-        proc_result = results[0].processing_results["keyword_extractor"]
+        proc_result = pipeline_result.processed_results[0].processing_results["keyword_extractor"]
         assert proc_result["keyword_counts"]["CREA"] == 1
         assert proc_result["keyword_counts"]["coal"] == 1
     
@@ -129,14 +132,15 @@ class TestAnalysisPipeline:
             processors=[processor]
         )
         
-        results = pipeline.run()
+        pipeline_result = pipeline.run()
         
-        assert len(results) == 1
-        assert results[0].passed_filters is True
-        assert "keyword_extractor" in results[0].processing_results
+        assert pipeline_result.processed_results is not None
+        assert len(pipeline_result.processed_results) == 1
+        assert pipeline_result.processed_results[0].passed_filters is True
+        assert "keyword_extractor" in pipeline_result.processed_results[0].processing_results
         
         # Should have processed the document since it passed the filter
-        proc_result = results[0].processing_results["keyword_extractor"]
+        proc_result = pipeline_result.processed_results[0].processing_results["keyword_extractor"]
         assert proc_result["keyword_counts"]["coal"] == 1
     
     def test_pipeline_with_output_path(self, temp_corpus):

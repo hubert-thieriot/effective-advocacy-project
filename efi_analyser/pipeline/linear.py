@@ -5,6 +5,14 @@ EFI Analyser - Linear pipeline implementation (Filter → Processor → Aggregat
 from typing import Any, Dict, Optional, Callable, List
 from pathlib import Path
 
+# Try to import tqdm, fallback to None if not available
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    tqdm = None
+    TQDM_AVAILABLE = False
+
 from efi_corpus import CorpusHandle
 from .base import AbstractPipeline
 from ..types import PipelineResult, AnalysisResult
@@ -15,6 +23,7 @@ class LinearPipeline(AbstractPipeline):
     A simple linear pipeline that applies: Filter → Processor → Aggregator
     
     Each stage can return None if no results, which will be handled gracefully.
+    Processes documents one at a time to minimize memory usage.
     """
     
     def __init__(self, 
@@ -49,22 +58,25 @@ class LinearPipeline(AbstractPipeline):
         Returns:
             PipelineResult containing the analysis results
         """
-        # Stage 1: Filter documents
-        filtered_docs = []
-        for doc in corpus_handle.read_documents():
-            if self.filter_func is None:
-                filtered_docs.append(doc)
-            else:
-                result = self.filter_func(doc)
-                if result is not None and result:  # Handle both None and False
-                    filtered_docs.append(doc)
+        total_docs = len(corpus_handle.list_ids())
         
-        if not filtered_docs:
-            return PipelineResult(data=None, metadata={"message": "No documents passed filter"})
-        
-        # Stage 2: Process documents and create AnalysisResult objects
+        # Stage 1 & 2: Filter and process documents one at a time
         analysis_results = []
-        for doc in filtered_docs:
+        
+        # Create iterator with progress bar if tqdm is available
+        if TQDM_AVAILABLE:
+            doc_iterator = tqdm(corpus_handle.read_documents(), total=total_docs, desc="Processing documents")
+        else:
+            doc_iterator = corpus_handle.read_documents()
+        
+        for doc in doc_iterator:
+            # Filter document
+            if self.filter_func is not None:
+                filter_result = self.filter_func(doc)
+                if filter_result is None or not filter_result:
+                    continue
+            
+            # Process document
             if self.processor_func is None:
                 processing_results = {"raw_document": doc}
             else:
@@ -96,8 +108,8 @@ class LinearPipeline(AbstractPipeline):
             final_result = self.aggregator_func(analysis_results)
         
         metadata = {
-            "total_documents": len(corpus_handle.list_ids()),
-            "filtered_documents": len(filtered_docs),
+            "total_documents": total_docs,
+            "filtered_documents": len(analysis_results),  # All processed docs passed filter
             "processed_results": len(analysis_results),
             "pipeline_name": self.get_name()
         }

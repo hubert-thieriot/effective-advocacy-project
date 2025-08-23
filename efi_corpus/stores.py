@@ -3,13 +3,12 @@ Storage classes for corpus processing pipeline
 """
 
 import json
-import hashlib
-import time
+from typing import List
 from pathlib import Path
-from typing import List, Optional, Dict, Any
 import numpy as np
 
-from .types import ChunkerSpec, EmbedderSpec, DocState, Chunker, Embedder
+from efi_core.types import ChunkerSpec
+from efi_core.protocols import Chunker, Embedder
 from .layout import LocalFilesystemLayout
 
 
@@ -32,7 +31,7 @@ class ChunkStore:
         Returns:
             List of text chunks
         """
-        chunks_path = self.layout.chunks_path(doc_id, chunker.key())
+        chunks_path = self.layout.chunks_path(doc_id, chunker)
         
         # Check if chunks already exist
         if chunks_path.exists():
@@ -76,7 +75,7 @@ class EmbeddingStore:
         Returns:
             Array of embeddings with shape (n_chunks, embedding_dim)
         """
-        emb_path = self.layout.emb_path(doc_id, chunker.key(), embedder.spec.key())
+        emb_path = self.layout.emb_path(doc_id, chunker, embedder.spec)
         
         # Check if embeddings already exist
         if emb_path.exists():
@@ -93,52 +92,22 @@ class EmbeddingStore:
         return vectors_array
 
 
-class DocStateStore:
-    """Manages storage and retrieval of document processing state"""
-    
-    def __init__(self, layout: LocalFilesystemLayout):
-        self.layout = layout
+class LibraryEmbeddingStore:
+    """Stores embeddings for findings (library items)."""
 
-    def read(self, doc_id: str) -> Optional[DocState]:
-        """Read document state from disk"""
-        state_path = self.layout.doc_state_path(doc_id)
-        if not state_path.exists():
-            return None
-        
-        try:
-            with open(state_path, 'r', encoding='utf-8') as f:
-                state_data = json.load(f)
-            return DocState(**state_data)
-        except (json.JSONDecodeError, KeyError):
-            return None
+    def __init__(self, library_root: Path, embedder: Embedder):
+        self.root = Path(library_root)
+        self.embedder = embedder
 
-    def write(self, state: DocState) -> None:
-        """Write document state to disk"""
-        state_path = self.layout.doc_state_path(state.doc_id)
-        state_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(state_path, 'w', encoding='utf-8') as f:
-            json.dump(state.__dict__, f, indent=2, ensure_ascii=False)
+    def emb_path(self, finding_id: str) -> Path:
+        return self.root / "embeddings" / self.embedder.spec.key() / f"{finding_id}.npy"
 
-    def needs_rebuild(self, doc_id: str, fingerprint: str, chunker: ChunkerSpec, embedder: EmbedderSpec) -> bool:
-        """
-        Check if a document needs to be rebuilt
-        
-        Args:
-            doc_id: Document identifier
-            fingerprint: Current document fingerprint
-            chunker: Chunking specification
-            embedder: Embedding specification
-            
-        Returns:
-            True if document needs rebuilding
-        """
-        state = self.read(doc_id)
-        if state is None:
-            return True
-        
-        return (
-            state.fingerprint != fingerprint or
-            state.chunker_key != chunker.key() or
-            state.embedder_key != embedder.key()
-        )
+    def materialize(self, finding_id: str, text: str) -> np.ndarray:
+        p = self.emb_path(finding_id)
+        if p.exists():
+            return np.load(p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        vecs = self.embedder.embed([text])
+        arr = np.array(vecs)
+        np.save(p, arr)
+        return arr

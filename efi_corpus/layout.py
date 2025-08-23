@@ -1,47 +1,61 @@
 """
-File layout management for corpus processing pipeline
+File layout management for EFI data structures
+
+Provides four layout classes:
+- CorpusLayout: Basic document storage layout
+- LibraryLayout: Findings storage layout  
+- EmbeddedCorpusLayout: Corpus with embedded vectors/chunks
+- EmbeddedLibraryLayout: Library with embedded findings
+
+Workspace structure:
+workspace/
+├── corpora/
+│   └── {corpus_name}/
+│       ├── chunks/
+│       ├── embeddings/
+│       └── indexes/
+└── libraries/
+    └── {library_name}/
+        ├── chunks/
+        ├── embeddings/
+        └── indexes/
 """
 
-import json
-import hashlib
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Optional
+
+from efi_core.types import ChunkerSpec, EmbedderSpec
 
 
-@dataclass(frozen=True)
-class ChunkerSpec:
-    name: str
-    params: Dict[str, Any]
-
-    def key(self) -> str:
-        s = json.dumps({"name": self.name, "params": self.params}, sort_keys=True)
-        return hashlib.sha1(s.encode()).hexdigest()[:12]
-
-
-@dataclass(frozen=True)
-class EmbedderSpec:
-    model_name: str
-    dim: int
-    revision: Optional[str] = None  # e.g., HF commit hash
-
-    def key(self) -> str:
-        s = json.dumps({"model": self.model_name, "dim": self.dim, "rev": self.revision}, sort_keys=True)
-        return hashlib.sha1(s.encode()).hexdigest()[:12]
+class BaseLayout(ABC):
+    """Base class for all layout implementations"""
+    
+    @abstractmethod
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary directories exist"""
+        pass
 
 
 @dataclass
-class LocalFilesystemLayout:
+class CorpusLayout(BaseLayout):
     """
-    Manages file layout for corpus processing pipeline.
+    Basic document storage layout for corpora.
     
-    Uses a simple flat structure:
-    - corpus_root: contains documents with simple docid organization
-    - workspace_root: contains cached chunks, embeddings, and indexes (can be None)
+    Structure:
+    - corpus_root/
+      - index.jsonl          # Document metadata index
+      - manifest.json        # Corpus metadata
+      - documents/           # Document storage
+        - doc_id/
+          - text.txt         # Document text
+          - meta.json        # Document metadata
+          - raw.*            # Raw document file
+          - fetch.json       # Fetch information
     """
     corpus_root: Path
-    workspace_root: Optional[Path]
-
+    
     @property
     def index_path(self) -> Path:
         """Get path to index.jsonl file"""
@@ -79,40 +93,197 @@ class LocalFilesystemLayout:
         """Get path to document fetch info file"""
         return self.doc_dir(doc_id) / "fetch.json"
 
-    def chunks_path(self, doc_id: str, chunker: ChunkerSpec) -> Path:
-        """Get path to cached chunks for a document"""
-        if self.workspace_root is None:
-            raise ValueError("Workspace not configured for chunking operations")
-        return self.workspace_root / "chunks" / chunker.key() / f"{doc_id}.chunks.jsonl"
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary directories exist"""
+        self.docs_dir.mkdir(parents=True, exist_ok=True)
 
-    def emb_path(self, doc_id: str, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
-        """Get path to cached embeddings for a document"""
-        if self.workspace_root is None:
-            raise ValueError("Workspace not configured for embedding operations")
-        return self.workspace_root / "embeddings" / chunker.key() / embedder.key() / f"{doc_id}.npy"
 
-    def index_dir(self, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
-        """Get directory for ANN index files"""
-        if self.workspace_root is None:
-            raise ValueError("Workspace not configured for indexing operations")
-        return self.workspace_root / "indexes" / chunker.key() / embedder.key()
+@dataclass
+class LibraryLayout(BaseLayout):
+    """
+    Findings storage layout for libraries.
+    
+    Structure:
+    - library_root/
+      - findings.json        # All findings data
+      - metadata.json        # Library metadata
+      - sources/             # Source documents (optional)
+        - source_id/
+          - text.txt         # Source text
+          - meta.json        # Source metadata
+    """
+    library_root: Path
+    
+    @property
+    def findings_path(self) -> Path:
+        """Get path to findings.json file"""
+        return self.library_root / "findings.json"
+    
+    @property
+    def metadata_path(self) -> Path:
+        """Get path to metadata.json file"""
+        return self.library_root / "metadata.json"
+    
+    @property
+    def sources_dir(self) -> Path:
+        """Get path to sources directory (optional)"""
+        return self.library_root / "sources"
 
-    def doc_state_path(self, doc_id: str) -> Path:
-        """Get path to document state tracking file"""
-        if self.workspace_root is None:
-            raise ValueError("Workspace not configured for state tracking operations")
-        return self.workspace_root / "doc_meta" / f"{doc_id}.meta.json"
+    def source_dir(self, source_id: str) -> Path:
+        """Get source directory path"""
+        return self.sources_dir / source_id
 
-    def ensure_workspace_dirs(self) -> None:
-        """Create all necessary workspace directories"""
-        if self.workspace_root is None:
-            return  # No workspace configured
-        
+    def source_text_path(self, source_id: str) -> Path:
+        """Get path to source text file"""
+        return self.source_dir(source_id) / "text.txt"
+
+    def source_meta_path(self, source_id: str) -> Path:
+        """Get path to source metadata file"""
+        return self.source_dir(source_id) / "meta.json"
+
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary directories exist"""
+        self.sources_dir.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class WorkspaceLayout(BaseLayout):
+    """
+    Base class for workspace-based layouts.
+    
+    Workspace structure:
+    workspace_root/
+    ├── corpora/
+    │   └── {corpus_name}/
+    │       ├── chunks/
+    │       ├── embeddings/
+    │       └── indexes/
+    └── libraries/
+        └── {library_name}/
+            ├── chunks/
+            ├── embeddings/
+            └── indexes/
+    """
+    workspace_root: Path
+    
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary workspace directories exist"""
+        # Create base workspace directories
         dirs = [
-            self.workspace_root / "chunks",
-            self.workspace_root / "embeddings", 
-            self.workspace_root / "indexes",
-            self.workspace_root / "doc_meta"
+            self.workspace_root / "corpora",
+            self.workspace_root / "libraries"
         ]
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
+    
+    def get_corpus_workspace_dir(self, corpus_name: str) -> Path:
+        """Get workspace directory for a specific corpus"""
+        return self.workspace_root / "corpora" / corpus_name
+    
+    def get_library_workspace_dir(self, library_name: str) -> Path:
+        """Get workspace directory for a specific library"""
+        return self.workspace_root / "libraries" / library_name
+
+
+class EmbeddedCorpusLayout(CorpusLayout, WorkspaceLayout):
+    """
+    Corpus layout with embedded vectors and chunks.
+    
+    Extends CorpusLayout with workspace for:
+    - chunks: Document chunks
+    - embeddings: Vector embeddings
+    - indexes: Search indexes
+    """
+    
+    def __init__(self, corpus_path: Path, workspace_root: Path):
+        CorpusLayout.__init__(self, corpus_path)
+        WorkspaceLayout.__init__(self, workspace_root)
+    
+    def chunks_path(self, doc_id: str, chunker: ChunkerSpec) -> Path:
+        """Get path to cached chunks for a document"""
+        corpus_name = self.corpus_root.name
+        workspace_dir = self.get_corpus_workspace_dir(corpus_name)
+        return workspace_dir / "chunks" / chunker.key() / f"{doc_id}.chunks.jsonl"
+
+    def emb_path(self, doc_id: str, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
+        """Get path to cached embeddings for a document"""
+        corpus_name = self.corpus_root.name
+        workspace_dir = self.get_corpus_workspace_dir(corpus_name)
+        return workspace_dir / "embeddings" / chunker.key() / embedder.key() / f"{doc_id}.npy"
+
+    def index_dir(self, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
+        """Get directory for search index files"""
+        corpus_name = self.corpus_root.name
+        workspace_dir = self.get_corpus_workspace_dir(corpus_name)
+        return workspace_dir / "indexes" / chunker.key() / embedder.key()
+
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary directories exist"""
+        CorpusLayout.ensure_dirs(self)  # Call CorpusLayout.ensure_dirs()
+        WorkspaceLayout.ensure_dirs(self)  # Call WorkspaceLayout.ensure_dirs()
+        
+        # Ensure corpus-specific workspace directories
+        corpus_name = self.corpus_root.name
+        corpus_workspace = self.get_corpus_workspace_dir(corpus_name)
+        
+        dirs = [
+            corpus_workspace / "chunks",
+            corpus_workspace / "embeddings", 
+            corpus_workspace / "indexes"
+        ]
+        for d in dirs:
+            d.mkdir(parents=True, exist_ok=True)
+
+
+class EmbeddedLibraryLayout(LibraryLayout, WorkspaceLayout):
+    """
+    Library layout with embedded findings.
+    
+    Extends LibraryLayout with workspace for:
+    - chunks: Finding chunks
+    - embeddings: Finding vector embeddings
+    - indexes: Search indexes
+    """
+    
+    def __init__(self, library_root: Path, workspace_root: Path):
+        LibraryLayout.__init__(self, library_root)
+        WorkspaceLayout.__init__(self, workspace_root)
+    
+    def chunks_path(self, finding_id: str, chunker: ChunkerSpec) -> Path:
+        """Get path to cached chunks for a finding"""
+        library_name = self.library_root.name
+        workspace_dir = self.get_library_workspace_dir(library_name)
+        return workspace_dir / "chunks" / chunker.key() / f"{finding_id}.chunks.jsonl"
+
+    def emb_path(self, finding_id: str, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
+        """Get path to cached embeddings for a finding"""
+        library_name = self.library_root.name
+        workspace_dir = self.get_library_workspace_dir(library_name)
+        return workspace_dir / "embeddings" / chunker.key() / embedder.key() / f"{finding_id}.npy"
+
+    def index_dir(self, chunker: ChunkerSpec, embedder: EmbedderSpec) -> Path:
+        """Get directory for search index files"""
+        library_name = self.library_root.name
+        workspace_dir = self.get_library_workspace_dir(library_name)
+        return workspace_dir / "indexes" / chunker.key() / embedder.key()
+
+    def ensure_dirs(self) -> None:
+        """Ensure all necessary directories exist"""
+        LibraryLayout.ensure_dirs(self)  # Call LibraryLayout.ensure_dirs()
+        WorkspaceLayout.ensure_dirs(self)  # Call WorkspaceLayout.ensure_dirs()
+        
+        # Ensure library-specific workspace directories
+        library_name = self.library_root.name
+        library_workspace = self.get_library_workspace_dir(library_name)
+        
+        dirs = [
+            library_workspace / "chunks",
+            library_workspace / "embeddings", 
+            library_workspace / "indexes"
+        ]
+        for d in dirs:
+            d.mkdir(parents=True, exist_ok=True)
+
+
+# Legacy alias for backward compatibility
+LocalFilesystemLayout = CorpusLayout

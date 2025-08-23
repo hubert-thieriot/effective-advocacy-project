@@ -5,7 +5,7 @@ Pytest configuration and fixtures for efi_analyser tests
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from efi_corpus.types import Document
+from efi_core.types import Document
 
 
 @pytest.fixture

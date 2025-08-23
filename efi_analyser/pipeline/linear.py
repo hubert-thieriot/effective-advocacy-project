@@ -5,17 +5,11 @@ EFI Analyser - Linear pipeline implementation (Filter → Processor → Aggregat
 from typing import Any, Dict, Optional, Callable, List
 from pathlib import Path
 
-# Try to import tqdm, fallback to None if not available
-try:
-    from tqdm import tqdm
-    TQDM_AVAILABLE = True
-except ImportError:
-    tqdm = None
-    TQDM_AVAILABLE = False
+from tqdm import tqdm
 
-from efi_corpus import CorpusHandle
 from .base import AbstractPipeline
-from ..types import PipelineResult, AnalysisResult
+from ..types import PipelineResult, AnalysisResult, AnalysisPipelineResult
+from efi_corpus import CorpusHandle
 
 
 class LinearPipeline(AbstractPipeline):
@@ -28,90 +22,118 @@ class LinearPipeline(AbstractPipeline):
     
     def __init__(self, 
                  filter_func: Optional[Callable] = None,
-                 processor_func: Optional[Callable] = None, 
+                 processor_func: Optional[Callable] = None,
                  aggregator_func: Optional[Callable] = None,
-                 processor_name: str = "processor"):
-        """
-        Initialize the pipeline
-        
-        Args:
-            filter_func: Function to filter documents (takes doc, returns bool or None)
-            processor_func: Function to process documents (takes doc, returns processed data or None)
-            aggregator_func: Function to aggregate results (takes list of AnalysisResult, returns aggregated data)
-            processor_name: Name to use as key in processing_results (default: "processor")
-        """
+                 processor_name: Optional[str] = None):
         self.filter_func = filter_func
         self.processor_func = processor_func
         self.aggregator_func = aggregator_func
-        self.processor_name = processor_name
+        self.processor_name = processor_name or "processor"
+        self._stats: Dict[str, Any] = {
+            "total_documents": 0,
+            "passed_filters": 0,
+            "failed_filters": 0,
+            "processing_errors": 0,
+            "start_time": None,
+            "end_time": None,
+        }
+        self._processed_results: List[AnalysisResult] = []
+        self._failed_results: List[AnalysisResult] = []
     
     def get_name(self) -> str:
         return "LinearPipeline"
     
     def run(self, corpus_handle: CorpusHandle) -> PipelineResult:
-        """
-        Run the pipeline on the given corpus
-        
-        Args:
-            corpus_handle: Corpus to analyze
+        import time
+        self._stats["start_time"] = time.time()
+
+        total_docs = corpus_handle.get_document_count()
+        self._stats["total_documents"] = total_docs
+
+        results: List[AnalysisResult] = []
+        iterator = tqdm(corpus_handle.read_documents(), total=total_docs, desc="Processing documents")
+
+        for doc in iterator:
+            passed = True
+            filter_results: Dict[str, bool] = {}
             
-        Returns:
-            PipelineResult containing the analysis results
-        """
-        total_docs = len(corpus_handle.list_ids())
-        
-        # Stage 1 & 2: Filter and process documents one at a time
-        analysis_results = []
-        
-        # Create iterator with progress bar if tqdm is available
-        if TQDM_AVAILABLE:
-            doc_iterator = tqdm(corpus_handle.read_documents(), total=total_docs, desc="Processing documents")
-        else:
-            doc_iterator = corpus_handle.read_documents()
-        
-        for doc in doc_iterator:
-            # Filter document
-            if self.filter_func is not None:
-                filter_result = self.filter_func(doc)
-                if filter_result is None or not filter_result:
-                    continue
+            # Apply filter if provided
+            if self.filter_func:
+                try:
+                    passed = bool(self.filter_func(doc))
+                    filter_results["filter"] = passed
+                except Exception:
+                    passed = False
+                    filter_results["filter"] = False
             
-            # Process document
-            if self.processor_func is None:
-                processing_results = {"raw_document": doc}
-            else:
-                processing_results = self.processor_func(doc)
-                if processing_results is None:
-                    continue
+            if not passed:
+                self._stats["failed_filters"] += 1
+                ar = AnalysisResult(
+                    doc_id=getattr(doc, "doc_id", ""),
+                    url=getattr(doc, "url", ""),
+                    passed_filters=False,
+                    filter_results=filter_results,
+                    processing_results={},
+                    meta=getattr(doc, "meta", {}),
+                )
+                self._failed_results.append(ar)
+                continue
+                
+            self._stats["passed_filters"] += 1
+
+            processing_results: Dict[str, Any] = {}
             
-            # Structure processing results with processor name as key
-            structured_results = {self.processor_name: processing_results}
+            # Apply processor if provided
+            if self.processor_func:
+                try:
+                    res = self.processor_func(doc)
+                    if res is not None:
+                        processing_results[self.processor_name] = res
+                except Exception:
+                    self._stats["processing_errors"] += 1
+                    processing_results[self.processor_name] = {"error": "Processing failed"}
             
-            # Create AnalysisResult object compatible with existing aggregators
-            analysis_result = AnalysisResult(
-                doc_id=getattr(doc, 'stable_id', str(id(doc))),
-                url=getattr(doc, 'url', ''),
-                passed_filters=True,  # Document passed filter to get here
-                filter_results={},  # No specific filter results for now
-                processing_results=structured_results,
-                meta=getattr(doc, 'meta', {})
+            ar = AnalysisResult(
+                doc_id=getattr(doc, "doc_id", ""),
+                url=getattr(doc, "url", ""),
+                passed_filters=True,
+                filter_results=filter_results,
+                processing_results=processing_results,
+                meta=getattr(doc, "meta", {}),
             )
-            analysis_results.append(analysis_result)
+            results.append(ar)
+
+        self._processed_results = results
+        self._stats["end_time"] = time.time()
         
-        if not analysis_results:
-            return PipelineResult(data=None, metadata={"message": "No documents produced results"})
+        # Create pipeline result
+        pipeline_result = PipelineResult(
+            data=results,
+            metadata={
+                "stats": self._stats,
+                "pipeline_name": self.get_name(),
+                "filter_func": self.filter_func.__name__ if self.filter_func else None,
+                "processor_func": self.processor_func.__name__ if self.processor_func else None,
+                "aggregator_func": self.aggregator_func.__name__ if self.aggregator_func else None,
+            }
+        )
         
-        # Stage 3: Aggregate results
-        if self.aggregator_func is None:
-            final_result = analysis_results
-        else:
-            final_result = self.aggregator_func(analysis_results)
+        # Apply aggregator if provided
+        if self.aggregator_func and results:
+            try:
+                aggregated = self.aggregator_func(results)
+                pipeline_result.metadata["aggregated_result"] = aggregated
+            except Exception:
+                pipeline_result.metadata["aggregation_error"] = "Aggregation failed"
         
-        metadata = {
-            "total_documents": total_docs,
-            "filtered_documents": len(analysis_results),  # All processed docs passed filter
-            "processed_results": len(analysis_results),
-            "pipeline_name": self.get_name()
-        }
-        
-        return PipelineResult(data=final_result, metadata=metadata)
+        return pipeline_result
+
+    @property
+    def stats(self) -> Dict[str, Any]:
+        return self._stats
+
+    def get_filtered_results(self) -> List[AnalysisResult]:
+        return self._processed_results
+
+    def get_failed_results(self) -> List[AnalysisResult]:
+        return self._failed_results

@@ -7,7 +7,7 @@ import re
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from .types import Processor
-from efi_corpus.types import Document
+from efi_core.types import Document
 
 
 class CosineSimilarityProcessor(Processor):

@@ -7,14 +7,10 @@ import logging
 import json
 from pathlib import Path
 from datetime import datetime
-from efi_findings import (
-    LibraryBuilder,
-    CREAPublicationsCollector,
-    FindingExtractorFromText,
-    FindingExtractorFromUrl,
-    JSONStorer,
-    ExtractionConfig
-)
+from efi_library import LibraryBuilder, LibraryStore
+from efi_library.collectors.crea_collector import CREAPublicationsCollector
+from efi_library.extractors import FindingExtractorFromText, FindingExtractorFromUrl
+from efi_library.types import ExtractionConfig
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -45,12 +41,12 @@ def extract_crea_findings(max_publications=20):
     text_extractor = FindingExtractorFromText(extraction_config)
     url_extractor = FindingExtractorFromUrl(extraction_config)
     
-    # Storer: Save findings to organized structure
-    storer = JSONStorer("crea_publications")
+    # Store: Save findings to organized structure
+    store = LibraryStore("crea_publications")
     
     print(f"   ✅ Collector: {collector.__class__.__name__}")
     print(f"   ✅ Extractors: {[e.__class__.__name__ for e in [text_extractor, url_extractor]]}")
-    print(f"   ✅ Storer: {storer.__class__.__name__}")
+    print(f"   ✅ Store: {store.__class__.__name__}")
     print()
     
     # Step 3: Build the findings library
@@ -60,7 +56,7 @@ def extract_crea_findings(max_publications=20):
         name="crea_publications",
         collector=collector,
         extractors=[text_extractor, url_extractor],
-        storer=storer,
+        store=store,
         extraction_config=extraction_config
     ) as builder:
         
@@ -76,14 +72,14 @@ def extract_crea_findings(max_publications=20):
         print(f"✅ Successful: {summary['successful_extractions']}")
         print(f"❌ Failed: {summary['failed_extractions']}")
         print(f"📈 Success Rate: {summary['success_rate']}%")
-        print(f"💡 Total Findings: {summary['total_findings_extracted']}")
+        print(f"💡 Total Findings: {summary['total_findings_count']}")
         print(f"📊 Avg Findings/Source: {summary['average_findings_per_source']}")
         
         # Show detailed findings
         print("\n📖 DETAILED FINDINGS")
         print("=" * 60)
         
-        all_findings = storer.list_all_findings()
+        all_findings = store.list_all_findings()
         
         for i, doc_findings in enumerate(all_findings, 1):
             print(f"\n📄 Publication {i}: {doc_findings.title or 'No title'}")
@@ -131,7 +127,7 @@ def extract_crea_findings(max_publications=20):
         
         # Storage stats
         print("\n💿 Storage Information:")
-        storage_stats = storer.get_storage_stats()
+        storage_stats = store.get_storage_stats()
         print(f"   Total documents: {storage_stats.get('total_documents', 0)}")
         print(f"   Total findings: {storage_stats.get('total_findings', 0)}")
         print(f"   File size: {storage_stats.get('file_size_mb', 0)} MB")
@@ -185,7 +181,7 @@ def main():
         # Print final summary
         print(f"\n🎯 FINAL SUMMARY")
         print(f"   Successfully processed {summary['total_sources_processed']} CREA publications")
-        print(f"   Extracted {summary['total_findings_extracted']} key findings")
+        print(f"   Extracted {summary['total_findings_count']} key findings")
         print(f"   Success rate: {summary['success_rate']}%")
         
     except Exception as e:

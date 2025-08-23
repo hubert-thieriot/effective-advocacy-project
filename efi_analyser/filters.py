@@ -5,7 +5,7 @@ Document filters for the analysis system
 import re
 from typing import List, Dict, Any
 from .types import Filter
-from efi_corpus.types import Document
+from efi_core.types import Document
 
 
 class TextContainsFilter(Filter):

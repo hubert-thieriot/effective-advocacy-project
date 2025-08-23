@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict
 from pathlib import Path
 
-from efi_corpus import CorpusHandle
 from ..types import PipelineResult
+from efi_corpus import CorpusHandle
 
 
 class AbstractPipeline(ABC):

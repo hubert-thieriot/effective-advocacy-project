@@ -4,7 +4,7 @@ Tests for efi_analyser filters
 
 import pytest
 from efi_analyser.filters import TextContainsFilter, MetadataFilter, CompositeFilter
-from efi_corpus.types import Document
+from efi_core.types import Document
 
 
 class TestTextContainsFilter:

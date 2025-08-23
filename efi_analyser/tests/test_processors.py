@@ -4,7 +4,7 @@ Tests for efi_analyser processors
 
 import pytest
 from efi_analyser.processors import KeywordExtractorProcessor, TextStatisticsProcessor
-from efi_corpus.types import Document
+from efi_core.types import Document
 
 
 class TestKeywordExtractorProcessor:

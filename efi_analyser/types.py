@@ -5,8 +5,8 @@ EFI Analyser - Analysis types and data structures
 from typing import Dict, Any, Optional, List, Protocol
 from dataclasses import dataclass
 
-# Re-export core types from efi_corpus for convenience
-from efi_corpus.types import Document
+# Re-export core types
+from efi_core.types import Document
 
 
 class Filter(Protocol):

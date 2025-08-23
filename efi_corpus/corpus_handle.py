@@ -10,7 +10,8 @@ from typing import List, Dict, Any, Iterator, Optional
 from functools import wraps
 
 from .types import Document
-from .layout import LocalFilesystemLayout
+from efi_core.layout import CorpusLayout
+from efi_core.protocols import Corpus
 
 
 def write_only(func):
@@ -23,7 +24,7 @@ def write_only(func):
     return wrapper
 
 
-class CorpusHandle:
+class CorpusHandle(Corpus):
     """
     Unified corpus handle that handles both reading and writing operations.
     
@@ -43,7 +44,7 @@ class CorpusHandle:
         self.read_only = read_only
         
         # Initialize layout (no workspace needed for basic corpus operations)
-        self.layout = LocalFilesystemLayout(self.corpus_path, None)
+        self.layout = CorpusLayout(self.corpus_path)
         
         # Validate paths
         if not self.corpus_path.exists():
@@ -59,7 +60,7 @@ class CorpusHandle:
             self.layout.manifest_path.touch(exist_ok=True)
         
         # Ensure workspace directories exist
-        self.layout.ensure_workspace_dirs()
+        self.layout.ensure_dirs()
 
     # ============================================================================
     # READING OPERATIONS (always available)
@@ -80,16 +81,16 @@ class CorpusHandle:
                         continue
         return doc_ids
 
-    def read_text(self, doc_id: str) -> str:
-        """Read document text by ID"""
+    def get_text(self, doc_id: str) -> str:
+        """Get document text by ID"""
         text_path = self.layout.text_path(doc_id)
         if not text_path.exists():
             raise FileNotFoundError(f"Text file not found for document {doc_id}: {text_path}")
         
         return text_path.read_text(encoding='utf-8')
 
-    def read_metadata(self, doc_id: str) -> Dict[str, Any]:
-        """Read document metadata by ID"""
+    def get_metadata(self, doc_id: str) -> Dict[str, Any]:
+        """Get document metadata by ID"""
         meta_path = self.layout.meta_path(doc_id)
         if not meta_path.exists():
             return {}
@@ -99,8 +100,8 @@ class CorpusHandle:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
-    def read_fetch_info(self, doc_id: str) -> Dict[str, Any]:
-        """Read document fetch information by ID"""
+    def get_fetch_info(self, doc_id: str) -> Dict[str, Any]:
+        """Get document fetch information by ID"""
         fetch_path = self.layout.fetch_path(doc_id)
         if not fetch_path.exists():
             return {}
@@ -110,8 +111,8 @@ class CorpusHandle:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
-    def read_document(self, doc_id: str) -> Optional[Document]:
-        """Read a complete document by ID"""
+    def get_document(self, doc_id: str) -> Optional[Document]:
+        """Get a complete document by ID"""
         try:
             # Get metadata from index
             doc_meta = None
@@ -129,10 +130,10 @@ class CorpusHandle:
             if not doc_meta:
                 return None
             
-            # Read text and additional metadata
-            text = self.read_text(doc_id)
-            meta = self.read_metadata(doc_id)
-            fetch_info = self.read_fetch_info(doc_id)
+            # Get text and additional metadata
+            text = self.get_text(doc_id)
+            meta = self.get_metadata(doc_id)
+            fetch_info = self.get_fetch_info(doc_id)
             
             # Merge metadata
             full_meta = {**meta, **fetch_info}
@@ -151,10 +152,17 @@ class CorpusHandle:
             print(f"Error reading document {doc_id}: {e}")
             return None
 
-    def read_documents(self) -> Iterator[Document]:
-        """Read all documents from the corpus"""
+
+    
+    def iter_documents(self) -> Iterator[Document]:
+        """
+        Iterate over all documents in the corpus.
+        
+        Returns:
+            Iterator over Document objects
+        """
         for doc_id in self.list_ids():
-            doc = self.read_document(doc_id)
+            doc = self.get_document(doc_id)
             if doc:
                 yield doc
 
@@ -181,7 +189,7 @@ class CorpusHandle:
 
     def fingerprint(self, doc_id: str) -> str:
         """Generate content fingerprint for a document"""
-        text = self.read_text(doc_id)
+        text = self.get_text(doc_id)
         return hashlib.sha1(text.encode()).hexdigest()
 
     def load_manifest(self) -> Dict[str, Any]:

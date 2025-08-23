@@ -2,43 +2,52 @@
 EFI Analyser - Analysis tools for EFI corpora
 """
 
-# Pipeline classes
-from .pipeline import AbstractPipeline, LinearPipeline
+# Analysis pipeline components
+from .pipeline.base import AbstractPipeline
+from .pipeline.linear import LinearPipeline
 
-# Application classes  
-from .apps import WordOccurrenceApp
+# Filters
+from .filters import TextContainsFilter, MetadataFilter, CompositeFilter
 
-# Legacy exports (for backward compatibility)
-from .pipeline import LinearPipeline as AnalysisPipeline
-from .filters import TextContainsFilter
-from .processors import CosineSimilarityProcessor
+# Processors
+from .processors import CosineSimilarityProcessor, KeywordExtractorProcessor, TextStatisticsProcessor
+
+# Aggregators
 from .aggregators import KeywordPresenceAggregator, DocumentCountAggregator
-from .types import PipelineResult, AppResult, AnalysisPipelineResult
 
-# Re-export core types from efi_corpus for convenience
-from efi_corpus.types import Document
+# Chunkers and embedders
+from .chunkers.sentence_chunker import SentenceChunker
+from .embedders.sentence_transformer_embedder import SentenceTransformerEmbedder
 
-__version__ = "0.1.0"
+# Retrieval system
+from efi_core.retrieval.retriever import Retriever, SearchResult
+from efi_core.retrieval.index_builder import IndexBuilder
+
 __all__ = [
-    # New pipeline architecture
-    "AbstractPipeline", 
+    # Pipeline
+    "AbstractPipeline",
     "LinearPipeline",
     
-    # Applications
-    "WordOccurrenceApp",
+    # Filters
+    "TextContainsFilter",
+    "MetadataFilter", 
+    "CompositeFilter",
     
-    # Legacy compatibility
-    "AnalysisPipeline",  # Alias for LinearPipeline
-    
-    # Existing components
-    "TextContainsFilter", 
+    # Processors
+    "KeywordExtractorProcessor",
     "CosineSimilarityProcessor",
+    "TextStatisticsProcessor",
+    
+    # Aggregators
     "KeywordPresenceAggregator",
     "DocumentCountAggregator",
     
-    # Types
-    "PipelineResult",
-    "AppResult", 
-    "AnalysisPipelineResult",
-    "Document"
+    # Chunkers and embedders
+    "SentenceChunker",
+    "SentenceTransformerEmbedder",
+    
+    # Retrieval
+    "Retriever",
+    "SearchResult",
+    "IndexBuilder"
 ]

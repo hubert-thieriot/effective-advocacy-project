@@ -40,13 +40,10 @@ class LibraryHandle(Library):
         self.library_path = Path(library_path)
         self.layout = LibraryLayout(self.library_path)
         
-        # Always create a store instance for data operations
-        self.store = LibraryStore(self.library_path.name, str(self.library_path.parent))
-        
         if not self.library_path.exists():
             raise ValueError(f"Library path does not exist: {library_path}")
         
-        # Check for new structure first
+        # Detect structure BEFORE initializing the store (store may create files/dirs)
         if (self.layout.index_path.exists() and 
             (self.library_path / "documents").exists()):
             self._structure = "new"
@@ -57,13 +54,58 @@ class LibraryHandle(Library):
         else:
             raise ValueError(f"Library structure not recognized. Expected either index.json + documents/ or findings.json in {library_path}")
         
+        # Create a store instance for data operations AFTER detection
+        self.store = LibraryStore(self.library_path.name, str(self.library_path.parent))
+        
         # Ensure all necessary directories exist
         self.layout.ensure_dirs()
     
     
     def iter_findings(self) -> Iterator[LibraryDocumentWFindings]:
-        """Iterate over findings using the store"""
-        return self.store.list_all_findings()
+        """Iterate over findings in the library.
+        Prefer store-backed listing when available; otherwise, fall back to findings.json (old structure).
+        """
+        # First try using the store (works for new structure and is easily mockable in tests)
+        try:
+            store_results = self.store.list_all_findings()
+            if store_results:
+                return iter(store_results)
+        except Exception:
+            pass
+
+        # Old structure fallback: read from findings.json
+        def _iter_old():
+            try:
+                if not self.layout.findings_path.exists():
+                    return
+                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for doc in data:
+                    url = doc.get('url', '')
+                    doc_id = Finding.generate_doc_id(url)
+                    findings_list = []
+                    for fdata in doc.get('findings', []):
+                        findings_list.append(Finding(
+                            finding_id=fdata.get('finding_id', ''),
+                            text=fdata.get('text', ''),
+                            confidence=fdata.get('confidence'),
+                            category=fdata.get('category'),
+                            keywords=fdata.get('keywords', [])
+                        ))
+                    yield LibraryDocumentWFindings(
+                        doc_id=doc_id,
+                        url=url,
+                        title=doc.get('title', ''),
+                        published_at=doc.get('published_at'),
+                        language=doc.get('language'),
+                        extraction_date=doc.get('extraction_date'),
+                        findings=findings_list,
+                        metadata=doc.get('metadata', {})
+                    )
+            except Exception as e:
+                logger.error(f"Error iterating old findings structure: {e}")
+                return
+        return _iter_old()
     
 
     
@@ -77,20 +119,33 @@ class LibraryHandle(Library):
         Returns:
             Finding object if found, None otherwise
         """
-        # Get document ID from finding ID efficiently
+        # Try new structure: derive doc_id from finding_id and load via store
         doc_id = self.layout.get_doc_id_from_finding_id(finding_id)
-        if not doc_id:
-            return None
-        
-        # Use store to get the document
-        doc_findings = self.store.get_findings_by_doc_id(doc_id)
-        if not doc_findings:
-            return None
-        
-        # Find the specific finding
-        for finding in doc_findings.findings:
-            if finding.finding_id == finding_id:
-                return finding
+        if doc_id:
+            doc_findings = self.store.get_findings_by_doc_id(doc_id)
+            if doc_findings:
+                for finding in doc_findings.findings:
+                    if finding.finding_id == finding_id:
+                        return finding
+            # Fall through to old-structure check if not found
+
+        # Old structure fallback: linear search in findings.json
+        try:
+            if self.layout.findings_path.exists():
+                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for doc in data:
+                    for fdata in doc.get('findings', []):
+                        if fdata.get('finding_id') == finding_id:
+                            return Finding(
+                                finding_id=finding_id,
+                                text=fdata.get('text', ''),
+                                confidence=fdata.get('confidence'),
+                                category=fdata.get('category'),
+                                keywords=fdata.get('keywords', [])
+                            )
+        except Exception as e:
+            logger.error(f"Error searching old findings structure for {finding_id}: {e}")
         
         return None
     
@@ -156,7 +211,28 @@ class LibraryHandle(Library):
     def get_findings_count(self) -> int:
         """Get the total number of documents with findings"""
         try:
-            return len(self.layout.get_document_ids())
+            # Prefer store if it returns anything
+            try:
+                store_results = self.store.list_all_findings()
+                if store_results:
+                    return len(store_results)
+            except Exception:
+                pass
+
+            # Try layout-provided document IDs (new structure)
+            try:
+                doc_ids = self.layout.get_document_ids()
+                if doc_ids:
+                    return len(doc_ids)
+            except Exception:
+                pass
+
+            # Old structure: count entries in findings.json
+            if self.layout.findings_path.exists():
+                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return len(data) if isinstance(data, list) else 0
+            return 0
         except Exception as e:
             logger.error(f"Error getting findings count: {e}")
             return 0

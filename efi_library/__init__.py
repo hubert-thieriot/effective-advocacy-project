@@ -7,12 +7,10 @@ This module provides tools for:
 - Managing library metadata and organization
 """
 
-from .library_store import LibraryStore
-from .library_builder import LibraryBuilder
 from .library_handle import LibraryHandle
+from .library_store import LibraryStore
 
 __all__ = [
-    'LibraryStore',
-    'LibraryBuilder', 
-    'LibraryHandle'
+    'LibraryHandle',
+    'LibraryStore'
 ]

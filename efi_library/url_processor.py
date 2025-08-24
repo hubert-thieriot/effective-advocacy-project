@@ -7,10 +7,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 from datetime import datetime
-import PyPDF2
 import io
-from newspaper import Article
-from bs4 import BeautifulSoup
 import logging
 from .utils import normalize_date
 from .rate_limiter import DomainRateLimiter, RateLimitedSession
@@ -68,6 +65,7 @@ class URLProcessor:
     def _process_pdf(self, url: str) -> Dict[str, Any]:
         """Process PDF URL and extract text"""
         try:
+            import PyPDF2  # Lazy import to avoid heavy dependency at import time
             response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
             
@@ -106,6 +104,7 @@ class URLProcessor:
     def _process_webpage(self, url: str) -> Dict[str, Any]:
         """Process webpage URL and extract text"""
         try:
+            from newspaper import Article  # Lazy import
             article = Article(url)
             article.download()
             article.parse()
@@ -119,7 +118,7 @@ class URLProcessor:
                 response.raise_for_status()
                 
                 # Simple text extraction as fallback
-                from bs4 import BeautifulSoup
+                from bs4 import BeautifulSoup  # Lazy import
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
                 # Remove script and style elements
@@ -160,7 +159,7 @@ class URLProcessor:
                 response = self.session.get(url, timeout=self.timeout)
                 response.raise_for_status()
                 
-                from bs4 import BeautifulSoup
+                from bs4 import BeautifulSoup  # Lazy import
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
                 # Remove script and style elements

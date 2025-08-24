@@ -199,7 +199,7 @@ class Retriever:
             # Stream through all embeddings
             if self.is_corpus:
                 # For corpus: iterate through documents
-                for doc in self.embedded_data_source.corpus.read_documents():
+                for doc in self.embedded_data_source.corpus.iter_documents():
                     try:
                         embeddings = self.embedded_data_source.embeddings(doc.doc_id)
                         if embeddings.size == 0:
@@ -233,7 +233,7 @@ class Retriever:
             
             else:
                 # For library: iterate through findings
-                for doc_findings in self.embedded_data_source.library.read_findings():
+                for doc_findings in self.embedded_data_source.library.iter_findings():
                     for finding in doc_findings.findings:
                         try:
                             embeddings = self.embedded_data_source.embeddings(finding.finding_id)

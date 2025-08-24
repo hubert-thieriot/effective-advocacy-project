@@ -51,7 +51,7 @@ class LinearPipeline(AbstractPipeline):
         self._stats["total_documents"] = total_docs
 
         results: List[AnalysisResult] = []
-        iterator = tqdm(corpus_handle.read_documents(), total=total_docs, desc="Processing documents")
+        iterator = tqdm(corpus_handle.iter_documents(), total=total_docs, desc="Processing documents")
 
         for doc in iterator:
             passed = True

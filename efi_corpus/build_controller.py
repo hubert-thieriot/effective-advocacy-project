@@ -52,7 +52,7 @@ class BuildController:
         start_time = time.time()
         
         # Process each document
-        for i, doc in enumerate(self.corpus.read_documents()):
+        for i, doc in enumerate(self.corpus.iter_documents()):
             if i % 100 == 0:
                 print(f"Processing document {i+1}/{self.corpus.get_document_count()}")
             

@@ -248,7 +248,7 @@ class TestEmbeddedCorpus:
         # Process all documents
         processed_docs = []
         
-        for doc in corpus_handle.read_documents():
+        for doc in corpus_handle.iter_documents():
             # Chunk the document
             chunks = chunk_store.materialize(doc.doc_id, doc.text, chunker_spec, chunker)
             
@@ -349,7 +349,7 @@ class TestEmbeddedCorpusIntegration:
         assert info["embedder_spec"] == "all-MiniLM-L6-v2"
         
         # Test chunking (should be fast with small text)
-        chunks = embedded_corpus.chunks("doc1")
+        chunks = embedded_corpus.get_chunks("doc1", materialize_if_necessary=True)
         assert len(chunks) > 0
         # Note: SentenceChunker creates overlapping chunks, so some may exceed max_chunk_size
         # This is expected behavior for sentence-based chunking
@@ -357,6 +357,6 @@ class TestEmbeddedCorpusIntegration:
         print(f"Chunk lengths: {[len(chunk) for chunk in chunks]}")
         
         # Test embeddings (should be fast with small text)
-        embeddings = embedded_corpus.embeddings("doc1")
+        embeddings = embedded_corpus.get_embeddings("doc1", materialize_if_necessary=True)
         assert embeddings.shape[0] == len(chunks)
         assert embeddings.shape[1] == embedder.dim

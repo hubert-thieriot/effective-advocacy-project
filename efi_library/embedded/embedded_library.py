@@ -55,13 +55,17 @@ class EmbeddedLibrary:
             List of chunks if found, None otherwise
         """
         if materialize_if_necessary:
-            finding = self.library.read_finding(finding_id)
+            finding = self.library.get_finding(finding_id)
             if not finding:
                 raise FileNotFoundError(f"Finding not found: {finding_id}")
             return self.chunk_store.materialize(finding_id, finding.text, self.chunker_spec, self.chunker)
         else:
             # Just read existing chunks
             return self.chunk_store.read(finding_id, self.chunker.spec)
+
+    # Thin wrapper for compatibility with older tests
+    def chunks(self, finding_id: str) -> Optional[List[str]]:
+        return self.get_chunks(finding_id, materialize_if_necessary=True)
 
 
 
@@ -86,6 +90,10 @@ class EmbeddedLibrary:
                 if chunks:
                     return self.embedding_store.materialize(finding_id, chunks, self.chunker_spec, self.embedder)
             return None
+
+    # Thin wrapper for compatibility with older tests
+    def embeddings(self, finding_id: str) -> Optional[np.ndarray]:
+        return self.get_embeddings(finding_id, materialize_if_necessary=True)
     
 
 

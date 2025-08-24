@@ -86,6 +86,13 @@ class EmbeddedCorpus:
             # Just read existing embeddings
             return self.embedding_store.read(doc_id, self.chunker.spec, self.embedder.spec)
 
+    # Compatibility helpers
+    def chunks(self, doc_id: str):
+        return self.get_chunks(doc_id, materialize_if_necessary=True)
+
+    def embeddings(self, doc_id: str):
+        return self.get_embeddings(doc_id, materialize_if_necessary=True)
+
     def build_chunks(self, max_documents: Optional[int] = None) -> None:
         """Build chunks for documents in the corpus."""
         # Use iterator directly instead of loading all documents into memory

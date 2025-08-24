@@ -385,6 +385,7 @@ class LibraryStore(LibraryStoreProtocol):
             'extraction_date': doc_findings.extraction_date.isoformat(),
             'findings': [
                 {
+                    'finding_id': f.finding_id,
                     'text': f.text,
                     'confidence': f.confidence,
                     'category': f.category,
@@ -427,6 +428,7 @@ class LibraryStore(LibraryStoreProtocol):
         findings = []
         for f_data in data.get('findings', []):
             findings.append(Finding(
+                finding_id=f_data.get('finding_id'),
                 text=f_data.get('text', ''),
                 confidence=f_data.get('confidence'),
                 category=f_data.get('category'),

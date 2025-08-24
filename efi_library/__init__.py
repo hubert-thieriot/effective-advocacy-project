@@ -9,8 +9,10 @@ This module provides tools for:
 
 from .library_handle import LibraryHandle
 from .library_store import LibraryStore
+from .example import ExampleLibraryBuilder
 
 __all__ = [
     'LibraryHandle',
-    'LibraryStore'
+    'LibraryStore',
+    'ExampleLibraryBuilder'
 ]

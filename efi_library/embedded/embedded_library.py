@@ -112,7 +112,7 @@ class EmbeddedLibrary:
         print(f"Building chunks for {total_findings} findings...")
         with tqdm(total=total_findings, desc="Building chunks", unit="finding") as pbar:
             count = 0
-            for doc_findings in self.library.read_findings():
+            for doc_findings in self.library.iter_findings():
                 if max_findings and count >= max_findings:
                     break
                 for finding in doc_findings.findings:
@@ -137,7 +137,7 @@ class EmbeddedLibrary:
         print(f"Building embeddings for {total_findings} findings...")
         with tqdm(total=total_findings, desc="Building embeddings", unit="finding") as pbar:
             count = 0
-            for doc_findings in self.library.read_findings():
+            for doc_findings in self.library.iter_findings():
                 if max_findings and count >= max_findings:
                     break
                 for finding in doc_findings.findings:

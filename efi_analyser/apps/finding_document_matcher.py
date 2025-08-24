@@ -22,6 +22,7 @@ from efi_analyser.chunkers import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_library.embedded.embedded_library import EmbeddedLibrary
+from efi_analyser.rescorers import NLIReScorer, NLIReScorerConfig
 
 
 
@@ -64,6 +65,17 @@ def main():
         "--show-stats",
         action="store_true",
         help="Show detailed statistics and exit"
+    )
+    parser.add_argument(
+        "--rescore",
+        action="store_true",
+        help="Apply NLI-based re-scoring after retrieval"
+    )
+    parser.add_argument(
+        "--rescorer-model",
+        type=str,
+        default="facebook/bart-large-mnli",
+        help="HuggingFace model to use for re-scoring (default: facebook/bart-large-mnli)"
     )
 
     args = parser.parse_args()
@@ -114,7 +126,7 @@ def main():
     # Build corpus index if requested
     print(f"\n🔨 Building FAISS index for corpus...")
     success = embedded_corpus.build_index()
-    
+
     # Get findings to process
     print(f"\n🎯 Processing {args.num_findings} findings...")
     findings_to_process = []
@@ -132,7 +144,14 @@ def main():
         return 1
     
     print(f"  ✓ Found {len(findings_to_process)} findings with embeddings")
-    
+
+    # Optional re-scoring step
+    rescorer = None
+    if args.rescore:
+        rescorer = NLIReScorer(
+            NLIReScorerConfig(model_name=args.rescorer_model)
+        )
+
     # Create retriever for finding-to-document search
     print(f"\n🔍 Creating retriever for finding → document search...")
     retriever = RetrieverIndex(
@@ -164,30 +183,34 @@ def main():
             
             # Search for similar document chunks
             results = retriever.query(finding_embedding, top_k=args.top_k)
-            
+
             if results:
-                # Print finding header
-                finding_preview = finding.text[:60] + "..." if len(finding.text) > 60 else finding.text
-                print(f"\n🔍 Finding {i}: {finding_id}")
-                print(f"   Text: {finding_preview}")
-                print("-" * 120)
-                
-                for j, result in enumerate(results, 1):
-                    # Get chunk text from corpus using stored chunks instead of re-chunking
+                # Retrieve chunk text for each result
+                for result in results:
                     doc_id, chunk_idx = result.item_id.split('_chunk_')
                     chunk_idx_int = int(chunk_idx)
-                    
-                    # Get stored chunks directly from the chunk store
                     chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=False)
                     if chunks and chunk_idx_int < len(chunks):
                         chunk_text = chunks[chunk_idx_int]
                     else:
                         chunk_text = "Chunk not found"
-                    
-                    # Format chunk text for table
+                    result.metadata["text"] = chunk_text
+
+                # Apply optional re-scoring
+                if rescorer:
+                    results = rescorer.rescore(finding.text, results)
+
+                # Print finding header
+                finding_preview = finding.text[:60] + "..." if len(finding.text) > 60 else finding.text
+                print(f"\n🔍 Finding {i}: {finding_id}")
+                print(f"   Text: {finding_preview}")
+                print("-" * 120)
+
+                for j, result in enumerate(results, 1):
+                    chunk_text = result.metadata.get("text", "")
                     chunk_preview = chunk_text[:75] + "..." if len(chunk_text) > 75 else chunk_text
                     print(f"{result.item_id:<20} {result.score:<8.4f} {chunk_preview}")
-                
+
                 total_matches += len(results)
             else:
                 print(f"\n🔍 Finding {i}: {finding_id} - No matches found")

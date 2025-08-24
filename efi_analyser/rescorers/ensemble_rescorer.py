@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 from efi_core.protocols import ReScorer
-from efi_core.types import SearchResult
+from efi_core.retrieval.retriever import SearchResult
 
 
 @dataclass
@@ -25,7 +25,7 @@ class EnsembleWeights:
             raise ValueError(f"Ensemble weights must sum to 1.0, got {total}")
 
 
-class EnsembleReScorer(ReScorer):
+class EnsembleReScorer(ReScorer[SearchResult]):
     """
     Ensemble re-scorer that combines multiple scoring approaches.
     

@@ -10,10 +10,10 @@ from typing import List, Optional
 from pathlib import Path
 
 from efi_core.protocols import ReScorer
-from efi_core.types import SearchResult
+from efi_core.retrieval.retriever import SearchResult
 
 
-class CrossEncoderReScorer(ReScorer):
+class CrossEncoderReScorer(ReScorer[SearchResult]):
     """
     Re-scorer using cross-encoder models for improved semantic alignment.
     

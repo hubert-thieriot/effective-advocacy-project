@@ -44,7 +44,7 @@ class Retriever:
         workspace_path: Path,
         chunker_spec: ChunkerSpec,
         embedder_spec: EmbedderSpec,
-        rescorer: Optional[ReScorer] = None
+        rescorer: Optional[ReScorer["SearchResult"]] = None
     ):
         """
         Initialize retriever.

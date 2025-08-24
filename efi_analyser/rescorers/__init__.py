@@ -7,9 +7,12 @@ cross-encoders and ensemble methods.
 
 from .cross_encoder_rescorer import CrossEncoderReScorer
 from .ensemble_rescorer import EnsembleReScorer, EnsembleWeights
+from .nli_rescorer import NLIReScorer, NLIReScorerConfig
 
 __all__ = [
     'CrossEncoderReScorer',
-    'EnsembleReScorer', 
-    'EnsembleWeights'
+    'EnsembleReScorer',
+    'EnsembleWeights',
+    'NLIReScorer',
+    'NLIReScorerConfig'
 ]

@@ -2,7 +2,7 @@
 Index-based retriever using FAISS for fast similarity search.
 
 This retriever uses FAISS indexes when available and can automatically
-rebuild them if they don't exist. Falls back to brute-force if needed.
+rebuild them if they don't exist.
 """
 
 import numpy as np
@@ -32,8 +32,7 @@ class RetrieverIndex:
         workspace_path: Path,
         chunker_spec: ChunkerSpec,
         embedder_spec: EmbedderSpec,
-        auto_rebuild: bool = True,
-        fallback_to_brute_force: bool = True
+        auto_rebuild: bool = True
     ):
         """
         Initialize index retriever.
@@ -98,20 +97,19 @@ class RetrieverIndex:
         
         if query_vector is None:
             logger.error("Failed to create query vector")
-            return []
+            raise ValueError("Failed to create query vector for query")
         
         # Try to use FAISS index
         if self._ensure_index_exists():
             try:
                 results = self._query_with_index(query_vector, top_k)
-                if results:
-                    logger.debug(f"Used FAISS index for query, found {len(results)} results")
-                    return results
+                logger.debug(f"Used FAISS index for query, found {len(results)} results")
+                return results
             except Exception as e:
-                logger.warning(f"FAISS index query failed: {e}")
-                if not self.fallback_to_brute_force:
-                    logger.error("FAISS query failed and fallback is disabled")
-                    return []
+                logger.error(f"FAISS index query failed: {e}")
+                raise
+        else:
+            raise RuntimeError("No FAISS index available and auto-rebuild failed or disabled")
     
     def _ensure_index_exists(self) -> bool:
         """
@@ -228,6 +226,5 @@ class RetrieverIndex:
             "chunker_spec": str(self.chunker_spec),
             "embedder_spec": str(self.embedder_spec),
             "has_index": self.has_index(),
-            "auto_rebuild": self.auto_rebuild,
-            "fallback_to_brute_force": self.fallback_to_brute_force
+            "auto_rebuild": self.auto_rebuild
         }

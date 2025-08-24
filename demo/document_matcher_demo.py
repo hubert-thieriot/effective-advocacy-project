@@ -14,7 +14,7 @@ from efi_analyser.chunkers import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_library.embedded.embedded_library import EmbeddedLibrary
-from efi_core.retrieval import RetrieverBrute
+from efi_core.retrieval import RetrieverIndex
 
 
 def main() -> None:
@@ -45,14 +45,16 @@ def main() -> None:
     embedded_library = EmbeddedLibrary(library_built, workspace, chunker, embedder)
 
     print("Embedding corpus...")
-    embedded_corpus.build_all(reindex=False)
+    embedded_corpus.build_all()
     print("Embedding library...")
-    embedded_library.build_all(reindex=False)
+    embedded_library.build_all()
 
-    retriever = RetrieverBrute(
+    retriever = RetrieverIndex(
         embedded_data_source=embedded_corpus,
+        workspace_path=workspace,
         chunker_spec=chunker.spec,
         embedder_spec=embedder.spec,
+        auto_rebuild=True
     )
 
     print("\nRunning document matching demo:")

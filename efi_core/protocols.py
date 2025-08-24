@@ -4,13 +4,27 @@ Shared protocols for algorithms and data access.
 
 from __future__ import annotations
 
-from typing import Protocol, List, Tuple, Iterable, Optional, TYPE_CHECKING
+from typing import (
+    Protocol,
+    List,
+    Tuple,
+    Iterable,
+    Optional,
+    TypeVar,
+    Generic,
+)
 from pathlib import Path
 
-from .types import Document, Finding, LibraryDocument, LibraryDocumentWFindings, EmbedderSpec, ChunkerSpec
+from .types import (
+    Document,
+    Finding,
+    LibraryDocument,
+    LibraryDocumentWFindings,
+    EmbedderSpec,
+    ChunkerSpec,
+)
 
-if TYPE_CHECKING:
-    from efi_core.retrieval.retriever import SearchResult
+T = TypeVar("T")
 
 
 class Chunker(Protocol):
@@ -91,20 +105,11 @@ class LibraryBuilder(Protocol):
     def close(self) -> None: ...
 
 
-class ReScorer(Protocol):
-    """Protocol for re-scoring retrieved results using cross-encoders or other methods."""
-    
-    def rescore(self, query: str, matches: List["SearchResult"]) -> List["SearchResult"]:
-        """
-        Re-score a list of search results for a given query.
-        
-        Args:
-            query: The original query text
-            matches: List of SearchResult objects to re-score
-            
-        Returns:
-            Re-ranked list of SearchResult objects with updated scores
-        """
+class ReScorer(Protocol, Generic[T]):
+    """Protocol for re-scoring retrieved results using arbitrary result types."""
+
+    def rescore(self, query: str, matches: List[T]) -> List[T]:
+        """Re-score a list of results for a given query."""
         ...
 
 

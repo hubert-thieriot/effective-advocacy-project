@@ -19,9 +19,11 @@ class NLIReScorerConfig(BaseModel):
         entailment_label: Label representing entailment in model output.
     """
 
-    model_name: str = "facebook/bart-large-mnli"
+    model_name: str = "textattack/distilbert-base-uncased-MNLI"
     batch_size: int = 8
     device: int = -1
+    max_length: int = 384
+    local_files_only: bool = False
     entailment_label: str = "ENTAILMENT"
 
 
@@ -40,13 +42,36 @@ class NLIReScorer(ReScorer[SearchResult]):
     def _load_model(self) -> None:
         """Load the transformers pipeline for NLI."""
         try:
-            from transformers import pipeline
-
-            self._pipeline = pipeline(
-                "text-classification",
-                model=self.config.model_name,
-                device=self.config.device,
+            import os
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+            try:
+                import torch
+                if self.config.device == -1:
+                    device = 0 if torch.cuda.is_available() else -1
+                else:
+                    device = self.config.device
+            except Exception:
+                device = self.config.device
+            import time
+            t0 = time.perf_counter()
+            print(f"[NLI] Loading model {self.config.model_name} (device={device}, local_only={self.config.local_files_only})...")
+            tokenizer = AutoTokenizer.from_pretrained(
+                self.config.model_name,
+                local_files_only=self.config.local_files_only,
             )
+            model = AutoModelForSequenceClassification.from_pretrained(
+                self.config.model_name,
+                local_files_only=self.config.local_files_only,
+            )
+            self._pipeline = pipeline(
+                task="text-classification",
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                framework="pt",
+            )
+            print(f"[NLI] Model loaded in {time.perf_counter() - t0:.2f}s")
         except Exception as exc:  # pragma: no cover - graceful degradation
             print(
                 f"⚠️ Warning: Failed to load NLI model {self.config.model_name}: {exc}."
@@ -70,13 +95,20 @@ class NLIReScorer(ReScorer[SearchResult]):
         inputs = []
         for match in matches:
             chunk_text = match.metadata.get("text", "")
+            #TODO Ensure this is the proper order
             inputs.append({"text": chunk_text, "text_pair": query})
 
+        import os
+        
+        # Set thread guards before inference to prevent stalls
+        self._set_thread_guards()
+        
         results = self._pipeline(
             inputs,
             batch_size=self.config.batch_size,
             truncation=True,
-            return_all_scores=True,
+            max_length=self.config.max_length,
+            top_k=None,
         )
 
         rescored: List[SearchResult] = []
@@ -96,3 +128,13 @@ class NLIReScorer(ReScorer[SearchResult]):
 
         rescored.sort(key=lambda x: x.score, reverse=True)
         return rescored
+    
+    def _set_thread_guards(self) -> None:
+        """Set thread guards to prevent stalls during inference."""
+        import os
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        os.environ.setdefault("MKL_NUM_THREADS", "1")
+        os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+        
+        import torch
+        torch.set_num_threads(1)

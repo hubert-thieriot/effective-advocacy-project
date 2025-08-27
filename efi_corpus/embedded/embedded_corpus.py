@@ -7,7 +7,7 @@ import numpy as np
 
 from tqdm import tqdm
 
-from efi_core.types import ChunkerSpec, EmbedderSpec
+from efi_core.types import ChunkerSpec, EmbedderSpec, Chunk
 from efi_core.protocols import Chunker, Embedder
 from efi_core.layout import EmbeddedCorpusLayout
 from efi_core.stores import ChunkStore, EmbeddingStore, IndexStore
@@ -46,7 +46,7 @@ class EmbeddedCorpus:
         """Get embedder specification from embedder instance."""
         return self.embedder.spec
 
-    def get_chunks(self, doc_id: str, materialize_if_necessary: bool = False) -> Optional[List[str]]:
+    def get_chunks(self, doc_id: str, materialize_if_necessary: bool = False) -> Optional[List[Chunk]]:
         """
         Get chunks for a document.
         
@@ -55,17 +55,75 @@ class EmbeddedCorpus:
             materialize_if_necessary: If True, materialize chunks if they don't exist
             
         Returns:
-            List of chunks if found, None otherwise
+            List of Chunk objects if found, None otherwise
         """
         if materialize_if_necessary:
             doc = self.corpus.get_document(doc_id)
             if doc is None:
                 raise FileNotFoundError(f"Document not found: {doc_id}")
-            return self.chunk_store.materialize(doc_id, doc.text, self.chunker.spec, self.chunker)
+            chunks = self.chunk_store.materialize(doc_id, doc.text, self.chunker.spec, self.chunker)
+            # Convert to Chunk objects
+            return [Chunk(chunk_id=i, text=chunk, doc_id=doc_id) for i, chunk in enumerate(chunks)]
         else:
             # Just read existing chunks
-            return self.chunk_store.read(doc_id, self.chunker.spec)
+            chunks = self.chunk_store.read(doc_id, self.chunker.spec)
+            if chunks is None:
+                return None
+            # Convert to Chunk objects
+            return [Chunk(chunk_id=i, text=chunk, doc_id=doc_id) for i, chunk in enumerate(chunks)]
     
+    def get_chunk(self, chunk_id: str, materialize_if_necessary: bool = False) -> Optional[Chunk]:
+        """
+        Get a specific chunk by chunk ID.
+        
+        Args:
+            chunk_id: Chunk ID in format 'doc_id_chunk_number'
+            materialize_if_necessary: If True, materialize chunks if they don't exist
+            
+        Returns:
+            The specific Chunk object if found, None otherwise
+        """
+        parsed = self._parse_chunk_id(chunk_id)
+        if parsed is None:
+            return None
+        
+        doc_id, chunk_number = parsed
+        
+        chunks = self.get_chunks(doc_id, materialize_if_necessary=materialize_if_necessary)
+        
+        chunk = next((x for x in chunks if x.chunk_id == chunk_number), None)
+        
+        if chunk is None:
+            return None
+        
+        return chunk
+        
+        
+    
+    def _parse_chunk_id(self, chunk_id: str) -> Optional[tuple[str, int]]:
+        """
+        Parse chunk ID to extract doc_id and chunk_number.
+        
+        Args:
+            chunk_id: Chunk ID in format 'doc_id_chunk_number'
+            
+        Returns:
+            Tuple of (doc_id, chunk_number) if valid, None otherwise
+        """
+        try:
+            # Parse chunk_id to extract doc_id and chunk_number
+            chunk_parts = chunk_id.split('_chunk_')
+            if len(chunk_parts) != 2:
+                return None
+            
+            doc_id = chunk_parts[0]
+            chunk_number_str = chunk_parts[1]
+            
+            chunk_number = int(chunk_number_str)
+            return doc_id, chunk_number
+            
+        except (ValueError, IndexError):
+            return None
 
 
     def get_embeddings(self, doc_id: str, materialize_if_necessary: bool = False) -> Optional[np.ndarray]:
@@ -81,7 +139,9 @@ class EmbeddedCorpus:
         """
         if materialize_if_necessary:
             chunks = self.get_chunks(doc_id, materialize_if_necessary=True)
-            return self.embedding_store.materialize(doc_id, chunks, self.chunker_spec, self.embedder)
+            # Extract text from Chunk objects for embedding
+            chunk_texts = [chunk.text for chunk in chunks]
+            return self.embedding_store.materialize(doc_id, chunk_texts, self.chunker_spec, self.embedder)
         else:
             # Just read existing embeddings
             return self.embedding_store.read(doc_id, self.chunker.spec, self.embedder.spec)
@@ -204,8 +264,8 @@ class EmbeddedCorpus:
             "embedder_spec": self.embedder.spec.model_name
         }
     
-    def show_stats(self) -> dict:
-        """Show detailed statistics about the embedded corpus"""
+    def get_stats(self) -> dict:
+        """Get detailed statistics about the embedded corpus"""
         stats = {
             "corpus_info": self.get_corpus_info(),
             "storage_stats": {}
@@ -233,6 +293,21 @@ class EmbeddedCorpus:
         }
         
         return stats
+    
+    def show_stats(self) -> None:
+        """Print detailed statistics about the embedded corpus"""
+        stats = self.get_stats()
+        print("Embedded Corpus Statistics:")
+        print("=" * 40)
+        
+        # Print corpus info
+        print("Corpus Information:")
+        for key, value in stats["corpus_info"].items():
+            print(f"  {key}: {value}")
+        
+        print("\nStorage Statistics:")
+        for key, value in stats["storage_stats"].items():
+            print(f"  {key}: {value}")
     
     def _fast_count_chunks(self) -> int:
         """Fast count of available chunks using file system"""

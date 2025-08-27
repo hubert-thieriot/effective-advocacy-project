@@ -9,7 +9,7 @@ Updated to work with the new library structure:
 import json
 import logging
 from pathlib import Path
-from typing import Iterator, Dict, Any, Optional
+from typing import Iterator, Dict, Any, Optional, List
 from datetime import datetime
 
 
@@ -60,53 +60,52 @@ class LibraryHandle(Library):
         # Ensure all necessary directories exist
         self.layout.ensure_dirs()
     
-    
-    def iter_findings(self) -> Iterator[LibraryDocumentWFindings]:
-        """Iterate over findings in the library.
-        Prefer store-backed listing when available; otherwise, fall back to findings.json (old structure).
+
+    def iter_documents(self) -> Iterator[LibraryDocumentWFindings]:
+        """Iterate over documents in the library (each document may contain multiple findings).
+        
+        Returns:
+            Iterator over LibraryDocumentWFindings objects
         """
         # First try using the store (works for new structure and is easily mockable in tests)
-        try:
-            store_results = self.store.list_all_findings()
-            if store_results:
-                return iter(store_results)
-        except Exception:
-            pass
-
-        # Old structure fallback: read from findings.json
-        def _iter_old():
-            try:
-                if not self.layout.findings_path.exists():
-                    return
-                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                for doc in data:
-                    url = doc.get('url', '')
-                    doc_id = Finding.generate_doc_id(url)
-                    findings_list = []
-                    for fdata in doc.get('findings', []):
-                        findings_list.append(Finding(
-                            finding_id=fdata.get('finding_id', ''),
-                            text=fdata.get('text', ''),
-                            confidence=fdata.get('confidence'),
-                            category=fdata.get('category'),
-                            keywords=fdata.get('keywords', [])
-                        ))
-                    yield LibraryDocumentWFindings(
-                        doc_id=doc_id,
-                        url=url,
-                        title=doc.get('title', ''),
-                        published_at=doc.get('published_at'),
-                        language=doc.get('language'),
-                        extraction_date=doc.get('extraction_date'),
-                        findings=findings_list,
-                        metadata=doc.get('metadata', {})
-                    )
-            except Exception as e:
-                logger.error(f"Error iterating old findings structure: {e}")
-                return
-        return _iter_old()
+        store_results = self.store.list_documents()
+        if store_results:
+            return iter(store_results)
+        
+        # Fall back to old structure if store doesn't work
+        # This would need to be implemented based on the old structure
+        # For now, return empty iterator
+        return iter([])
     
+    def iter_findings(self) -> Iterator[Finding]:
+        """Iterate over individual findings across all documents in the library.
+        
+        This flattens all findings from all documents into a single iterator.
+        
+        Returns:
+            Iterator over individual Finding objects
+        """
+        for doc in self.iter_documents():
+            for finding in doc.findings:
+                yield finding
+    
+    def list_documents(self) -> List[LibraryDocumentWFindings]:
+        """List all documents in the library (each document may contain multiple findings).
+        
+        Returns:
+            List of all LibraryDocumentWFindings objects
+        """
+        return list(self.iter_documents())
+    
+    def list_findings(self) -> List[Finding]:
+        """List all individual findings across all documents in the library.
+        
+        This flattens all findings from all documents into a single list.
+        
+        Returns:
+            List of all individual Finding objects
+        """
+        return list(self.iter_findings())
 
     
     def get_finding(self, finding_id: str) -> Optional[Finding]:
@@ -208,12 +207,12 @@ class LibraryHandle(Library):
     
 
     
-    def get_findings_count(self) -> int:
+    def get_documents_count(self) -> int:
         """Get the total number of documents with findings"""
         try:
             # Prefer store if it returns anything
             try:
-                store_results = self.store.list_all_findings()
+                store_results = self.store.list_all_documents()
                 if store_results:
                     return len(store_results)
             except Exception:
@@ -237,11 +236,11 @@ class LibraryHandle(Library):
             logger.error(f"Error getting findings count: {e}")
             return 0
     
-    def get_total_findings_count(self) -> int:
+    def get_findings_count(self) -> int:
         """Get the total number of individual findings across all documents"""
         try:
             total = 0
-            for doc_findings in self.iter_findings():
+            for doc_findings in self.iter_documents():
                 total += len(doc_findings.findings)
             return total
         except Exception as e:
@@ -365,10 +364,3 @@ class LibraryHandle(Library):
             if found:
                 yield doc_findings
     
-    def __iter__(self):
-        """Make the reader iterable"""
-        return self.iter_findings()
-    
-    def __len__(self):
-        """Return the number of documents with findings"""
-        return self.get_findings_count()

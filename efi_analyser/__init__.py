@@ -7,7 +7,7 @@ from .pipeline.base import AbstractPipeline
 from .pipeline.linear import LinearPipeline
 
 # Filters
-from .filters import TextContainsFilter, MetadataFilter, CompositeFilter
+from .filters import TextContainsFilter, MetadataFilter, CompositeFilter, CREAFilter
 
 # Processors
 from .processors import CosineSimilarityProcessor, KeywordExtractorProcessor, TextStatisticsProcessor
@@ -32,6 +32,7 @@ __all__ = [
     "TextContainsFilter",
     "MetadataFilter", 
     "CompositeFilter",
+    "CREAFilter",
     
     # Processors
     "KeywordExtractorProcessor",

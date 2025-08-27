@@ -36,6 +36,67 @@ class TextContainsFilter(Filter):
         return any(pattern.search(text) for pattern in self.patterns)
 
 
+class CREAFilter(Filter):
+    """Filter documents that mention CREA or Centre for Research on Energy and Clean Air"""
+    
+    def __init__(self, name: str = "crea_filter"):
+        """
+        Initialize CREA filter
+        
+        Args:
+            name: Optional name for this filter
+        """
+        self.name = name
+        
+        # Create flexible patterns that can handle various formatting variations
+        # including newlines, dashes, spaces, and punctuation
+        self.patterns = [
+            # Simple "CREA" mentions
+            re.compile(r'\bCREA\b', re.IGNORECASE),
+            
+            # "Centre for Research on Energy and Clean Air" with flexible spacing
+            re.compile(
+                r'Centre\s+for\s+Research\s+on\s+Energy\s+and\s+Clean\s+Air',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            
+            # Handle potential line breaks and dashes
+            re.compile(
+                r'Centre\s*[-–—\n\s]*for\s*[-–—\n\s]*Research\s*[-–—\n\s]*on\s*[-–—\n\s]*Energy\s*[-–—\n\s]*and\s*[-–—\n\s]*Clean\s*[-–—\n\s]*Air',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            
+            # Abbreviated forms
+            re.compile(
+                r'Centre\s+for\s+Research\s+on\s+Energy\s+&\s+Clean\s+Air',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            
+            # Handle potential abbreviations and variations
+            re.compile(
+                r'Center\s+for\s+Research\s+on\s+Energy\s+and\s+Clean\s+Air',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            
+            # Handle potential line breaks with dashes
+            re.compile(
+                r'Centre\s*[-–—\n\s]*for\s*[-–—\n\s]*Research\s*[-–—\n\s]*on\s*[-–—\n\s]*Energy\s*[-–—\n\s]*&\s*[-–—\n\s]*Clean\s*[-–—\n\s]*Air',
+                re.IGNORECASE | re.MULTILINE
+            )
+        ]
+    
+    def apply(self, document_or_text) -> bool:
+        """Check if document or text contains CREA-related mentions"""
+        if hasattr(document_or_text, 'text'):
+            # It's a Document object
+            text = document_or_text.text
+        else:
+            # It's a text string
+            text = str(document_or_text)
+        
+        return any(pattern.search(text) for pattern in self.patterns)
+
+
 class MetadataFilter(Filter):
     """Filter documents based on metadata fields"""
     

@@ -10,6 +10,7 @@ specifications (ChunkerSpec, EmbedderSpec).
 from .types import (
     Document,
     Finding,
+    Chunk,
     ChunkerSpec,
     EmbedderSpec,
     DocState,

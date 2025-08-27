@@ -19,12 +19,12 @@ class NLIReScorerConfig(BaseModel):
         entailment_label: Label representing entailment in model output.
     """
 
-    model_name: str = "textattack/distilbert-base-uncased-MNLI"
+    model_name: str = "typeform/distilbert-base-uncased-mnli"
     batch_size: int = 8
     device: int = -1
     max_length: int = 384
     local_files_only: bool = False
-    entailment_label: str = "ENTAILMENT"
+    entailment_label: str = "ENTAILMENT"  # For typeform model: ENTAILMENT = entailment
 
 
 class NLIReScorer(ReScorer[SearchResult]):
@@ -71,6 +71,7 @@ class NLIReScorer(ReScorer[SearchResult]):
                 device=device,
                 framework="pt",
             )
+            
             print(f"[NLI] Model loaded in {time.perf_counter() - t0:.2f}s")
         except Exception as exc:  # pragma: no cover - graceful degradation
             print(
@@ -95,7 +96,10 @@ class NLIReScorer(ReScorer[SearchResult]):
         inputs = []
         for match in matches:
             chunk_text = match.metadata.get("text", "")
-            #TODO Ensure this is the proper order
+            # Skip empty text - return 0 score
+            if not chunk_text or not query:
+                continue
+            # For MNLI models: use dictionary format with premise and hypothesis
             inputs.append({"text": chunk_text, "text_pair": query})
 
         import os
@@ -112,19 +116,50 @@ class NLIReScorer(ReScorer[SearchResult]):
         )
 
         rescored: List[SearchResult] = []
-        for match, scores in zip(matches, results):
-            entail_score = 0.0
-            for item in scores:
-                if item["label"].upper().startswith(self.config.entailment_label):
-                    entail_score = float(item["score"])
-                    break
-            rescored.append(
-                SearchResult(
-                    item_id=match.item_id,
-                    score=entail_score,
-                    metadata={**match.metadata, "nli_score": entail_score},
+        result_index = 0
+        
+        for match in matches:
+            chunk_text = match.metadata.get("text", "")
+            
+            # Handle empty text - return 0 score
+            if not chunk_text or not query:
+                rescored.append(
+                    SearchResult(
+                        item_id=match.item_id,
+                        score=0.0,
+                        metadata={**match.metadata, "nli_score": 0.0},
+                    )
                 )
-            )
+                continue
+            
+            # Get scores for this match
+            if result_index < len(results):
+                scores = results[result_index]
+                entail_score = 0.0
+                
+                # Find entailment score using configured label
+                for item in scores:
+                    if item["label"] == self.config.entailment_label:
+                        entail_score = float(item["score"])
+                        break
+                
+                rescored.append(
+                    SearchResult(
+                        item_id=match.item_id,
+                        score=entail_score,
+                        metadata={**match.metadata, "nli_score": entail_score},
+                    )
+                )
+                result_index += 1
+            else:
+                # Fallback if results don't match
+                rescored.append(
+                    SearchResult(
+                        item_id=match.item_id,
+                        score=0.0,
+                        metadata={**match.metadata, "nli_score": 0.0},
+                    )
+                )
 
         rescored.sort(key=lambda x: x.score, reverse=True)
         return rescored

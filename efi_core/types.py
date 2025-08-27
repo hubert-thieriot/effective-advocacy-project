@@ -59,6 +59,14 @@ class Finding:
 
 
 @dataclass
+class Chunk:
+    """Represents a text chunk with metadata"""
+    chunk_id: int
+    text: str
+    doc_id: str
+
+
+@dataclass
 class LibraryDocument:
     """Library document metadata without findings"""
     doc_id: str

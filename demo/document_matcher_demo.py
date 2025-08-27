@@ -97,7 +97,7 @@ def main() -> None:
                     doc_id, chunk_idx = res.item_id.split('_chunk_')
                     chunk_idx_int = int(chunk_idx)
                     chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=False)
-                    chunk_text = chunks[chunk_idx_int] if chunks and chunk_idx_int < len(chunks) else ""
+                    chunk_text = chunks[chunk_idx_int].text if chunks and chunk_idx_int < len(chunks) else ""
                     res.metadata["text"] = chunk_text
                     enriched.append(res)
                 except Exception:

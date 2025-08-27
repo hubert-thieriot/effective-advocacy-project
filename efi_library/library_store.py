@@ -215,7 +215,7 @@ class LibraryStore(LibraryStoreProtocol):
             logger.error(f"Error retrieving findings for document ID {doc_id}: {e}")
             return None
     
-    def list_all_findings(self) -> List[LibraryDocumentWFindings]:
+    def list_documents(self) -> List[LibraryDocumentWFindings]:
         """
         List all stored findings
         

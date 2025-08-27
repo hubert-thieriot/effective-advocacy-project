@@ -7,7 +7,7 @@ import numpy as np
 
 from tqdm import tqdm
 
-from efi_core.types import ChunkerSpec, EmbedderSpec
+from efi_core.types import ChunkerSpec, EmbedderSpec, Chunk
 from efi_core.protocols import Chunker, Embedder
 from efi_core.layout import EmbeddedLibraryLayout
 from efi_core.stores import ChunkStore, EmbeddingStore, IndexStore
@@ -209,14 +209,14 @@ class EmbeddedLibrary:
         return {
             "library_path": str(self.library_path),
             "workspace_path": str(self.workspace_path),
-            "document_count": self.library.get_findings_count(),
-            "total_findings_count": self.library.get_total_findings_count(),
+            "document_count": self.library.get_documents_count(),
+            "total_findings_count": self.library.get_findings_count(),
             "chunker_spec": self.chunker_spec.name,
             "embedder_spec": self.embedder.spec.model_name
         }
     
-    def show_stats(self) -> dict:
-        """Show detailed statistics about the embedded library"""
+    def get_stats(self) -> dict:
+        """Get detailed statistics about the embedded library"""
         stats = {
             "library_info": self.get_library_info(),
             "storage_stats": {}
@@ -244,6 +244,21 @@ class EmbeddedLibrary:
         }
         
         return stats
+    
+    def show_stats(self) -> None:
+        """Print detailed statistics about the embedded library"""
+        stats = self.get_stats()
+        print("Embedded Library Statistics:")
+        print("=" * 40)
+        
+        # Print library info
+        print("Library Information:")
+        for key, value in stats["library_info"].items():
+            print(f"  {key}: {value}")
+        
+        print("\nStorage Statistics:")
+        for key, value in stats["storage_stats"].items():
+            print(f"  {key}: {value}")
     
     def _fast_count_chunks(self) -> int:
         """Fast count of available chunks using file system"""

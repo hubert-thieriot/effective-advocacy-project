@@ -191,7 +191,7 @@ def main():
                     chunk_idx_int = int(chunk_idx)
                     chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=False)
                     if chunks and chunk_idx_int < len(chunks):
-                        chunk_text = chunks[chunk_idx_int]
+                        chunk_text = chunks[chunk_idx_int].text
                     else:
                         chunk_text = "Chunk not found"
                     result.metadata["text"] = chunk_text

@@ -28,6 +28,7 @@ faiss-cpu = "<1.8.0"
 pytest = "^8.4.1"
 sentence-transformers = "^2.2.0"
 python-decouple = "^3.8"
+pandas = "^2.3.2"
 
 [tool.poetry.group.analysis]
 optional = true
@@ -40,6 +41,14 @@ matplotlib = "^3.7.0"
 seaborn = "^0.12.0"
 
 [tool.pytest.ini_options]
+markers = [
+    "fast: marks tests as fast (deselect with '-m \"not fast\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "internet: marks tests that require internet access",
+    "gpu: marks tests that require GPU",
+    "skip_ci: marks tests to skip in CI/CD",
+]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

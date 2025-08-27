@@ -31,7 +31,7 @@ class SentenceChunker:
         
         # Sentence ending patterns - handle both with and without spaces after punctuation
         # But avoid splitting on decimal numbers (e.g., PM2.5, 34.5%)
-        self.sentence_end_pattern = re.compile(r'[.!?](?:\s+|$)(?![0-9])')
+        self.sentence_end_pattern = re.compile(r'[.!?]["\s]*(?=[A-Z])')
     
     @property
     def spec(self) -> ChunkerSpec:
@@ -115,9 +115,12 @@ class SentenceChunker:
         sentences = []
         current_pos = 0
         
-        # Find all sentence endings - look for periods followed by capital letters
-        # This handles cases like "death.The CREA" -> split after "death."
-        for match in re.finditer(r'[.!?](?=\s*[A-Z])', text):
+        # Find all sentence endings - look for periods, exclamation marks, question marks, and quotes
+        # This handles cases like:
+        # - "death.The CREA" -> split after "death."
+        # - 'air."In addition' -> split after 'air."'
+        # - 'plants."This makes' -> split after 'plants."'
+        for match in re.finditer(self.sentence_end_pattern, text):
             end_pos = match.end()
             sentence = text[current_pos:end_pos].strip()
             if sentence:

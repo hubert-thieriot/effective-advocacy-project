@@ -135,7 +135,7 @@ class NLIReScorer(ReScorer[SearchResult]):
             # Get scores for this match
             if result_index < len(results):
                 scores = results[result_index]
-                entail_score = 0.0
+                entail_score = float('nan')
                 
                 # Find entailment score using configured label
                 for item in scores:

@@ -29,8 +29,9 @@ class SentenceChunker:
         self.max_chunk_size = max_chunk_size
         self.overlap = overlap
         
-        # Sentence ending patterns
-        self.sentence_end_pattern = re.compile(r'[.!?]\s+')
+        # Sentence ending patterns - handle both with and without spaces after punctuation
+        # But avoid splitting on decimal numbers (e.g., PM2.5, 34.5%)
+        self.sentence_end_pattern = re.compile(r'[.!?](?:\s+|$)(?![0-9])')
     
     @property
     def spec(self) -> ChunkerSpec:
@@ -39,7 +40,8 @@ class SentenceChunker:
             name="sentence",
             params={
                 "max_size": self.max_chunk_size,
-                "overlap": self.overlap
+                "overlap": self.overlap,
+                "sentence_end_pattern": str(self.sentence_end_pattern)
             }
         )
     
@@ -113,8 +115,9 @@ class SentenceChunker:
         sentences = []
         current_pos = 0
         
-        # Find all sentence endings
-        for match in self.sentence_end_pattern.finditer(text):
+        # Find all sentence endings - look for periods followed by capital letters
+        # This handles cases like "death.The CREA" -> split after "death."
+        for match in re.finditer(r'[.!?](?=\s*[A-Z])', text):
             end_pos = match.end()
             sentence = text[current_pos:end_pos].strip()
             if sentence:

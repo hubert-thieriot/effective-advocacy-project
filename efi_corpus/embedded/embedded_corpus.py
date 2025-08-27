@@ -153,60 +153,89 @@ class EmbeddedCorpus:
     def embeddings(self, doc_id: str):
         return self.get_embeddings(doc_id, materialize_if_necessary=True)
 
-    def build_chunks(self, max_documents: Optional[int] = None) -> None:
-        """Build chunks for documents in the corpus."""
-        # Use iterator directly instead of loading all documents into memory
-        documents_iter = self.corpus.iter_documents()
+    def build_chunks(self, max_documents: Optional[int] = None, doc_ids: Optional[List[str]] = None) -> None:
+        """Build chunks for documents in the corpus.
         
-        # Count total documents for progress bar (this is the only place we need to materialize)
-        if max_documents is None:
-            total_documents = self.corpus.get_document_count()
+        Args:
+            max_documents: Maximum number of documents to process (None for all)
+            doc_ids: Specific document IDs to process (None for all documents)
+        """
+        if doc_ids is not None:
+            # Build chunks for specific documents
+            total_documents = len(doc_ids)
+            print(f"Building chunks for {total_documents} specific documents...")
+            with tqdm(total=total_documents, desc="Building chunks", unit="doc") as pbar:
+                for doc_id in doc_ids:
+                    _ = self.get_chunks(doc_id, materialize_if_necessary=True)
+                    pbar.update(1)
         else:
-            total_documents = max_documents
-        
-        print(f"Building chunks for {total_documents} documents...")
-        with tqdm(total=total_documents, desc="Building chunks", unit="doc") as pbar:
-            doc_count = 0
-            for doc in documents_iter:
-                if max_documents and doc_count >= max_documents:
-                    break
-                    
-                _ = self.get_chunks(doc.doc_id, materialize_if_necessary=True)
-                pbar.update(1)
-                doc_count += 1
+            # Build chunks for all documents (existing logic)
+            documents_iter = self.corpus.iter_documents()
+            
+            # Count total documents for progress bar (this is the only place we need to materialize)
+            if max_documents is None:
+                total_documents = self.corpus.get_document_count()
+            else:
+                total_documents = max_documents
+            
+            print(f"Building chunks for {total_documents} documents...")
+            with tqdm(total=total_documents, desc="Building chunks", unit="doc") as pbar:
+                doc_count = 0
+                for doc in documents_iter:
+                    if max_documents and doc_count >= max_documents:
+                        break
+                        
+                    _ = self.get_chunks(doc.doc_id, materialize_if_necessary=True)
+                    pbar.update(1)
+                    doc_count += 1
     
-    def build_embeddings(self, max_documents: Optional[int] = None) -> None:
-        """Build embeddings for documents in the corpus (assumes chunks exist)."""
-        # Use iterator directly instead of loading all documents into memory
-        documents_iter = self.corpus.iter_documents()
+    def build_embeddings(self, max_documents: Optional[int] = None, doc_ids: Optional[List[str]] = None) -> None:
+        """Build embeddings for documents in the corpus (assumes chunks exist).
         
-        # Count total documents for progress bar (this is the only place we need to materialize)
-        if max_documents is None:
-            total_documents = self.corpus.get_document_count()
+        Args:
+            max_documents: Maximum number of documents to process (None for all)
+            doc_ids: Specific document IDs to process (None for all documents)
+        """
+        if doc_ids is not None:
+            # Build embeddings for specific documents
+            total_documents = len(doc_ids)
+            print(f"Building embeddings for {total_documents} specific documents...")
+            with tqdm(total=total_documents, desc="Building embeddings", unit="doc") as pbar:
+                for doc_id in doc_ids:
+                    _ = self.get_embeddings(doc_id, materialize_if_necessary=True)
+                    pbar.update(1)
         else:
-            total_documents = max_documents
-        
-        print(f"Building embeddings for {total_documents} documents...")
-        with tqdm(total=total_documents, desc="Building embeddings", unit="doc") as pbar:
-            doc_count = 0
-            for doc in documents_iter:
-                if max_documents and doc_count >= max_documents:
-                    break
-                    
-                _ = self.get_embeddings(doc.doc_id, materialize_if_necessary=True)
-                pbar.update(1)
-                doc_count += 1
+            # Build embeddings for all documents (existing logic)
+            documents_iter = self.corpus.iter_documents()
+            
+            # Count total documents for progress bar (this is the only place we need to materialize)
+            if max_documents is None:
+                total_documents = self.corpus.get_document_count()
+            else:
+                total_documents = max_documents
+            
+            print(f"Building embeddings for {total_documents} documents...")
+            with tqdm(total=total_documents, desc="Building embeddings", unit="doc") as pbar:
+                doc_count = 0
+                for doc in documents_iter:
+                    if max_documents and doc_count >= max_documents:
+                        break
+                        
+                    _ = self.get_embeddings(doc.doc_id, materialize_if_necessary=True)
+                    pbar.update(1)
+                    doc_count += 1
     
-    def build_all(self, reindex: bool = True, max_documents: Optional[int] = None) -> None:
+    def build_all(self, reindex: bool = True, max_documents: Optional[int] = None, doc_ids: Optional[List[str]] = None) -> None:
         """
         Build chunks, embeddings, and optionally FAISS index for documents.
         
         Args:
             reindex: Whether to build FAISS index after embeddings
             max_documents: Maximum number of documents to process (None for all)
+            doc_ids: Specific document IDs to process (None for all documents)
         """
-        self.build_chunks(max_documents=max_documents)
-        self.build_embeddings(max_documents=max_documents)
+        self.build_chunks(max_documents=max_documents, doc_ids=doc_ids)
+        self.build_embeddings(max_documents=max_documents, doc_ids=doc_ids)
         
         if reindex:
             self.build_index()

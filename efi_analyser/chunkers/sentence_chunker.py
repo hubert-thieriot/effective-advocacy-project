@@ -18,7 +18,7 @@ class SentenceChunker:
     maximum chunk size and overlap constraints.
     """
     
-    def __init__(self, max_chunk_size: int = 200, overlap: int = 50):
+    def __init__(self, max_chunk_size: int = 500, overlap: int = 50):
         """
         Initialize the sentence chunker.
         
@@ -29,9 +29,26 @@ class SentenceChunker:
         self.max_chunk_size = max_chunk_size
         self.overlap = overlap
         
-        # Sentence ending patterns - handle both with and without spaces after punctuation
+        # Sentence ending patterns - using lookahead to identify boundaries
+        # Support straight and curly quotes
+        quote_chars = '"”’\'”'
+        # Pattern 1: Period followed by newline (most reliable sentence boundary)
+        # Pattern 2: Period followed by space and capital letter (e.g., "dark.The")
+        # Pattern 3: Period followed by capital letter without space (e.g., "death.The")
+        # Pattern 4: Period followed by quote (straight or curly)
+        # Pattern 5: Period followed by quote and newline
+        # Pattern 6: Period followed by newline and capital
+        # Pattern 7: Period followed by quote, double newline and capital
         # But avoid splitting on decimal numbers (e.g., PM2.5, 34.5%)
-        self.sentence_end_pattern = re.compile(r'[.!?]["\s]*(?=[A-Z])')
+        self.sentence_end_patterns = [
+            re.compile(r'[.!?](?=\s*\n)'),                              # Period + whitespace + newline
+            re.compile(r'[.!?](?=\s+[A-Z])'),                           # Period + space + capital letter
+            re.compile(r'[.!?](?=[A-Z])'),                               # Period + capital letter (no space)
+            re.compile(r'[.!?](?=\s*[\"”])'),                           # Period + whitespace + straight/curly quote
+            re.compile(r'[.!?](?=[\"”]\s*\n)'),                        # Period + straight/curly quote + whitespace + newline
+            re.compile(r'[.!?](?=\s*\n\s*[A-Z])'),                    # Period + whitespace + newline + whitespace + capital
+            re.compile(r'[.!?](?=[\"”]\s*\n\s*\n\s*[A-Z])'),        # Period + straight/curly quote + blank line + capital
+        ]
     
     @property
     def spec(self) -> ChunkerSpec:
@@ -41,7 +58,7 @@ class SentenceChunker:
             params={
                 "max_size": self.max_chunk_size,
                 "overlap": self.overlap,
-                "sentence_end_pattern": str(self.sentence_end_pattern)
+                "sentence_end_patterns": [str(pattern) for pattern in self.sentence_end_patterns]
             }
         )
     
@@ -53,7 +70,7 @@ class SentenceChunker:
             text: Text to chunk
             
         Returns:
-            List of text chunks
+            List of text chunks, one per sentence
         """
         if not text or not text.strip():
             return []
@@ -64,46 +81,21 @@ class SentenceChunker:
         if not sentences:
             return []
         
-        # If text is short enough, return as single chunk
-        if len(text) <= self.max_chunk_size:
-            return [text.strip()]
-        
-        # Create chunks with overlap
+        # Always create one chunk per sentence
         chunks = []
-        current_chunk = ""
-        overlap_text = ""
-        
         for sentence in sentences:
             sentence = sentence.strip()
-            if not sentence:
-                continue
-            
-            # Check if adding this sentence would exceed max size
-            potential_chunk = current_chunk + " " + sentence if current_chunk else sentence
-            
-            if len(potential_chunk) <= self.max_chunk_size:
-                # Add sentence to current chunk
-                current_chunk = potential_chunk
-            else:
-                # Current chunk is full, save it and start new one
-                if current_chunk:
-                    chunks.append(current_chunk.strip())
-                
-                # Start new chunk with overlap from previous
-                if overlap_text:
-                    current_chunk = overlap_text + " " + sentence
-                else:
-                    current_chunk = sentence
-        
-        # Add the last chunk if it exists
-        if current_chunk:
-            chunks.append(current_chunk.strip())
+            if sentence:
+                # If a single sentence exceeds max_chunk_size, truncate it
+                if len(sentence) > self.max_chunk_size:
+                    sentence = sentence[:self.max_chunk_size].strip()
+                chunks.append(sentence)
         
         return chunks
     
     def _split_into_sentences(self, text: str) -> List[str]:
         """
-        Split text into sentences using regex pattern.
+        Split text into sentences using multiple regex patterns.
         
         Args:
             text: Text to split
@@ -111,17 +103,22 @@ class SentenceChunker:
         Returns:
             List of sentences
         """
-        # Use a better approach: find all sentence endings and split properly
+        # Find all sentence endings using multiple patterns
+        sentence_endings = []
+        
+        # Collect all matches from all patterns
+        for pattern in self.sentence_end_patterns:
+            for match in pattern.finditer(text):
+                sentence_endings.append((match.end(), match.group()))
+        
+        # Sort by position to process in order
+        sentence_endings.sort(key=lambda x: x[0])
+        
         sentences = []
         current_pos = 0
         
-        # Find all sentence endings - look for periods, exclamation marks, question marks, and quotes
-        # This handles cases like:
-        # - "death.The CREA" -> split after "death."
-        # - 'air."In addition' -> split after 'air."'
-        # - 'plants."This makes' -> split after 'plants."'
-        for match in re.finditer(self.sentence_end_pattern, text):
-            end_pos = match.end()
+        # Split at each sentence ending
+        for end_pos, match_text in sentence_endings:
             sentence = text[current_pos:end_pos].strip()
             if sentence:
                 sentences.append(sentence)

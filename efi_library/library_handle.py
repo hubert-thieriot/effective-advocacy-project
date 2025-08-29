@@ -69,8 +69,11 @@ class LibraryHandle(Library):
         """
         # First try using the store (works for new structure and is easily mockable in tests)
         store_results = self.store.list_documents()
+        
         if store_results:
-            return iter(store_results)
+            for doc in store_results:
+                yield doc
+            return
         
         # Fall back to old structure if store doesn't work
         if self._structure == "old" and self.layout.findings_path.exists():
@@ -106,9 +109,9 @@ class LibraryHandle(Library):
                     yield doc
             except Exception as e:
                 logger.error(f"Error reading old findings structure: {e}")
-                return iter([])
+                return
         
-        return iter([])
+        return
     
     def iter_findings(self) -> Iterator[Finding]:
         """Iterate over individual findings across all documents in the library.
@@ -128,7 +131,50 @@ class LibraryHandle(Library):
         Returns:
             List of all LibraryDocumentWFindings objects
         """
-        return list(self.iter_documents())
+        # Call store directly to avoid circular dependency
+        store_results = self.store.list_documents()
+        if store_results:
+            return store_results
+        
+        # Fall back to old structure if store doesn't work
+        if self._structure == "old" and self.layout.findings_path.exists():
+            try:
+                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                results = []
+                for doc_data in data:
+                    # Convert old structure to new structure
+                    findings = []
+                    for fdata in doc_data.get('findings', []):
+                        finding = Finding(
+                            finding_id=fdata.get('finding_id', ''),
+                            text=fdata.get('text', ''),
+                            confidence=fdata.get('confidence'),
+                            category=fdata.get('category'),
+                            keywords=fdata.get('keywords', [])
+                        )
+                        findings.append(finding)
+                    
+                    # Create LibraryDocumentWFindings object
+                    doc_id = Finding.generate_doc_id(doc_data.get('url', ''))
+                    doc = LibraryDocumentWFindings(
+                        doc_id=doc_id,
+                        url=doc_data.get('url', ''),
+                        title=doc_data.get('title', ''),
+                        published_at=doc_data.get('published_at'),
+                        language=doc_data.get('language', 'en'),
+                        extraction_date=doc_data.get('extraction_date'),
+                        findings=findings,
+                        metadata=doc_data.get('metadata', {})
+                    )
+                    results.append(doc)
+                return results
+            except Exception as e:
+                logger.error(f"Error reading old findings structure: {e}")
+                return []
+        
+        return []
     
     def list_findings(self) -> List[Finding]:
         """List all individual findings across all documents in the library.

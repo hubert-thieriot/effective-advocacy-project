@@ -31,10 +31,14 @@ class OllamaReScorer(LLMReScorer):
         elif not base_url.endswith('/v1'):
             base_url = base_url.rstrip('/') + '/v1'
         
+        # For local Ollama, we need a dummy API key (OpenAI client requirement)
+        if api_key is None and base_url == "http://localhost:11434/v1":
+            api_key = "ollama-local"
+        
         # Allow caller/env to provide connection details
         self._client = OpenAI(
             base_url=base_url, 
-            api_key=api_key,  # Use None by default for Ollama (no auth required)
+            api_key=api_key,  # Use dummy key for local Ollama
             timeout=120.0  # 120 second timeout for slower models like phi3:3.8b
         )
 

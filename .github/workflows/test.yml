@@ -48,13 +48,22 @@ jobs:
     
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
+      run: poetry install --no-interaction
     
     - name: Activate cached venv
       if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
         echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
         echo ".venv/bin" >> $GITHUB_PATH
+    
+    - name: Install package in development mode
+      run: poetry install --no-interaction
+    
+    - name: Verify package installation
+      run: |
+        poetry run python -c "import efi_corpus; print('efi_corpus imported successfully')"
+        poetry run python -c "import efi_analyser; print('efi_analyser imported successfully')"
+        poetry run python -c "import efi_library; print('efi_library imported successfully')"
     
     - name: Create test results directory
       run: mkdir -p test-results

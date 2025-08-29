@@ -50,7 +50,7 @@ markers = [
     "skip_ci: marks tests to skip in CI/CD",
     "local_llm: marks tests that require a local LLM server (Ollama, etc.)",
 ]
-testpaths = ["tests"]
+testpaths = ["efi_analyser/tests", "efi_corpus/tests", "efi_library/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

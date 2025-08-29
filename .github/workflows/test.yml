@@ -41,7 +41,7 @@ jobs:
     
     - name: Load cached venv
       id: cached-poetry-dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -56,32 +56,43 @@ jobs:
         echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
         echo ".venv/bin" >> $GITHUB_PATH
     
+    - name: Create test results directory
+      run: mkdir -p test-results
+    
     - name: Run fast tests (efi_analyser)
-      if: github.event.inputs.test_type != 'slow' || github.event.inputs.test_type == 'fast'
+      if: github.event.inputs.test_type != 'slow'
       run: |
-        poetry run pytest efi_analyser/tests/ -m "not slow and not local_llm and not integration" -v --tb=short
+        poetry run pytest efi_analyser/tests/ -m "not slow and not local_llm and not integration" -v --tb=short --junitxml=test-results/efi_analyser.xml
     
     - name: Run fast tests (efi_corpus)
-      if: github.event.inputs.test_type != 'slow' || github.event.inputs.test_type == 'fast'
+      if: github.event.inputs.test_type != 'slow'
       run: |
-        poetry run pytest efi_corpus/tests/ -v --tb=short
+        poetry run pytest efi_corpus/tests/ -v --tb=short --junitxml=test-results/efi_corpus.xml
     
     - name: Run all tests (including slow)
-      if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'slow'
+      if: github.event.inputs.test_type == 'all'
       run: |
-        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -v --tb=short
+        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -v --tb=short --junitxml=test-results/all_tests.xml
     
     - name: Run slow tests only
       if: github.event.inputs.test_type == 'slow'
       run: |
-        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -m "slow" -v --tb=short
+        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -m "slow" -v --tb=short --junitxml=test-results/slow_tests.xml
     
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.python-version }}
         path: |
           .pytest_cache/
           test-results/
         retention-days: 7
+    
+    - name: Upload test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-reports-${{ matrix.python-version }}
+        path: test-results/*.xml
+        retention-days: 30

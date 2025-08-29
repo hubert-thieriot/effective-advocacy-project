@@ -247,7 +247,7 @@ class TestNLIReScorer:
             pytest.skip("Slow tests disabled")
         
         # Create multiple matches with different entailment levels
-    matches = [
+        matches = [
             SearchResult(item_id="high_entail", score=0, metadata={"text": "The cat is sitting on the mat."}),
             SearchResult(item_id="low_entail", score=0, metadata={"text": "A cat is somewhere in the house."}),
             SearchResult(item_id="neutral", score=0, metadata={"text": "The weather is sunny today."}),

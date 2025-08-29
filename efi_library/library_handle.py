@@ -73,8 +73,41 @@ class LibraryHandle(Library):
             return iter(store_results)
         
         # Fall back to old structure if store doesn't work
-        # This would need to be implemented based on the old structure
-        # For now, return empty iterator
+        if self._structure == "old" and self.layout.findings_path.exists():
+            try:
+                with open(self.layout.findings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                for doc_data in data:
+                    # Convert old structure to new structure
+                    findings = []
+                    for fdata in doc_data.get('findings', []):
+                        finding = Finding(
+                            finding_id=fdata.get('finding_id', ''),
+                            text=fdata.get('text', ''),
+                            confidence=fdata.get('confidence'),
+                            category=fdata.get('category'),
+                            keywords=fdata.get('keywords', [])
+                        )
+                        findings.append(finding)
+                    
+                    # Create LibraryDocumentWFindings object
+                    doc_id = Finding.generate_doc_id(doc_data.get('url', ''))
+                    doc = LibraryDocumentWFindings(
+                        doc_id=doc_id,
+                        url=doc_data.get('url', ''),
+                        title=doc_data.get('title', ''),
+                        published_at=doc_data.get('published_at'),
+                        language=doc_data.get('language', 'en'),
+                        extraction_date=doc_data.get('extraction_date'),
+                        findings=findings,
+                        metadata=doc_data.get('metadata', {})
+                    )
+                    yield doc
+            except Exception as e:
+                logger.error(f"Error reading old findings structure: {e}")
+                return iter([])
+        
         return iter([])
     
     def iter_findings(self) -> Iterator[Finding]:

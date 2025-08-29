@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Run all corpus configs in configs/air_quality/ sequentially.
-This script will process each country's config one by one.
+Run all corpus configs in configs/air_quality/ sequentially, or run a single config file.
+This script will process each country's config one by one, or a single specified config.
 """
 
 import sys
@@ -18,6 +18,32 @@ def find_configs(config_dir: Path) -> List[Path]:
     for ext in ['*.yaml', '*.yml', '*.json']:
         configs.extend(config_dir.glob(ext))
     return sorted(configs)
+
+
+def run_single_config(config_path: Path) -> Dict[str, Any]:
+    """Run a single config file"""
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    print(f"Running single config: {config_path.name}")
+    print(f"Config: {config_path}")
+    print("-" * 40)
+    
+    start_time = time.time()
+    summary = run_config(config_path)
+    end_time = time.time()
+    
+    duration = end_time - start_time
+    print(f"✅ Completed successfully in {duration:.1f}s")
+    print(f"Summary: {summary}")
+    
+    return {
+        "config": config_path.name,
+        "status": "success",
+        "summary": summary,
+        "duration": duration,
+        "retries": 0
+    }
 
 
 def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int = 60, max_retries: int = 2):
@@ -163,9 +189,11 @@ def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="Run all corpus configs sequentially")
+    parser = argparse.ArgumentParser(description="Run corpus configs sequentially or a single config file")
     parser.add_argument("--config-dir", default="configs/air_quality", 
-                       help="Directory containing config files")
+                       help="Directory containing config files (default: configs/air_quality)")
+    parser.add_argument("--config-file", 
+                       help="Single config file to run (overrides --config-dir)")
     parser.add_argument("--delay", type=int, default=60,
                        help="Delay between config runs in seconds (default: 60)")
     parser.add_argument("--max-retries", type=int, default=2,
@@ -174,7 +202,14 @@ def main():
     args = parser.parse_args()
     
     try:
-        results = run_all_configs(args.config_dir, args.delay, args.max_retries)
+        if args.config_file:
+            # Run single config file
+            config_path = Path(args.config_file)
+            result = run_single_config(config_path)
+            results = [result]
+        else:
+            # Run all configs in directory
+            results = run_all_configs(args.config_dir, args.delay, args.max_retries)
         
         # Exit with error code if any configs failed
         failed_count = len([r for r in results if r["status"] == "failed"])

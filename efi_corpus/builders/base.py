@@ -46,6 +46,16 @@ class BaseCorpusBuilder(ABC):
                 cache_root = Path("cache")
             self.fetcher = Fetcher(cache_root)
 
+    def _is_domain_blacklisted(self, url: str, blacklist: list[str]) -> bool:
+        """Check if a URL's domain is in the blacklist"""
+        from urllib.parse import urlparse
+        try:
+            domain = urlparse(url).netloc.lower()
+            return any(blacklisted_domain.lower() in domain for blacklisted_domain in blacklist)
+        except Exception:
+            # If URL parsing fails, assume it's not blacklisted
+            return False
+
     # ---------- abstract hooks ----------
     @abstractmethod
     def discover(self, params: BuilderParams) -> Iterable[DiscoveryItem]:
@@ -100,6 +110,21 @@ class BaseCorpusBuilder(ABC):
 
         # Discover items
         discovered = list(self.discover(params))
+        
+        # Apply domain blacklist filtering if configured
+        domain_blacklist = (params.extra or {}).get('domain_blacklist', [])
+        print(f"DEBUG: Domain blacklist config: {domain_blacklist}")
+        if domain_blacklist:
+            original_count = len(discovered)
+            discovered = [item for item in discovered if not self._is_domain_blacklisted(item.url, domain_blacklist)]
+            filtered_count = original_count - len(discovered)
+            if filtered_count > 0:
+                print(f"Filtered out {filtered_count} items from blacklisted domains: {domain_blacklist}")
+            else:
+                print(f"DEBUG: No items were filtered out by domain blacklist")
+        else:
+            print(f"DEBUG: No domain blacklist configured")
+        
         # Map URL to discovery item for later metadata enrichment
         discovered_by_url = {d.url: d for d in discovered}
         
@@ -113,6 +138,9 @@ class BaseCorpusBuilder(ABC):
         # Process frontier
         added = 0
         failed_urls = []
+        skipped_quality = 0
+        skipped_text_extraction = 0
+        skipped_duplicate = len(discovered) - len(frontier)  # Already in corpus
         
         for url, stable_id in frontier:
             try:
@@ -122,9 +150,16 @@ class BaseCorpusBuilder(ABC):
                 parsed = self.parse_text(raw_bytes, raw_ext, url)
                 text = parsed.get("text") or ""
                 
+                # Track text extraction failures
+                if not text:
+                    print(f"  ⚠️  Skipped: No text extracted")
+                    skipped_text_extraction += 1
+                    continue
+                
                 # Quality gate
                 if len(text) < 400:
                     print(f"  ⚠️  Skipped: Text too short ({len(text)} chars)")
+                    skipped_quality += 1
                     continue
                     
                 # Merge extras: run-level extras and per-item extras
@@ -177,12 +212,34 @@ class BaseCorpusBuilder(ABC):
                 print(f"     Error: {e}")
                 failed_urls.append({"url": url, "error": str(e)})
                 continue  # Continue with next URL instead of crashing
-
+        
+        # Print comprehensive summary
+        print(f"\n📊 Build Summary:")
+        print(f"  Discovered: {len(discovered)}")
+        print(f"  Added: {added}")
+        print(f"  Skipped (quality): {skipped_quality}")
+        print(f"  Skipped (text extraction): {skipped_text_extraction}")
+        print(f"  Skipped (duplicate): {skipped_duplicate}")
+        print(f"  Failed: {len(failed_urls)}")
+        print(f"  Total docs in corpus: {self.corpus.get_document_count()}")
+        
+        # Calculate total processed (should equal discovered - duplicates)
+        total_processed = added + skipped_quality + skipped_text_extraction + len(failed_urls)
+        print(f"  Total processed: {total_processed}")
+        
+        # Verify numbers add up
+        expected_total = len(discovered) - skipped_duplicate
+        if total_processed != expected_total:
+            print(f"  ⚠️  Number mismatch: processed {total_processed} vs expected {expected_total}")
+        
         # Update manifest
         manifest["history"].append({
             "run_at": time.time(),
             "discovered": len(discovered),
             "added": added,
+            "skipped_quality": skipped_quality,
+            "skipped_text_extraction": skipped_text_extraction,
+            "skipped_duplicate": skipped_duplicate,
             "failed": len(failed_urls),
             "date_from": params.date_from,
             "date_to": params.date_to,
@@ -190,8 +247,8 @@ class BaseCorpusBuilder(ABC):
         })
         manifest["doc_count"] = (manifest.get("doc_count", 0) + added)
         self.corpus.save_manifest(manifest)
-
-        # Print summary
+        
+        # Print detailed failure summary
         if failed_urls:
             print(f"\n⚠️  {len(failed_urls)} URLs failed to process:")
             for failed in failed_urls[:5]:  # Show first 5 failures
@@ -199,15 +256,13 @@ class BaseCorpusBuilder(ABC):
             if len(failed_urls) > 5:
                 print(f"  ... and {len(failed_urls) - 5} more")
         
-        print(f"\n📊 Build Summary:")
-        print(f"  Discovered: {len(discovered)}")
-        print(f"  Added: {added}")
-        print(f"  Failed: {len(failed_urls)}")
-        print(f"  Total docs in corpus: {manifest['doc_count']}")
-
         return {
-            "discovered": len(discovered), 
-            "added": added, 
+            "discovered": len(discovered),
+            "added": added,
+            "skipped_quality": skipped_quality,
+            "skipped_text_extraction": skipped_text_extraction,
+            "skipped_duplicate": skipped_duplicate,
             "failed": len(failed_urls),
-            "doc_count": manifest["doc_count"]
+            "total_docs": self.corpus.get_document_count(),
+            "failed_details": failed_urls
         }

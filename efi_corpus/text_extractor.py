@@ -172,13 +172,19 @@ class TextExtractor:
         # Strategy 2: BeautifulSoup extraction
         if BEAUTIFULSOUP_AVAILABLE:
             try:
-                text = self._extract_with_beautifulsoup(html)
+                text = self._extract_with_beautifulsoup(html, url)
+                
+                # If BeautifulSoup extraction didn't get much content, try JavaScript paywall handling
+                if not text or len(text) < 1000:
+                    text = self._extract_before_javascript_paywall(html, url)
+                
                 extraction_attempts["beautifulsoup"] = {
                     "success": True,
                     "text_length": len(text)
                 }
                 
-                if self._is_valid_content(text):
+                # If we got substantial text, return it even if validation fails
+                if text and len(text) > 500:  # Lower threshold for substantial content
                     return {
                         "text": text,
                         "title": self._extract_title_from_html(html),
@@ -223,7 +229,64 @@ class TextExtractor:
         extraction_attempts["final_result"] = "All extraction strategies failed"
         return self._empty_result()
     
-    def _extract_with_beautifulsoup(self, html: str) -> str:
+    def _extract_before_javascript_paywall(self, html: str, url: str) -> str:
+        """Extract text before JavaScript paywall kicks in for sites like Indian Express"""
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Remove script tags and other dynamic content
+        for unwanted in soup.select('script, style, .paywall, .premium-content, .subscription-required'):
+            unwanted.decompose()
+        
+        # Site-specific extraction for known paywall sites
+        url_lower = url.lower()
+        
+        if 'indianexpress.com' in url_lower:
+            # Indian Express specific selectors that work before JS runs
+            selectors = [
+                '.story-details', '.story-content', '.article-content', 
+                '.entry-content', '.post-content', '.content-area',
+                'main', '.main-content', '.article-body'
+            ]
+            
+            for selector in selectors:
+                elements = soup.select(selector)
+                if elements:
+                    # Find the largest content block
+                    content_element = max(elements, key=lambda e: len(e.get_text()))
+                    text = content_element.get_text(separator='\n\n')
+                    
+                    # Clean up the text
+                    lines = [line.strip() for line in text.splitlines() if line.strip()]
+                    cleaned_text = '\n\n'.join(lines)
+                    
+                    if len(cleaned_text) > 1000:  # Ensure substantial content
+                        return cleaned_text
+        
+        elif 'hindustantimes.com' in url_lower:
+            # Hindustan Times specific selectors
+            selectors = [
+                '.story-content', '.story-body', '.article-content', 
+                '.content', '.main-content', '.story-details',
+                'main', 'article'
+            ]
+            
+            for selector in selectors:
+                elements = soup.select(selector)
+                if elements:
+                    content_element = max(elements, key=lambda e: len(e.get_text()))
+                    text = content_element.get_text(separator='\n\n')
+                    lines = [line.strip() for line in text.splitlines() if line.strip()]
+                    cleaned_text = '\n\n'.join(lines)
+                    
+                    if len(cleaned_text) > 1000:
+                        return cleaned_text
+        
+        # Fallback: try to get all text content
+        text = soup.get_text(separator='\n\n')
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return '\n\n'.join(lines)
+    
+    def _extract_with_beautifulsoup(self, html: str, url: str = "") -> str:
         """Extract text using BeautifulSoup with content selection"""
         soup = BeautifulSoup(html, 'html.parser')
         

@@ -251,7 +251,7 @@ class TestEmbeddedLibrary:
         processed_findings = []
         finding_counter = 0
         
-        for doc_findings in library_handle.iter_findings():
+        for doc_findings in library_handle.iter_documents():
             for finding in doc_findings.findings:
                 finding_id = f"finding_{finding_counter}"
                 finding_counter += 1

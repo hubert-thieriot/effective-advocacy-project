@@ -354,7 +354,7 @@ class TestEmbeddedCorpusIntegration:
         # Note: SentenceChunker creates overlapping chunks, so some may exceed max_chunk_size
         # This is expected behavior for sentence-based chunking
         print(f"Generated chunks: {chunks}")
-        print(f"Chunk lengths: {[len(chunk) for chunk in chunks]}")
+        print(f"Chunk lengths: {[len(chunk.text) for chunk in chunks]}")
         
         # Test embeddings (should be fast with small text)
         embeddings = embedded_corpus.get_embeddings("doc1", materialize_if_necessary=True)

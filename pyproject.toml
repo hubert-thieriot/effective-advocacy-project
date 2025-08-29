@@ -48,6 +48,7 @@ markers = [
     "internet: marks tests that require internet access",
     "gpu: marks tests that require GPU",
     "skip_ci: marks tests to skip in CI/CD",
+    "local_llm: marks tests that require a local LLM server (Ollama, etc.)",
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

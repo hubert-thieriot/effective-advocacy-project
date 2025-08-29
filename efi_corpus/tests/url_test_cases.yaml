@@ -1,0 +1,50 @@
+# URL Test Cases for Text Extractor Validation
+# This file contains URLs and their required text content to ensure our scrapers and extractors work correctly
+
+test_cases:
+  # Indian Express articles
+  indian_express_cse:
+    url: "https://indianexpress.com/article/upsc-current-affairs/upsc-essentials/upsc-essentials-mains-answer-practice-gs-3-week-112-10141919/"
+    description: "Indian Express UPSC article with CSE analysis"
+    required_text:
+      - "Centre for Science and Environment (CSE)"
+      - "2021 analysis"
+      - "emissions from power plants"
+      - "travel over 300 km"
+    expected_min_length: 1000
+    site: "indianexpress.com"
+    
+  # Hindustan Times articles
+  hindustan_times_mcg:
+    url: "https://www.hindustantimes.com/cities/gurugram-news/mcgsets-up-grievance-redressal-cell-to-fast-track-resolutions-101750875782941.html"
+    description: "Hindustan Times article about MCG grievance cell"
+    required_text:
+      - "grievance redressal cell"
+      - "Municipal Corporation Gurugram"
+      - "MCG"
+      - "public service efficiency"
+    expected_min_length: 1000
+    site: "hindustantimes.com"
+    
+  # NDTV health articles
+  ndtv_diabetes_eye_health:
+    url: "https://www.ndtv.com/health/diabetics-follow-these-precautions-to-prevent-diabetes-related-eye-conditions-8061365"
+    description: "NDTV health article about diabetes and eye conditions"
+    required_text:
+      - "Be vigilant for any changes in vision"
+      - "diabetes"
+      - "eye conditions"
+    expected_min_length: 800
+    site: "ndtv.com"
+    
+  # NDTV Delhi news articles
+  ndtv_delhi_fog_air_quality:
+    url: "https://www.ndtv.com/delhi-news/thick-fog-delays-over-35-trains-in-delhi-air-quality-remains-poor-7468987"
+    description: "NDTV Delhi news article about fog delays and air quality"
+    required_text:
+      - "The IMD has predicted dense to very dense fog for the day"
+      - "fog"
+      - "air quality"
+      - "trains"
+    expected_min_length: 800
+    site: "ndtv.com"

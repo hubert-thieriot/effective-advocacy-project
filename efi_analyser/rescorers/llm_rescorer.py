@@ -52,6 +52,11 @@ class LLMReScorer(ReScorer[SearchResult]):
         self.config = config or LLMReScorerConfig()
         # Ensure cache directory exists
         self.config.cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    @property
+    def name(self) -> str:
+        """Get a unique name for this rescorer instance."""
+        return self.config.model
 
     # -------- Public API --------
     def rescore(self, query: str, matches: List[SearchResult]) -> List[SearchResult]:

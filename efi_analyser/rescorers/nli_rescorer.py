@@ -38,6 +38,11 @@ class NLIReScorer(ReScorer[SearchResult]):
         self.config = config or NLIReScorerConfig()
         self._pipeline = None
         self._load_model()
+    
+    @property
+    def name(self) -> str:
+        """Get a unique name for this rescorer instance."""
+        return "NLI"
 
     def _load_model(self) -> None:
         """Load the transformers pipeline for NLI."""

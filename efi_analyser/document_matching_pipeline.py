@@ -68,9 +68,11 @@ class DocumentMatchingPipeline:
         timing_stats = {}
         score_stats = {}
         
-        for finding in findings:
+        for i, finding in enumerate(findings):
             finding_results = self._process_finding(finding, top_k)
-            results_by_finding[finding.finding_id] = finding_results
+            # Generate unique ID if finding_id is None
+            finding_key = finding.finding_id if finding.finding_id else f"finding_{i+1}"
+            results_by_finding[finding_key] = finding_results
             total_matches += len(finding_results.matches)
         
         # Create results container
@@ -131,6 +133,9 @@ class DocumentMatchingPipeline:
         for rescorer in self.rescorers:
             rescorer_start = time.time()
             
+            # Get unique rescorer name from the name property
+            rescorer_name = rescorer.name
+            
             # Enrich candidates with text
             enriched = []
             for candidate in candidates:
@@ -147,15 +152,15 @@ class DocumentMatchingPipeline:
             # Rescore
             try:
                 rescored = rescorer.rescore(finding.text, enriched)
-                rescorer_scores[rescorer.__class__.__name__] = [
+                rescorer_scores[rescorer_name] = [
                     float(r.score) for r in rescored
                 ]
             except Exception:
-                rescorer_scores[rescorer.__class__.__name__] = [
+                rescorer_scores[rescorer_name] = [
                     float(r.score) for r in enriched
                 ]
             
-            timing[rescorer.__class__.__name__] = time.time() - rescorer_start
+            timing[rescorer_name] = time.time() - rescorer_start
         
         # Create matches
         for i, candidate in enumerate(candidates):

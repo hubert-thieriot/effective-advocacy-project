@@ -5,7 +5,7 @@ Shared domain types and model specifications.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
 from datetime import datetime
 import json
@@ -130,5 +130,46 @@ class FindingState:
     fingerprint: str
     last_built_ts: float
     embedder_key: str
+
+
+# Document Matching Pipeline Types
+@dataclass
+class FindingFilters:
+    """Configurable filters for findings."""
+    include_keywords: List[str] = field(default_factory=list)
+    exclude_keywords: List[str] = field(default_factory=list)
+    date_range: Optional[Tuple[datetime, datetime]] = None
+    confidence_threshold: Optional[float] = None
+
+
+@dataclass
+class DocumentMatch:
+    """A single document match."""
+    chunk_id: str
+    chunk_text: str
+    cosine_score: float
+    rescorer_scores: Dict[str, float]
+    metadata: Dict[str, Any]
+
+
+@dataclass
+class FindingResults:
+    """Results for a single finding."""
+    finding_id: str
+    finding_text: str
+    matches: List[DocumentMatch]
+    rescorer_scores: Dict[str, List[float]]
+    timing: Dict[str, float]
+
+
+@dataclass
+class DocumentMatchingResults:
+    """Container for all matching results."""
+    findings_processed: int
+    total_matches: int
+    results_by_finding: Dict[str, FindingResults]
+    timing_stats: Dict[str, Any]
+    score_stats: Dict[str, Any]
+    metadata: Dict[str, Any]
 
 

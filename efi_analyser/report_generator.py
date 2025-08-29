@@ -154,7 +154,7 @@ class ReportGenerator:
             rescorer_names = list(finding_result.rescorer_scores.keys())
             
             # Create table headers
-            headers = ['Rank', 'Chunk ID', 'Cosine Score'] + rescorer_names + ['Chunk Text']
+            headers = ['Rank', 'Cosine Score'] + rescorer_names + ['Chunk Text']
             header_html = ''.join([f'<th>{header}</th>' for header in headers])
             
             # Create table rows
@@ -163,7 +163,6 @@ class ReportGenerator:
                 row_html = f"""
                 <tr>
                     <td>{i+1}</td>
-                    <td>{match.chunk_id[:20]}...</td>
                     <td class="score-cell cosine-score">{match.cosine_score:.4f}</td>
                 """
                 
@@ -181,7 +180,7 @@ class ReportGenerator:
             findings_html += f"""
             <div class="finding-section">
                 <div class="finding-header">
-                    <h3>Finding: {finding_id or 'Unknown'}</h3>
+                    <h3>Finding {list(self.results.results_by_finding.keys()).index(finding_id) + 1}</h3>
                 </div>
                 <div class="finding-text">
                     <div class="finding-text-content">{finding_result.finding_text}</div>

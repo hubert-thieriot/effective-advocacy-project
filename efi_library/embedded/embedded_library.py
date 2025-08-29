@@ -105,7 +105,7 @@ class EmbeddedLibrary:
             max_findings: Maximum number of findings to process (None for all)
         """
         # Get total count for progress bar
-        total_findings = self.library.get_total_findings_count()
+        total_findings = self.library.get_findings_count()
         if max_findings:
             total_findings = min(total_findings, max_findings)
         
@@ -130,7 +130,7 @@ class EmbeddedLibrary:
             max_findings: Maximum number of findings to process (None for all)
         """
         # Get total count for progress bar
-        total_findings = self.library.get_total_findings_count()
+        total_findings = self.library.get_findings_count()
         if max_findings:
             total_findings = min(total_findings, max_findings)
         

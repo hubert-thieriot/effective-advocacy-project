@@ -25,14 +25,16 @@ class OllamaReScorer(LLMReScorer):
         except Exception as exc:  # pragma: no cover - dependency optional
             raise RuntimeError("openai package is required for OllamaReScorer") from exc
 
-        # Ensure base_url has /v1 suffix for Ollama compatibility
-        if base_url and not base_url.endswith('/v1'):
+        # Use sensible defaults for local Ollama
+        if base_url is None:
+            base_url = "http://localhost:11434/v1"
+        elif not base_url.endswith('/v1'):
             base_url = base_url.rstrip('/') + '/v1'
         
         # Allow caller/env to provide connection details
         self._client = OpenAI(
             base_url=base_url, 
-            api_key=api_key or "ollama",  # Use "ollama" as default for Ollama
+            api_key=api_key,  # Use None by default for Ollama (no auth required)
             timeout=120.0  # 120 second timeout for slower models like phi3:3.8b
         )
 

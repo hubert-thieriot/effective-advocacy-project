@@ -68,12 +68,21 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         
         # Query MediaCloud for stories (aggregate across all queries)
         all_stories = []
+        max_stories = (params.extra or {}).get('max_stories')
+        
         for q in queries:
             print(f"{collection_name}: Running query: {q}")
             pagination_token = None
             more_stories = True
             while more_stories:
                 print(f"{collection_name}: {len(all_stories)} stories retrieved so far")
+                
+                # Check if we've reached the max stories limit
+                if max_stories and len(all_stories) >= max_stories:
+                    print(f"{collection_name}: Reached max stories limit ({max_stories}), stopping pagination")
+                    more_stories = False
+                    break
+                
                 try:
                     pages, pagination_token = self.mc_api.story_list(
                         q,
@@ -93,10 +102,17 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                             story_copy['collection'] = collection_name
                             story_copy['collection_id'] = collection_id
                             all_stories.append(story_copy)
+                            
+                            # Check if we've reached the max stories limit after adding this story
+                            if max_stories and len(all_stories) >= max_stories:
+                                print(f"{collection_name}: Reached max stories limit ({max_stories}) after adding story")
+                                more_stories = False
+                                break
                         
-                        more_stories = pagination_token is not None
-                        if not more_stories:
-                            print(f"{collection_name}: Reached the end of pagination for query")
+                        if more_stories:
+                            more_stories = pagination_token is not None
+                            if not more_stories:
+                                print(f"{collection_name}: Reached the end of pagination for query")
                             
                 except Exception as e:
                     error_str = str(e)

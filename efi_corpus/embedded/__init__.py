@@ -1,5 +1,5 @@
-# from .embedded_corpus import EmbeddedCorpus
+from .embedded_corpus import EmbeddedCorpus
 
-# __all__ = ["EmbeddedCorpus"]
+__all__ = ["EmbeddedCorpus"]
 
 

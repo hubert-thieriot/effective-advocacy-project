@@ -46,18 +46,30 @@ class CorpusHandle(Corpus):
         # Initialize layout (no workspace needed for basic corpus operations)
         self.layout = CorpusLayout(self.corpus_path)
         
-        # Validate paths
+        # Create corpus directory if it doesn't exist
         if not self.corpus_path.exists():
-            raise ValueError(f"Corpus path does not exist: {corpus_path}")
+            if read_only:
+                raise ValueError(f"Corpus path does not exist: {corpus_path}")
+            else:
+                self.corpus_path.mkdir(parents=True, exist_ok=True)
         
-        if not self.layout.index_path.exists():
-            raise ValueError(f"Index file not found: {self.layout.index_path}")
-        
-        # Create documents directory if writing is enabled
-        if not self.read_only:
+        # Create initial corpus structure if it doesn't exist and we're not read-only
+        if not read_only:
             self.layout.docs_dir.mkdir(parents=True, exist_ok=True)
-            self.layout.index_path.touch(exist_ok=True)
-            self.layout.manifest_path.touch(exist_ok=True)
+            
+            # Create empty index.jsonl if it doesn't exist
+            if not self.layout.index_path.exists():
+                self.layout.index_path.touch()
+                print(f"Created new index file: {self.layout.index_path}")
+            
+            # Create empty manifest.json if it doesn't exist
+            if not self.layout.manifest_path.exists():
+                self.layout.manifest_path.touch()
+                print(f"Created new manifest file: {self.layout.manifest_path}")
+        else:
+            # In read-only mode, validate that required files exist
+            if not self.layout.index_path.exists():
+                raise ValueError(f"Index file not found: {self.layout.index_path}")
         
         # Ensure workspace directories exist
         self.layout.ensure_dirs()

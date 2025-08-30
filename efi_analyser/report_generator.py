@@ -110,18 +110,18 @@ class ReportGenerator:
             .finding-section { margin: 30px 0; border: 1px solid #bdc3c7; border-radius: 5px; }
             .finding-header { background: #34495e; color: white; padding: 15px; border-radius: 5px 5px 0 0; }
             .finding-text { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; }
-            .matches-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-            .matches-table th, .matches-table td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+            .matches-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px; }
+            .matches-table th, .matches-table td { border: 1px solid #dee2e6; padding: 6px; text-align: left; }
             .matches-table th { background: #ecf0f1; font-weight: bold; }
             .score-cell { text-align: center; }
             .cosine-score { background: #e8f5e8; }
             .rescorer-score { background: #fff3cd; }
-            .chunk-text { max-width: 300px; word-wrap: break-word; }
+            .chunk-text { max-width: 500px; word-wrap: break-word; }
             .finding-text-content { max-width: 800px; word-wrap: break-word; }
         </style>
         """
         
-        # Summary section
+                # Summary section
         summary_html = f"""
         <div class="summary">
             <h2>Summary</h2>
@@ -135,12 +135,12 @@ class ReportGenerator:
                     <div>Total Matches</div>
                 </div>
                 <div class="summary-item">
-                    <div class="summary-number">{self.results.metadata.get('top_k', 'N/A')}</div>
-                    <div>Top K</div>
+                    <div class="summary-number">{self.results.metadata.get('top_n_retrieval', 'N/A')}</div>
+                    <div>Initial Retrieval</div>
                 </div>
                 <div class="summary-item">
-                    <div class="summary-number">{'Yes' if self.results.metadata.get('filters_applied') else 'No'}</div>
-                    <div>Filters Applied</div>
+                    <div class="summary-number">{self.results.metadata.get('top_n_rescoring_stage1', 'N/A')}</div>
+                    <div>Stage1 Filter</div>
                 </div>
             </div>
             <p><strong>Timestamp:</strong> {self.results.metadata.get('timestamp', 'N/A')}</p>
@@ -154,7 +154,7 @@ class ReportGenerator:
             rescorer_names = list(finding_result.rescorer_scores.keys())
             
             # Create table headers
-            headers = ['Rank', 'Cosine Score'] + rescorer_names + ['Chunk Text']
+            headers = ['Rank', 'Cosine'] + rescorer_names + ['Chunk Text']
             header_html = ''.join([f'<th>{header}</th>' for header in headers])
             
             # Create table rows
@@ -163,16 +163,16 @@ class ReportGenerator:
                 row_html = f"""
                 <tr>
                     <td>{i+1}</td>
-                    <td class="score-cell cosine-score">{match.cosine_score:.4f}</td>
+                    <td class="score-cell cosine-score">{int(match.cosine_score * 100)}%</td>
                 """
                 
-                # Add rescorer scores
+                # Add rescorer scores as percentages
                 for rescorer_name in rescorer_names:
                     score = match.rescorer_scores.get(rescorer_name, 0.0)
-                    row_html += f'<td class="score-cell rescorer-score">{score:.4f}</td>'
+                    row_html += f'<td class="score-cell rescorer-score">{int(score * 100)}%</td>'
                 
                 row_html += f"""
-                    <td class="chunk-text">{match.chunk_text[:150]}{'...' if len(match.chunk_text) > 150 else ''}</td>
+                    <td class="chunk-text">{match.chunk_text[:300]}{'...' if len(match.chunk_text) > 300 else ''}</td>
                 </tr>
                 """
                 rows_html += row_html

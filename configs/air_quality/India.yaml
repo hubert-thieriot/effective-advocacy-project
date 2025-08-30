@@ -10,7 +10,7 @@ parameters:
   collections:
     - id: 34412118
       name: India - National
-  date_from: 2025-01-01
+  date_from: 2024-01-01
   date_to: today
   rate_limit:
     requests_per_minute: 3
@@ -19,6 +19,8 @@ parameters:
   domain_blacklist:
     - "livemint.com"
     - "latest.inkhabar.com"  # Already failing in your corpus build
+  url_blacklist:
+    - "weather-today-aqi-and-rain-forecast"  # Exclude weather forecast URLs
 
 extra_meta:
   country_iso3: IND

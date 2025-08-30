@@ -72,6 +72,7 @@ class LLMReScorer(ReScorer[SearchResult]):
     def _rescore_single_batch(self, query: str, matches: List[SearchResult]) -> List[SearchResult]:
         """Rescore a single batch of matches sequentially."""
         rescored: List[SearchResult] = []
+        batch_start_time = time.time()
 
         for match in matches:
             chunk_text = match.metadata.get("text", "")
@@ -105,6 +106,11 @@ class LLMReScorer(ReScorer[SearchResult]):
                 SearchResult(item_id=match.item_id, score=float(score), metadata=new_metadata)
             )
 
+        batch_time = time.time() - batch_start_time
+        # Only print timing for non-cached results (when it takes significant time)
+        if batch_time > 0.1:  # Only show if it took more than 0.1 seconds
+            print(f"⏱️ {len(matches)} matches in {batch_time:.1f}s")
+        
         rescored.sort(key=lambda x: x.score, reverse=True)
         return rescored
 
@@ -131,6 +137,9 @@ class LLMReScorer(ReScorer[SearchResult]):
         else:
             progress_bar = None
         
+        # Track overall timing
+        overall_start = time.time()
+        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit batch processing tasks
             future_to_batch = {
@@ -156,6 +165,11 @@ class LLMReScorer(ReScorer[SearchResult]):
         
         if progress_bar:
             progress_bar.close()
+        
+        overall_time = time.time() - overall_start
+        # Only print if it took significant time
+        if overall_time > 1.0:
+            print(f"⏱️ Total batch processing: {overall_time:.1f}s")
         
         # Final sort across all batches
         all_rescored.sort(key=lambda x: x.score, reverse=True)
@@ -201,7 +215,11 @@ class LLMReScorer(ReScorer[SearchResult]):
         if cached is not None and not self.config.ignore_cache:
             return cached.get("score", 0.0), cached.get("rationale", ""), cached.get("raw_text", "")
 
+        # Time the inference
+        start_time = time.time()
         raw_text = self._safe_infer(messages)
+        inference_time = time.time() - start_time
+        
         score, rationale = self._parse_output(raw_text)
 
         payload = {
@@ -213,6 +231,7 @@ class LLMReScorer(ReScorer[SearchResult]):
             "score": score,
             "rationale": rationale,
             "raw_text": raw_text,
+            "inference_time": inference_time,  # Store timing in cache
         }
         self._write_cache(path, payload)
         return score, rationale, raw_text

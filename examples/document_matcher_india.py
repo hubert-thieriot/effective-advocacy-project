@@ -41,18 +41,21 @@ def main():
     embedded_corpus = EmbeddedCorpus(corpus_path, workspace, chunker, embedder)
     embedded_library = EmbeddedLibrary(library_path, workspace, chunker, embedder)
     
+    # Make sure the corpus is embedded
+    embedded_corpus.build_all()
+    
+    
     # Initialize rescorers
     nli_rescorer = NLIReScorer()
     ollama_rescorer_gemma = OllamaReScorer(LLMReScorerConfig(model="gemma3:4b"))
     ollama_rescorer_phi = OllamaReScorer(LLMReScorerConfig(model="phi3:3.8b"))
     
-    rescorers = [nli_rescorer, ollama_rescorer_gemma, ollama_rescorer_phi]
-    
-    # Create pipeline
+    # Create pipeline with two-stage rescoring
     pipeline = DocumentMatchingPipeline(
         embedded_corpus=embedded_corpus,
         embedded_library=embedded_library,
-        rescorers=rescorers,
+        rescorers_stage1=[nli_rescorer],           # Fast rescorers for filtering
+        rescorers_stage2=[ollama_rescorer_gemma, ollama_rescorer_phi],  # Slow rescorers for final scoring
         workspace_path=workspace
     )
     
@@ -66,8 +69,9 @@ def main():
     print("Running document matching...")
     results = pipeline.run_matching(
         finding_filters=filters,
-        n_findings=5,
-        top_k=10
+        n_findings=100,
+        top_n_retrieval=100,      # Retrieve 100 candidates initially
+        top_n_rescoring_stage1=10 # Use stage1 rescorers to filter down to top 10
     )
     
     # Save results

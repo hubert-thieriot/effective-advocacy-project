@@ -56,6 +56,15 @@ class BaseCorpusBuilder(ABC):
             # If URL parsing fails, assume it's not blacklisted
             return False
 
+    def _is_url_blacklisted(self, url: str, blacklist: list[str]) -> bool:
+        """Check if a URL contains any blacklisted patterns"""
+        try:
+            url_lower = url.lower()
+            return any(pattern.lower() in url_lower for pattern in blacklist)
+        except Exception:
+            # If URL processing fails, assume it's not blacklisted
+            return False
+
     # ---------- abstract hooks ----------
     @abstractmethod
     def discover(self, params: BuilderParams) -> Iterable[DiscoveryItem]:
@@ -124,6 +133,20 @@ class BaseCorpusBuilder(ABC):
                 print(f"DEBUG: No items were filtered out by domain blacklist")
         else:
             print(f"DEBUG: No domain blacklist configured")
+        
+        # Apply URL blacklist filtering if configured
+        url_blacklist = (params.extra or {}).get('url_blacklist', [])
+        print(f"DEBUG: URL blacklist config: {url_blacklist}")
+        if url_blacklist:
+            original_count = len(discovered)
+            discovered = [item for item in discovered if not self._is_url_blacklisted(item.url, url_blacklist)]
+            filtered_count = original_count - len(discovered)
+            if filtered_count > 0:
+                print(f"Filtered out {filtered_count} items with blacklisted URL patterns: {url_blacklist}")
+            else:
+                print(f"DEBUG: No items were filtered out by URL blacklist")
+        else:
+            print(f"DEBUG: No URL blacklist configured")
         
         # Map URL to discovery item for later metadata enrichment
         discovered_by_url = {d.url: d for d in discovered}

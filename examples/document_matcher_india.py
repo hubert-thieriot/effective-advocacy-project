@@ -42,7 +42,7 @@ def main():
     embedded_library = EmbeddedLibrary(library_path, workspace, chunker, embedder)
     
     # Make sure the corpus is embedded
-    embedded_corpus.build_all()
+    # embedded_corpus.build_all()
     
     
     # Initialize rescorers

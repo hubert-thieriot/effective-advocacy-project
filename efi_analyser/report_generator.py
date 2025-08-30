@@ -94,6 +94,157 @@ class ReportGenerator:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
     
+    def generate_pdf_report(self, output_path: Path, title: str = "Document Matching Report") -> None:
+        """Generate a comprehensive PDF report."""
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            
+            # Create PDF document
+            doc = SimpleDocTemplate(str(output_path), pagesize=A4)
+            
+            # Styles
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=30,
+                alignment=1  # Center alignment
+            )
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=14,
+                spaceAfter=12,
+                spaceBefore=20
+            )
+            subheading_style = ParagraphStyle(
+                'CustomSubheading',
+                parent=styles['Heading3'],
+                fontSize=12,
+                spaceAfter=8,
+                spaceBefore=16
+            )
+            
+            # Build PDF content
+            story = []
+            
+            # Title
+            story.append(Paragraph(title, title_style))
+            story.append(Spacer(1, 20))
+            
+            # Summary
+            story.append(Paragraph("Executive Summary", heading_style))
+            summary_text = f"""
+            This report presents the results of document matching analysis. 
+            The analysis processed {self.results.findings_processed} findings and 
+            generated {self.results.total_matches} total matches.
+            """
+            story.append(Paragraph(summary_text, styles['Normal']))
+            story.append(Spacer(1, 20))
+            
+            # Statistics
+            story.append(Paragraph("Matching Statistics", heading_style))
+            stats_data = [
+                ['Metric', 'Value'],
+                ['Findings Processed', str(self.results.findings_processed)],
+                ['Total Matches', str(self.results.total_matches)],
+                ['Average Matches per Finding', f"{self.results.total_matches / max(self.results.findings_processed, 1):.2f}"],
+                ['Timestamp', self.results.metadata.get('timestamp', 'N/A')],
+                ['Top-K', self.results.metadata.get('top_k', 'N/A')]
+            ]
+            
+            stats_table = Table(stats_data, colWidths=[2*inch, 3*inch])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(stats_table)
+            story.append(Spacer(1, 20))
+            
+            # Detailed findings
+            if self.results.results_by_finding:
+                story.append(Paragraph("Detailed Results", heading_style))
+                
+                for i, (finding_id, finding_result) in enumerate(self.results.results_by_finding.items()):
+                    # Finding header
+                    story.append(Paragraph(f"Finding {i+1}", subheading_style))
+                    
+                    # Finding text (truncated if too long)
+                    finding_text = finding_result.finding_text
+                    if len(finding_text) > 300:
+                        finding_text = finding_text[:300] + "..."
+                    
+                    story.append(Paragraph(finding_text, styles['Normal']))
+                    story.append(Spacer(1, 12))
+                    
+                    # Matches table
+                    if finding_result.matches:
+                        # Get rescorer names for table headers
+                        rescorer_names = list(finding_result.rescorer_scores.keys())
+                        
+                        # Create table headers
+                        headers = ['Rank', 'Cosine'] + rescorer_names + ['Chunk Text']
+                        header_data = [headers]
+                        
+                        # Create table rows
+                        for j, match in enumerate(finding_result.matches):
+                            row = [str(j+1), f"{match.cosine_score:.3f}"]
+                            
+                            # Add rescorer scores
+                            for rescorer_name in rescorer_names:
+                                score = match.rescorer_scores.get(rescorer_name, 0.0)
+                                row.append(f"{score:.3f}")
+                            
+                            # Add chunk text (truncated)
+                            chunk_text = match.chunk_text
+                            if len(chunk_text) > 100:
+                                chunk_text = chunk_text[:100] + "..."
+                            row.append(chunk_text)
+                            
+                            header_data.append(row)
+                        
+                        # Create table
+                        if len(header_data) > 1:  # Only create table if we have data
+                            table = Table(header_data, colWidths=[0.4*inch, 0.6*inch] + [0.8*inch] * len(rescorer_names) + [2.5*inch])
+                            table.setStyle(TableStyle([
+                                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                                ('VALIGN', (0, 0), (-1, -1), 'TOP')
+                            ]))
+                            story.append(table)
+                    
+                    story.append(Spacer(1, 20))
+                    
+                    # Add page break if this is not the last finding and we have many findings
+                    if i < len(self.results.results_by_finding) - 1 and i % 2 == 1:
+                        story.append(PageBreak())
+            
+            # Build PDF
+            doc.build(story)
+            
+        except ImportError:
+            raise ImportError("PDF generation requires reportlab. Install with: pip install reportlab")
+        except Exception as e:
+            raise RuntimeError(f"PDF generation failed: {e}")
+    
     def _generate_html_content(self, title: str) -> str:
         """Generate the HTML content for the report."""
         # CSS styles

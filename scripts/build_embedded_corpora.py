@@ -50,6 +50,12 @@ def main():
         help="Build all available corpora instead of just one"
     )
     
+    parser.add_argument(
+        "--max-documents",
+        type=int,
+        help="Maximum number of documents to process (useful for testing with large corpora)"
+    )
+    
     args = parser.parse_args()
     
     # List available corpora if requested
@@ -104,7 +110,7 @@ def main():
                 if index_file.exists() or documents_dir.exists():
                     # Direct corpus
                     total_corpora += 1
-                    if build_single_corpus(top_level_dir, args.workspace):
+                    if build_single_corpus(top_level_dir, args.workspace, args.max_documents):
                         successful_corpora += 1
                 else:
                     # Check for sub-corpora
@@ -114,7 +120,7 @@ def main():
                             sub_docs = sub_dir / "documents"
                             if sub_index.exists() or sub_docs.exists():
                                 total_corpora += 1
-                                if build_single_corpus(sub_dir, args.workspace):
+                                if build_single_corpus(sub_dir, args.workspace, args.max_documents):
                                     successful_corpora += 1
         
         print(f"\nBuild complete: {successful_corpora}/{total_corpora} corpora built successfully")
@@ -126,7 +132,7 @@ def main():
             print("Expected either index.jsonl or documents/ directory")
             return 1
         
-        return build_single_corpus(args.corpus, args.workspace)
+        return build_single_corpus(args.corpus, args.workspace, args.max_documents)
 
 
 def corpus_has_documents(corpus_path: Path) -> bool:
@@ -136,7 +142,7 @@ def corpus_has_documents(corpus_path: Path) -> bool:
     return index_file.exists() or documents_dir.exists()
 
 
-def build_single_corpus(corpus_path: Path, workspace_path: Path) -> bool:
+def build_single_corpus(corpus_path: Path, workspace_path: Path, max_documents: Optional[int] = None) -> bool:
     """Build a single corpus and return success status"""
     try:
         print(f"\nBuilding corpus: {corpus_path.name}")
@@ -152,7 +158,12 @@ def build_single_corpus(corpus_path: Path, workspace_path: Path) -> bool:
         info = embedded_corpus.get_corpus_info()
         print(f"  Contains {info['document_count']} documents")
         
-        embedded_corpus.build_all()
+        if max_documents:
+            print(f"  Processing only the first {max_documents} documents")
+            embedded_corpus.build_all(max_documents=max_documents)
+        else:
+            embedded_corpus.build_all()
+            
         print(f"  ✓ Successfully built corpus: {corpus_path.name}")
         return True
         

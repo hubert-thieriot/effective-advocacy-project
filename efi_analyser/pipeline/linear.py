@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from .base import AbstractPipeline
-from ..types import PipelineResult, AnalysisResult, AnalysisPipelineResult
+from ..types import PipelineResult, AnalysisResult, AnalysisPipelineResult, AggregatedResult
 from efi_corpus import CorpusHandle
 
 
@@ -106,25 +106,35 @@ class LinearPipeline(AbstractPipeline):
         self._processed_results = results
         self._stats["end_time"] = time.time()
         
+        # Apply aggregator if provided
+        aggregated_result = None
+        if self.aggregator_func and results:
+            try:
+                aggregated_result = self.aggregator_func(results)
+            except Exception:
+                # Create a default aggregated result with error
+                aggregated_result = AggregatedResult(
+                    aggregator_name="error",
+                    aggregated_data={"error": "Aggregation failed"},
+                    metadata={"error": "Aggregation failed"}
+                )
+        
         # Create pipeline result
         pipeline_result = PipelineResult(
-            data=results,
+            pipeline_name=self.get_name(),
+            results=results,
+            aggregated_result=aggregated_result or AggregatedResult(
+                aggregator_name="none",
+                aggregated_data={},
+                metadata={}
+            ),
             metadata={
                 "stats": self._stats,
-                "pipeline_name": self.get_name(),
                 "filter_func": self.filter_func.__name__ if self.filter_func else None,
                 "processor_func": self.processor_func.__name__ if self.processor_func else None,
                 "aggregator_func": self.aggregator_func.__name__ if self.aggregator_func else None,
             }
         )
-        
-        # Apply aggregator if provided
-        if self.aggregator_func and results:
-            try:
-                aggregated = self.aggregator_func(results)
-                pipeline_result.metadata["aggregated_result"] = aggregated
-            except Exception:
-                pipeline_result.metadata["aggregation_error"] = "Aggregation failed"
         
         return pipeline_result
 

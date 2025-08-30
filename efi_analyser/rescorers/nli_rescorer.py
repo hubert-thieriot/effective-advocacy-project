@@ -17,6 +17,8 @@ class NLIReScorerConfig(BaseModel):
         batch_size: Number of pairs to process per batch.
         device: Device id for transformers pipeline (``-1`` for CPU).
         entailment_label: Label representing entailment in model output.
+        contradiction_label: Label representing contradiction in model output.
+        neutral_label: Label representing neutral in model output.
     """
 
     model_name: str = "typeform/distilbert-base-uncased-mnli"
@@ -25,6 +27,8 @@ class NLIReScorerConfig(BaseModel):
     max_length: int = 384
     local_files_only: bool = False
     entailment_label: str = "ENTAILMENT"  # For typeform model: ENTAILMENT = entailment
+    contradiction_label: str = "CONTRADICTION"  # For typeform model: CONTRADICTION = contradiction
+    neutral_label: str = "NEUTRAL"  # For typeform model: NEUTRAL = neutral
 
 
 class NLIReScorer(ReScorer[SearchResult]):
@@ -32,6 +36,7 @@ class NLIReScorer(ReScorer[SearchResult]):
 
     The model estimates how strongly each document chunk entails the query
     (finding) text. Entailment probabilities are used as the new scores.
+    Now also provides contradiction and neutral scores for comprehensive analysis.
     """
 
     def __init__(self, config: Optional[NLIReScorerConfig] = None) -> None:
@@ -93,7 +98,8 @@ class NLIReScorer(ReScorer[SearchResult]):
             matches: Retrieved matches containing chunk text in ``metadata['text']``.
 
         Returns:
-            The list of matches sorted by entailment probability.
+            The list of matches sorted by entailment probability, with additional
+            contradiction and neutral scores in metadata.
         """
         if not matches or self._pipeline is None:
             return matches
@@ -132,7 +138,11 @@ class NLIReScorer(ReScorer[SearchResult]):
                     SearchResult(
                         item_id=match.item_id,
                         score=0.0,
-                        metadata={**match.metadata, "nli_score": 0.0},
+                        metadata={**match.metadata, 
+                                "nli_score": 0.0,
+                                "nli_contradiction": 0.0,
+                                "nli_neutral": 0.0,
+                                "nli_entailment": 0.0},
                     )
                 )
                 continue
@@ -141,18 +151,34 @@ class NLIReScorer(ReScorer[SearchResult]):
             if result_index < len(results):
                 scores = results[result_index]
                 entail_score = float('nan')
+                contradiction_score = float('nan')
+                neutral_score = float('nan')
                 
-                # Find entailment score using configured label
+                # Extract all three scores
                 for item in scores:
-                    if item["label"] == self.config.entailment_label:
-                        entail_score = float(item["score"])
-                        break
+                    label = item["label"]
+                    score = float(item["score"])
+                    if label == self.config.entailment_label:
+                        entail_score = score
+                    elif label == self.config.contradiction_label:
+                        contradiction_score = score
+                    elif label == self.config.neutral_label:
+                        neutral_score = score
+                
+                # Fallback to 0.0 if scores are NaN
+                entail_score = entail_score if not (entail_score != entail_score) else 0.0
+                contradiction_score = contradiction_score if not (contradiction_score != contradiction_score) else 0.0
+                neutral_score = neutral_score if not (neutral_score != neutral_score) else 0.0
                 
                 rescored.append(
                     SearchResult(
                         item_id=match.item_id,
-                        score=entail_score,
-                        metadata={**match.metadata, "nli_score": entail_score},
+                        score=entail_score,  # Keep entailment as primary score for backward compatibility
+                        metadata={**match.metadata, 
+                                "nli_score": entail_score,  # Backward compatibility
+                                "nli_contradiction": contradiction_score,
+                                "nli_neutral": neutral_score,
+                                "nli_entailment": entail_score},
                     )
                 )
                 result_index += 1
@@ -162,7 +188,11 @@ class NLIReScorer(ReScorer[SearchResult]):
                     SearchResult(
                         item_id=match.item_id,
                         score=0.0,
-                        metadata={**match.metadata, "nli_score": 0.0},
+                        metadata={**match.metadata, 
+                                "nli_score": 0.0,  # Backward compatibility
+                                "nli_contradiction": 0.0,
+                                "nli_neutral": 0.0,
+                                "nli_entailment": 0.0},
                     )
                 )
 

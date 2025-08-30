@@ -10,7 +10,7 @@ parameters:
   collections:
     - id: 34412118
       name: India - National
-  date_from: 2024-01-01
+  date_from: 2025-06-01
   date_to: today
   rate_limit:
     requests_per_minute: 3
@@ -26,5 +26,6 @@ extra_meta:
   country_iso3: IND
   comment: National air quality corpus for India
   topic: air_quality
+  max_stories: 1000
 
 

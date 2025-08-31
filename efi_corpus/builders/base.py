@@ -289,3 +289,27 @@ class BaseCorpusBuilder(ABC):
             "total_docs": self.corpus.get_document_count(),
             "failed_details": failed_urls
         }
+    
+    def run_from_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run the corpus builder using a config dictionary
+        
+        Args:
+            config: Configuration dictionary loaded from YAML/JSON
+            
+        Returns:
+            Summary of the build process
+        """
+        # Extract parameters from config
+        params_cfg = config.get("parameters", {})
+        
+        # Create BuilderParams
+        params = BuilderParams(
+            keywords=params_cfg.get("keywords", []),
+            date_from=params_cfg.get("date_from", ""),
+            date_to=params_cfg.get("date_to", ""),
+            extra=params_cfg
+        )
+        
+        # Run the builder
+        return self.run(params=params)

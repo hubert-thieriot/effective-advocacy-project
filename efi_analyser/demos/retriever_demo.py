@@ -34,7 +34,7 @@ def demo_retrievers():
     print("\n📚 Loading embedded data...")
     try:
         embedded_corpus = EmbeddedCorpus(
-            corpus_path=Path("corpora/air_quality/india"),
+            corpus_path=Path("corpora/mediacloud_india"),
             workspace_path=Path("workspace"),
             chunker=chunker,
             embedder=embedder

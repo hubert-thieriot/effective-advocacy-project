@@ -34,8 +34,8 @@ def main():
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=Path("corpora/air_quality/india"),
-        help="Path to corpus directory (default: corpora/air_quality/india)"
+        default=Path("corpora/mediacloud_india"),
+        help="Path to corpus directory (default: corpora/mediacloud_india)"
     )
     parser.add_argument(
         "--library", 

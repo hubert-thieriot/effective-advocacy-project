@@ -220,6 +220,26 @@ class CorpusHandle(Corpus):
     def has_doc(self, stable_id: str) -> bool:
         """Check if a document with the given stable_id exists"""
         return self.layout.doc_dir(stable_id).exists()
+    
+    def has_doc_by_url(self, url: str) -> bool:
+        """Check if a document with the given URL exists in the corpus"""
+        try:
+            # Read the index to find documents by URL
+            if not self.layout.index_path.exists():
+                return False
+            
+            with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            doc_data = json.loads(line)
+                            if doc_data.get('url') == url:
+                                return True
+                        except json.JSONDecodeError:
+                            continue
+            return False
+        except Exception:
+            return False
 
     @write_only
     def write_document(self, *, stable_id: str, meta: Dict[str, Any], text: str,

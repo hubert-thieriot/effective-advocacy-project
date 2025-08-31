@@ -6,7 +6,7 @@ Config format (YAML or JSON):
 builder: mediacloud
 
 corpus:
-  base_dir: corpora/air_quality
+  base_dir: corpora/mediacloud_india
 
 parameters:
   # Either provide raw queries (preferred for full control)...

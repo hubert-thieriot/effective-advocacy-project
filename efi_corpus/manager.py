@@ -1,153 +1,75 @@
+#!/usr/bin/env python3
 """
-CorpusManager - Orchestrates building corpora from per-country config files.
-
-Config format (YAML or JSON):
-
-builder: mediacloud
-
-corpus:
-  base_dir: corpora/mediacloud_india
-
-parameters:
-  # Either provide raw queries (preferred for full control)...
-  # queries:
-  #   - '("air pollution" OR "air quality")'
-  #   - '("umoya ongcolile" OR "ikhwalithi yomoya")'
-  # ...or structured keywords by language (manager compiles to a query):
-  # keywords:
-  #   en: ["air pollution", "air quality"]
-  #   zu: ["umoya ongcolile", "ikhwalithi yomoya"]
-  collections:
-    - id: 34412238
-      name: South Africa National
-  date_from: 2025-07-01
-  date_to: today
-  rate_limit:
-    requests_per_minute: 3
-    min_interval: 20.0
-    enabled: true
-
-extra_meta:
-  country_iso3: ZAF
-  comment: National air quality corpus for South Africa
-  topic: air_quality
+Generic Corpus Manager that delegates to specific builders
 """
 
-from __future__ import annotations
-
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 import json
+import yaml
+from pathlib import Path
+from typing import Dict, Any, Optional
+from datetime import datetime
 
-try:
-    import yaml  # type: ignore
-    _YAML_AVAILABLE = True
-except Exception:
-    _YAML_AVAILABLE = False
-
-from .builders.factory import create as create_builder
-from .types import BuilderParams
 from .rate_limiter import RateLimitConfig
 from .utils import ensure_date
 
+# Try to import YAML, but don't fail if not available
+try:
+    _YAML_AVAILABLE = True
+except ImportError:
+    _YAML_AVAILABLE = False
+
 
 class CorpusManager:
-    """Manager that builds corpora based on a single country/topic config file."""
-
+    """Generic corpus manager that delegates to specific builders"""
+    
     def __init__(self, config_path: Path):
+        """Initialize with a config file path"""
         self.config_path = Path(config_path)
+        
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
         self.config = self._load_config(self.config_path)
 
     def run(self) -> Dict[str, Any]:
+        """Run the corpus building process using the specified builder"""
+        config = self.config
         builder_type = str(self.config.get("builder", "")).lower()
-
         corpus_cfg = self._get_required(self.config, "corpus")
         base_dir = self._get_required(corpus_cfg, "base_dir")
-
-        params_cfg = self._get_required(self.config, "parameters")
-        collections = self._get_required(params_cfg, "collections")
-        if not isinstance(collections, list) or not collections:
-            raise ValueError("parameters.collections must be a non-empty list")
-
-        # Resolve dates (allow "today") and convert to ISO strings
-        date_from_str = self._resolve_date_string(params_cfg.get("date_from"))
-        date_to_str = self._resolve_date_string(params_cfg.get("date_to", "today"))
-
-        # Build query strings
-        queries: List[str] = []
-        if "queries" in params_cfg and params_cfg["queries"]:
-            if not isinstance(params_cfg["queries"], list):
-                raise ValueError("parameters.queries must be a list of strings")
-            queries = [str(q).strip() for q in params_cfg["queries"] if str(q).strip()]
-        elif "keywords" in params_cfg and params_cfg["keywords"]:
-            compiled = self._compile_keywords_to_query(params_cfg["keywords"])  # single combined query
-            queries = [compiled]
-        else:
-            raise ValueError("Provide either parameters.queries or parameters.keywords")
-
-        # Optional rate limit
-        rl_cfg = params_cfg.get("rate_limit") or {}
-        rate_limit = RateLimitConfig(
-            requests_per_minute=int(rl_cfg.get("requests_per_minute", RateLimitConfig.requests_per_minute)),
-            min_interval=float(rl_cfg.get("min_interval", RateLimitConfig.min_interval)),
-            burst_size=int(rl_cfg.get("burst_size", RateLimitConfig.burst_size)),
-            enabled=bool(rl_cfg.get("enabled", RateLimitConfig.enabled)),
-        )
-
-        # Extra metadata
-        extra_meta: Dict[str, Any] = dict(self.config.get("extra_meta") or {})
         
-        # Use base_dir directly as corpus directory
-        corpus_dir = Path(base_dir)
-
-        summary = {"collections": [], "total_runs": 0}
-
-        for collection in collections:
+        print(f"Creating {builder_type} builder for corpus: {base_dir}")
+        
+        # Create the appropriate builder
+        builder = self._create_builder(builder_type, base_dir)
+        
+        # Let the builder handle its own config parsing and execution
+        return builder.run_from_config(config)
+    
+    def _create_builder(self, builder_type: str, base_dir: str):
+        """Create a builder instance based on type"""
+        if builder_type == "mediacloud":
+            from .builders.mediacloud import MediaCloudCorpusBuilder
+            # For MediaCloud, we need to extract collection info from config
+            params_cfg = self.config.get("parameters", {})
+            collections = params_cfg.get("collections", [])
+            if not collections:
+                raise ValueError("MediaCloud builder requires collections in parameters")
+            
+            # Use the first collection for now
+            collection = collections[0]
             collection_id = collection.get("id")
-            collection_name = collection.get("name") or str(collection_id)
-            if collection_id is None:
-                raise ValueError("Each collection must include an 'id'")
-
-            builder = create_builder(
-                builder_type,
-                corpus_dir=corpus_dir,
-                rate_limit_config=rate_limit,
+            collection_name = collection.get("name", str(collection_id))
+            
+            return MediaCloudCorpusBuilder(
+                corpus_dir=base_dir,
                 collection_id=collection_id,
-                collection_name=collection_name,
+                collection_name=collection_name
             )
-
-            runs_for_collection = 0
-            for query in queries:
-                # Build params: pass query as a single keyword to preserve the raw query string
-                params = BuilderParams(
-                    keywords=[query],
-                    date_from=date_from_str,
-                    date_to=date_to_str,
-                    extra={
-                        **extra_meta,
-                        "collection_id": collection_id,
-                        "collection_name": collection_name,
-                    }
-                )
-
-                print(
-                    f"Running builder for {base_dir} | collection {collection_name} ({collection_id}) "
-                    f"| query: {query[:80]}{'…' if len(query)>80 else ''} | dates: {date_from_str}→{date_to_str}"
-                )
-                builder.run(params=params)
-                runs_for_collection += 1
-
-            summary["collections"].append({
-                "collection_id": collection_id,
-                "collection_name": collection_name,
-                "runs": runs_for_collection,
-            })
-            summary["total_runs"] += runs_for_collection
-
-        print(f"Completed manager run: {summary}")
-        return summary
+        elif builder_type == "youtube":
+            from .builders.youtube import YouTubeCorpusBuilder
+            return YouTubeCorpusBuilder(corpus_dir=base_dir)
+        else:
+            raise ValueError(f"Unsupported builder type: {builder_type}. Supported types: 'mediacloud', 'youtube'")
 
     # ------------- helpers -------------
 
@@ -184,7 +106,7 @@ class CorpusManager:
         return ensure_date(value).isoformat()
 
     @staticmethod
-    def _compile_keywords_to_query(keywords_by_lang: Dict[str, List[str]]) -> str:
+    def _compile_keywords_to_query(keywords_by_lang: Dict[str, list]) -> str:
         """
         Compile a keywords-by-language mapping into a single OR-combined query string.
         Example: {en: ["air pollution", "air quality"], hi: ["…", "…"]}
@@ -192,7 +114,7 @@ class CorpusManager:
         """
         if not isinstance(keywords_by_lang, dict):
             raise ValueError("parameters.keywords must be a mapping of language->list[str]")
-        group_exprs: List[str] = []
+        group_exprs: list = []
         for _, words in keywords_by_lang.items():
             if not words:
                 continue
@@ -206,7 +128,6 @@ class CorpusManager:
 
 
 def run_config(config_path: str | Path) -> Dict[str, Any]:
+    """Run a single config file"""
     manager = CorpusManager(Path(config_path))
     return manager.run()
-
-

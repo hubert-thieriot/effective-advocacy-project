@@ -6,14 +6,14 @@ import pytest
 import tempfile
 import json
 from pathlib import Path
-from efi_analyser.pipeline import AnalysisPipeline
+from efi_analyser.pipeline import LinearPipeline
 from efi_analyser.filters import TextContainsFilter
 from efi_analyser.processors import KeywordExtractorProcessor
 from efi_core.types import Document
 
 
-class TestAnalysisPipeline:
-    """Test AnalysisPipeline"""
+class TestLinearPipeline:
+    """Test LinearPipeline"""
     
     @pytest.fixture
     def temp_corpus(self):
@@ -51,7 +51,7 @@ class TestAnalysisPipeline:
     
     def test_pipeline_init(self, temp_corpus):
         """Test pipeline initialization"""
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=None,
             processor_func=None,
             aggregator_func=None
@@ -65,7 +65,7 @@ class TestAnalysisPipeline:
         """Test pipeline with no filters and no processors"""
         from efi_corpus import CorpusHandle
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=None,
             processor_func=None,
             aggregator_func=None
@@ -74,10 +74,10 @@ class TestAnalysisPipeline:
         corpus_handle = CorpusHandle(temp_corpus)
         pipeline_result = pipeline.run(corpus_handle)
         
-        assert pipeline_result.data is not None
-        assert len(pipeline_result.data) == 1
-        assert pipeline_result.data[0].passed_filters is True
-        assert pipeline_result.data[0].processing_results == {}
+        assert pipeline_result.results is not None
+        assert len(pipeline_result.results) == 1
+        assert pipeline_result.results[0].passed_filters is True
+        assert pipeline_result.results[0].processing_results == {}
     
     def test_pipeline_with_filter(self, temp_corpus):
         """Test pipeline with a filter"""
@@ -86,7 +86,7 @@ class TestAnalysisPipeline:
         def crea_filter(doc):
             return "CREA" in doc.text
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=crea_filter,
             processor_func=None,
             aggregator_func=None
@@ -95,10 +95,10 @@ class TestAnalysisPipeline:
         corpus_handle = CorpusHandle(temp_corpus)
         pipeline_result = pipeline.run(corpus_handle)
         
-        assert pipeline_result.data is not None
-        assert len(pipeline_result.data) == 1
-        assert pipeline_result.data[0].passed_filters is True
-        assert pipeline_result.data[0].filter_results["filter"] is True
+        assert pipeline_result.results is not None
+        assert len(pipeline_result.results) == 1
+        assert pipeline_result.results[0].passed_filters is True
+        assert pipeline_result.results[0].filter_results["filter"] is True
     
     def test_pipeline_with_processor(self, temp_corpus):
         """Test pipeline with a processor"""
@@ -106,7 +106,7 @@ class TestAnalysisPipeline:
         
         processor = KeywordExtractorProcessor(keywords=["CREA", "coal"])
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=None,
             processor_func=processor.process,
             aggregator_func=None,
@@ -116,12 +116,12 @@ class TestAnalysisPipeline:
         corpus_handle = CorpusHandle(temp_corpus)
         pipeline_result = pipeline.run(corpus_handle)
         
-        assert pipeline_result.data is not None
-        assert len(pipeline_result.data) == 1
-        assert pipeline_result.data[0].passed_filters is True
-        assert "keyword_extractor" in pipeline_result.data[0].processing_results
-        
-        proc_result = pipeline_result.data[0].processing_results["keyword_extractor"]
+        assert pipeline_result.results is not None
+        assert len(pipeline_result.results) == 1
+        assert pipeline_result.results[0].passed_filters is True
+        assert "keyword_extractor" in pipeline_result.results[0].processing_results
+
+        proc_result = pipeline_result.results[0].processing_results["keyword_extractor"]
         assert proc_result["keyword_counts"]["CREA"] == 1
         assert proc_result["keyword_counts"]["coal"] == 1
     
@@ -134,7 +134,7 @@ class TestAnalysisPipeline:
         
         processor = KeywordExtractorProcessor(keywords=["coal"])
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=crea_filter,
             processor_func=processor.process,
             aggregator_func=None,
@@ -144,20 +144,20 @@ class TestAnalysisPipeline:
         corpus_handle = CorpusHandle(temp_corpus)
         pipeline_result = pipeline.run(corpus_handle)
         
-        assert pipeline_result.data is not None
-        assert len(pipeline_result.data) == 1
-        assert pipeline_result.data[0].passed_filters is True
-        assert "keyword_extractor" in pipeline_result.data[0].processing_results
-        
+        assert pipeline_result.results is not None
+        assert len(pipeline_result.results) == 1
+        assert pipeline_result.results[0].passed_filters is True
+        assert "keyword_extractor" in pipeline_result.results[0].processing_results
+
         # Should have processed the document since it passed the filter
-        proc_result = pipeline_result.data[0].processing_results["keyword_extractor"]
+        proc_result = pipeline_result.results[0].processing_results["keyword_extractor"]
         assert proc_result["keyword_counts"]["coal"] == 1
     
     def test_pipeline_stats(self, temp_corpus):
         """Test pipeline statistics"""
         from efi_corpus import CorpusHandle
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=None,
             processor_func=None,
             aggregator_func=None
@@ -181,7 +181,7 @@ class TestAnalysisPipeline:
         def crea_filter(doc):
             return "CREA" in doc.text
         
-        pipeline = AnalysisPipeline(
+        pipeline = LinearPipeline(
             filter_func=crea_filter,
             processor_func=None,
             aggregator_func=None

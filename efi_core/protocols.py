@@ -102,12 +102,3 @@ class LibraryBuilder(Protocol):
     def clear_cache(self) -> None: ...
     def close(self) -> None: ...
 
-
-class ReScorer(Protocol, Generic[T]):
-    """Protocol for re-scoring retrieved results using arbitrary result types."""
-
-    def rescore(self, query: str, matches: List[T]) -> List[T]:
-        """Re-score a list of results for a given query."""
-        ...
-
-

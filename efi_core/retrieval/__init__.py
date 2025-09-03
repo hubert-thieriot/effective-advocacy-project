@@ -6,13 +6,13 @@ Provides two retriever implementations:
 - RetrieverIndex: Uses FAISS indexes with auto-rebuild capability
 """
 
-from .retriever import SearchResult
+from efi_core.types import Retriever
 from .retriever_brute_force import RetrieverBrute
 from .retriever_index import RetrieverIndex
 from .index_builder import IndexBuilder
 
 __all__ = [
-    'SearchResult',
+    'Retriever',
     'RetrieverBrute',
     'RetrieverIndex',
     'IndexBuilder'

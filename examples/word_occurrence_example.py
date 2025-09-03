@@ -31,7 +31,7 @@ def main():
         case_sensitive=False,
         whole_word_only=True,
         allow_hyphenation=True,
-        output_formats=["csv", "json", "html"]
+        output_formats=["html"]
     )
     
     # Initialize app

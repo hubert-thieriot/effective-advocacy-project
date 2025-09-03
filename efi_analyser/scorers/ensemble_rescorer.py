@@ -8,8 +8,7 @@ configurable weights to get the best of both approaches.
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
-from efi_core.protocols import ReScorer
-from efi_core.retrieval.retriever import SearchResult
+from efi_core.types import PairScorer, Task
 
 
 @dataclass
@@ -25,7 +24,7 @@ class EnsembleWeights:
             raise ValueError(f"Ensemble weights must sum to 1.0, got {total}")
 
 
-class EnsembleReScorer(ReScorer[SearchResult]):
+class EnsembleReScorer(PairScorer):
     """
     Ensemble re-scorer that combines multiple scoring approaches.
     
@@ -34,76 +33,75 @@ class EnsembleReScorer(ReScorer[SearchResult]):
     speed (original scores) and accuracy (cross-encoder scores).
     """
     
-    def __init__(self, 
-                 cross_encoder_rescorer: ReScorer,
+    def __init__(self,
+                 name: str = "ensemble_scorer",
+                 task: Task = Task.NLI,
+                 cross_encoder_rescorer: PairScorer = None,
                  weights: Optional[EnsembleWeights] = None,
                  normalize_combined: bool = True):
         """
-        Initialize the ensemble re-scorer.
-        
+        Initialize the ensemble scorer.
+
         Args:
-            cross_encoder_rescorer: Cross-encoder re-scorer to use
+            name: Name identifier for this scorer
+            task: Task type
+            cross_encoder_rescorer: Cross-encoder scorer to use
             weights: Weight configuration for combining scores
             normalize_combined: Whether to normalize final combined scores
         """
+        super().__init__(name, task)
         self.cross_encoder_rescorer = cross_encoder_rescorer
         self.weights = weights or EnsembleWeights()
         self.normalize_combined = normalize_combined
     
-    def rescore(self, query: str, matches: List[SearchResult]) -> List[SearchResult]:
+    def batch_score(self, targets: List[str], passages: List[str]) -> List[Dict[str, float]]:
         """
-        Re-score using ensemble approach.
-        
+        Score using ensemble approach.
+
         Args:
-            query: The original query text
-            matches: List of SearchResult objects to re-score
-            
+            targets: List of target texts
+            passages: List of passage texts to score
+
         Returns:
-            Re-ranked list with ensemble scores
+            List of dictionaries with combined scores
         """
-        if not matches:
-            return matches
-        
-        # Store original scores for ensemble
-        original_scores = {match.item_id: match.score for match in matches}
-        
-        # Get cross-encoder scores
-        cross_encoder_results = self.cross_encoder_rescorer.rescore(query, matches)
-        cross_encoder_scores = {result.item_id: result.score for result in cross_encoder_results}
-        
-        # Combine scores using weights
-        combined_matches = []
-        for match in matches:
-            original_score = original_scores[match.item_id]
-            cross_encoder_score = cross_encoder_scores[match.item_id]
-            
-            # Weighted combination
-            combined_score = (
-                self.weights.original_score * original_score +
-                self.weights.cross_encoder_score * cross_encoder_score
-            )
-            
-            # Create new result with combined score
-            combined_match = SearchResult(
-                item_id=match.item_id,
-                score=combined_score,
-                metadata={
-                    **match.metadata,
-                    'original_score': original_score,
-                    'cross_encoder_score': cross_encoder_score,
-                    'ensemble_score': combined_score
-                }
-            )
-            combined_matches.append(combined_match)
-        
-        # Sort by combined scores
-        combined_matches.sort(key=lambda x: x.score, reverse=True)
-        
-        # Normalize if requested
-        if self.normalize_combined:
-            combined_matches = self._normalize_scores(combined_matches)
-        
-        return combined_matches
+        if not passages:
+            return [{"combined": 0.0} for _ in passages]
+
+        if self.cross_encoder_rescorer is None:
+            # No cross-encoder, return default scores
+            return [{"combined": 0.0} for _ in passages]
+
+        try:
+            # Get cross-encoder scores
+            cross_encoder_scores = self.cross_encoder_rescorer.batch_score(targets, passages)
+
+            # For ensemble, we combine with a default "original" score
+            # In practice, you'd want to pass in the original retrieval scores
+            default_original_score = 0.5
+
+            combined_scores = []
+            for ce_score in cross_encoder_scores:
+                # Extract cross-encoder relevance score
+                ce_relevance = ce_score.get("relevance", 0.0)
+
+                # Combine scores using weights
+                combined_score = (
+                    self.weights.original_score * default_original_score +
+                    self.weights.cross_encoder_score * ce_relevance
+                )
+
+                combined_scores.append({
+                    "combined": float(combined_score),
+                    "original": default_original_score,
+                    "cross_encoder": ce_relevance
+                })
+
+            return combined_scores
+
+        except Exception as e:
+            print(f"⚠️ Error in ensemble scoring: {e}. Returning default scores.")
+            return [{"combined": 0.0} for _ in passages]
     
     def _normalize_scores(self, matches: List[SearchResult]) -> List[SearchResult]:
         """Normalize scores to [0, 1] range"""

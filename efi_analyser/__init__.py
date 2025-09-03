@@ -20,7 +20,7 @@ from .chunkers.sentence_chunker import SentenceChunker
 from .embedders.sentence_transformer_embedder import SentenceTransformerEmbedder
 
 # Retrieval system
-from efi_core.retrieval.retriever import Retriever, SearchResult
+from efi_core.retrieval import Retriever, RetrieverIndex, RetrieverBrute
 from efi_core.retrieval.index_builder import IndexBuilder
 
 __all__ = [
@@ -49,6 +49,7 @@ __all__ = [
     
     # Retrieval
     "Retriever",
-    "SearchResult",
+    "RetrieverIndex",
+    "RetrieverBrute",
     "IndexBuilder"
 ]

@@ -1,0 +1,78 @@
+# YouTube Corpus Builder Configuration for Times Now Air Quality
+# Channel: https://www.youtube.com/@TimesNow
+
+# Basic configuration
+name: "Times Now Air Quality Corpus"
+description: "Corpus of Times Now videos about air pollution, air quality, and haze"
+source: "youtube"
+
+# YouTube channel configuration
+channel:
+  url: "https://www.youtube.com/@TimesNow"
+  
+# Search keywords for filtering videos
+keywords:
+  - "air pollution"
+  - "air quality"
+  - "haze"
+  - "smog"
+  - "PM2.5"
+  - "PM10"
+  - "AQI"
+  - "air quality index"
+  - "pollution levels"
+  - "clean air"
+
+# Date range for video discovery
+# Use ISO format: YYYY-MM-DD
+dates:
+  start: "2024-01-01"  # Start from beginning of 2024
+  end: "2024-12-31"    # End of 2024
+  
+# Video processing limits
+limits:
+  max_videos: 3         # Maximum videos to process per run (very conservative for testing)
+  max_videos_per_keyword: 2   # Max videos per individual keyword
+  
+# Rate limiting configuration
+rate_limiting:
+  requests_per_minute: 1   # Very conservative: 1 request per minute for transcript API
+  min_interval: 60.0       # Minimum 60 seconds between requests for transcript API
+  
+# Search and filtering options
+search:
+  order: "date"         # "date" for chronological, "relevance" for relevance-based
+  include_auto_generated: false  # Skip auto-generated transcripts
+  min_duration: 60      # Minimum video duration in seconds
+  max_duration: 7200    # Maximum video duration in seconds (2 hours)
+  skip_transcript_check: false  # Skip videos without transcripts during discovery
+  
+# Quality filters
+quality:
+  min_text_length: 400  # Minimum transcript length in characters
+  min_word_count: 50    # Minimum word count
+  
+# Output configuration
+output:
+  corpus_dir: "corpora/youtube_times_now_air_quality"
+  include_metadata: true
+  include_thumbnails: false  # Set to true if you want thumbnail URLs
+  include_tags: true
+  
+# Incremental building options
+incremental:
+  enabled: true         # Continue from latest video date
+  force_full_rescan: false  # Set to true to ignore existing corpus and start fresh
+  
+# Error handling
+error_handling:
+  skip_failed_transcripts: true
+  max_retries: 3
+  retry_delay: 60       # Seconds to wait before retry
+  
+# Logging and monitoring
+logging:
+  level: "INFO"
+  save_search_logs: true
+  log_skipped_videos: true
+

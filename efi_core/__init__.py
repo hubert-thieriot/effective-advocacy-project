@@ -43,9 +43,10 @@ from .stores import (
 )
 
 # Retrieval system
-from .retrieval.retriever import (
+from .retrieval import (
     Retriever,
-    SearchResult
+    RetrieverIndex,
+    RetrieverBrute
 )
 
 from .retrieval.index_builder import (
@@ -87,7 +88,8 @@ __all__ = [
     
     # Retrieval
     "Retriever",
-    "SearchResult",
+    "RetrieverIndex",
+    "RetrieverBrute",
     "IndexBuilder",
     "IndexStore"
 ]

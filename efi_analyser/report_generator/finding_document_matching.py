@@ -9,10 +9,10 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from .base import BaseReportGenerator
-from ..types import DocumentMatchingResults, FindingResults, DocumentMatch, ReportConfig
+from ..types import DocumentMatchingResults, ReportConfig
 
 
-class DocumentMatchingReportGenerator(BaseReportGenerator):
+class FindingDocumentMatchingReportGenerator(BaseReportGenerator):
     """Generates reports from DocumentMatchingResults."""
     
     def __init__(self, config: ReportConfig):
@@ -53,7 +53,11 @@ class DocumentMatchingReportGenerator(BaseReportGenerator):
                     
                     # Add rescorer scores
                     for rescorer_name in sorted(rescorer_names):
-                        row[f'{rescorer_name}_score'] = match.rescorer_scores.get(rescorer_name, 0.0)
+                        score = match.rescorer_scores.get(rescorer_name, {})
+                        if isinstance(score, dict):
+                            row[f'{rescorer_name}_score'] = str(score)
+                        else:
+                            row[f'{rescorer_name}_score'] = score
                     
                     writer.writerow(row)
         
@@ -179,7 +183,13 @@ class DocumentMatchingReportGenerator(BaseReportGenerator):
             """
             
             for match in finding_result.matches:
-                rescorer_scores_str = ", ".join([f"{name}: {score:.3f}" for name, score in match.rescorer_scores.items()])
+                def format_score(score):
+                    if isinstance(score, dict):
+                        return ", ".join([f"{k}: {v:.3f}" for k, v in score.items()])
+                    else:
+                        return f"{score:.3f}"
+
+                rescorer_scores_str = ", ".join([f"{name}: {format_score(score)}" for name, score in match.rescorer_scores.items()])
                 html_content += f"""
                     <tr>
                         <td>{match.chunk_id}</td>

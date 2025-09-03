@@ -10,22 +10,21 @@ from pathlib import Path
 from typing import List, Union, Optional, Dict, Any
 import logging
 
-from efi_core.types import ChunkerSpec, EmbedderSpec
-from efi_core.retrieval.retriever import SearchResult
+from efi_core.types import ChunkerSpec, EmbedderSpec, Candidate, Retriever
 from efi_core.retrieval.index_builder import IndexBuilder
 from efi_core.stores.indexes import IndexStore
 
 logger = logging.getLogger(__name__)
 
 
-class RetrieverIndex:
+class RetrieverIndex(Retriever):
     """
     Index-based retriever using FAISS for fast similarity search.
-    
+
     Uses FAISS indexes when available and can automatically rebuild them
     if they don't exist. Falls back to brute-force search if needed.
     """
-    
+
     def __init__(
         self,
         embedded_data_source,  # EmbeddedCorpus or EmbeddedLibrary
@@ -36,7 +35,7 @@ class RetrieverIndex:
     ):
         """
         Initialize index retriever.
-        
+
         Args:
             embedded_data_source: EmbeddedCorpus or EmbeddedLibrary instance
             workspace_path: Path to workspace directory
@@ -44,61 +43,67 @@ class RetrieverIndex:
             embedder_spec: Embedder specification
             auto_rebuild: Whether to automatically rebuild missing indexes
         """
+        # Initialize instance variables
         self.embedded_data_source = embedded_data_source
         self.workspace_path = workspace_path
         self.chunker_spec = chunker_spec
         self.embedder_spec = embedder_spec
         self.auto_rebuild = auto_rebuild
-        
-        # Determine if this is a corpus or library
-        self.is_corpus = hasattr(embedded_data_source, 'corpus')
-        self.name = embedded_data_source.corpus.corpus_path.name if self.is_corpus else embedded_data_source.library.library_path.name
-        
+
+        # Initialize cached index variables
+        self._cached_index = None
+        self._cached_item_ids = None
+
         # Initialize index store and builder
         self.index_store = IndexStore(
             workspace_path=workspace_path,
-            corpus_or_library_name=self.name,
-            is_corpus=self.is_corpus
+            corpus_or_library_name=self._get_data_source_name(),
+            is_corpus=self._is_corpus()
         )
-        
+
+        # Initialize index builder
         self.index_builder = IndexBuilder(
             workspace_path=workspace_path,
-            corpus_or_library_name=self.name,
-            is_corpus=self.is_corpus
+            corpus_or_library_name=self._get_data_source_name(),
+            is_corpus=self._is_corpus()
         )
-        
-        # Cache for loaded index
-        self._cached_index = None
-        self._cached_item_ids = None
-        
-        logger.info(f"Initialized FAISS retriever for {self.name}")
+
+        logger.info(f"Initialized FAISS retriever for {self._get_data_source_name()}")
+
+    def _get_data_source_name(self) -> str:
+        """Get the name of the data source."""
+        if hasattr(self.embedded_data_source, 'corpus'):
+            return self.embedded_data_source.corpus.corpus_path.name
+        else:
+            return self.embedded_data_source.library.library_path.name
+
+    def _is_corpus(self) -> bool:
+        """Check if the data source is a corpus."""
+        return hasattr(self.embedded_data_source, 'corpus')
     
     def query(
         self,
         query_vector: Union[str, np.ndarray],
         top_k: int = 10
-    ) -> List[SearchResult]:
+    ) -> List[Candidate]:
         """
         Query for similar items using FAISS index.
-        
+
         Args:
             query_vector: Either text string or pre-computed embedding vector
             top_k: Number of top results to return
-            
+
         Returns:
-            List of SearchResult objects sorted by score (highest first)
+            List of Candidate objects sorted by score (highest first)
         """
         # Handle text queries by embedding them
         if isinstance(query_vector, str):
-            query_text = query_vector
             query_vector = self._embed_text(query_vector)
-        else:
-            query_text = None
-        
+
         if query_vector is None:
             logger.error("Failed to create query vector")
-            raise ValueError("Failed to create query vector for query")
-        
+            return []
+
         # Try to use FAISS index
         if self._ensure_index_exists():
             try:
@@ -106,11 +111,148 @@ class RetrieverIndex:
                 logger.debug(f"Used FAISS index for query, found {len(results)} results")
                 return results
             except Exception as e:
-                logger.error(f"FAISS index query failed: {e}")
-                raise
-        else:
-            raise RuntimeError("No FAISS index available and auto-rebuild failed or disabled")
-    
+                logger.warning(f"Index query failed, falling back to brute-force: {e}")
+
+        # Fall back to brute-force search
+        logger.debug("Using brute-force cosine similarity search")
+        return self._query_brute_force(query_vector, top_k)
+
+    def _query_brute_force(self, query_vector: np.ndarray, top_k: int) -> List[Candidate]:
+        """Query using brute-force cosine similarity."""
+        query_vector = query_vector.astype(np.float32)
+
+        # Normalize query vector
+        query_norm = np.linalg.norm(query_vector)
+        if query_norm == 0:
+            return []
+        query_vector = query_vector / query_norm
+
+        all_results = []
+
+        try:
+            # Stream through all embeddings
+            if self._is_corpus():
+                # For corpus: iterate through documents
+                for doc in self.embedded_data_source.corpus.iter_documents():
+                    try:
+                        embeddings = self.embedded_data_source.embeddings(doc.doc_id)
+                        if embeddings.size == 0:
+                            continue
+
+                        # Handle both 1D and 2D arrays
+                        if embeddings.ndim == 1:
+                            embeddings = embeddings.reshape(1, -1)
+
+                        # Calculate cosine similarity for each chunk
+                        for chunk_idx, chunk_embedding in enumerate(embeddings):
+                            chunk_embedding = chunk_embedding.astype(np.float32)
+                            chunk_norm = np.linalg.norm(chunk_embedding)
+                            if chunk_norm == 0:
+                                continue
+
+                            chunk_embedding = chunk_embedding / chunk_norm
+                            similarity = np.dot(query_vector, chunk_embedding)
+
+                            # Create chunk ID
+                            chunk_id = f"{doc.doc_id}_chunk_{chunk_idx}"
+
+                            # Get chunk text
+                            chunk_text = ""
+                            try:
+                                chunk = self.embedded_data_source.get_chunk(
+                                    chunk_id=chunk_id,
+                                    materialize_if_necessary=False
+                                )
+                                chunk_text = chunk.text if chunk else ""
+                            except Exception:
+                                chunk_text = ""
+
+                            all_results.append(Candidate(
+                                item_id=chunk_id,
+                                ann_score=float(similarity),
+                                text=chunk_text,
+                                meta={"doc_id": doc.doc_id, "chunk_idx": chunk_idx}
+                            ))
+
+                    except Exception as e:
+                        logger.warning(f"Error processing document {doc.doc_id}: {e}")
+                        continue
+
+            else:
+                # For library: iterate through findings
+                for doc_findings in self.embedded_data_source.library.iter_findings():
+                    for finding in doc_findings.findings:
+                        try:
+                            embeddings = self.embedded_data_source.embeddings(finding.finding_id)
+                            if embeddings.size == 0:
+                                continue
+
+                            # Handle both 1D and 2D arrays
+                            if embeddings.ndim == 1:
+                                embeddings = embeddings.reshape(1, -1)
+
+                            # Calculate cosine similarity for each chunk
+                            for chunk_idx, chunk_embedding in enumerate(embeddings):
+                                chunk_embedding = chunk_embedding.astype(np.float32)
+                                chunk_norm = np.linalg.norm(chunk_embedding)
+                                if chunk_norm == 0:
+                                    continue
+
+                                chunk_embedding = chunk_embedding / chunk_norm
+                                similarity = np.dot(query_vector, chunk_embedding)
+
+                                # Get chunk text for library
+                                chunk_text = ""
+                                try:
+                                    chunks = self.embedded_data_source.get_chunks(
+                                        finding_id=finding.finding_id,
+                                        materialize_if_necessary=False
+                                    )
+                                    if chunks and chunk_idx < len(chunks):
+                                        chunk_text = chunks[chunk_idx]
+                                except Exception:
+                                    chunk_text = ""
+
+                                all_results.append(Candidate(
+                                    item_id=finding.finding_id,
+                                    ann_score=float(similarity),
+                                    text=chunk_text,
+                                    meta={"finding_id": finding.finding_id, "chunk_idx": chunk_idx}
+                                ))
+
+                        except Exception as e:
+                            logger.warning(f"Error processing finding {finding.finding_id}: {e}")
+                            continue
+
+        except Exception as e:
+            logger.error(f"Error in brute-force search: {e}")
+            return []
+
+        # Sort by score (highest first) and return top_k
+        all_results.sort(key=lambda x: x.ann_score, reverse=True)
+        return all_results[:top_k]
+
+    def _embed_text(self, text: str) -> Optional[np.ndarray]:
+        """Embed text using the embedded data source's embedder."""
+        try:
+            # Use the embedder from the embedded data source
+            embedder = self.embedded_data_source.embedder
+
+            # Create a temporary chunk to get the embedding
+            # We'll use the first chunk if text is long
+            if len(text) > 1000:  # Arbitrary threshold
+                text = text[:1000] + "..."
+
+            # Get embedding for the text
+            embedding = embedder.embed([text])
+            if embedding is not None and len(embedding) > 0:
+                return np.array(embedding[0])
+
+        except Exception as e:
+            logger.error(f"Error embedding text: {e}")
+
+        return None
+
     def _ensure_index_exists(self) -> bool:
         """
         Ensure the FAISS index exists, rebuilding if necessary.
@@ -170,7 +312,7 @@ class RetrieverIndex:
         
         return None
     
-    def _query_with_index(self, query_vector: np.ndarray, top_k: int) -> List[SearchResult]:
+    def _query_with_index(self, query_vector: np.ndarray, top_k: int) -> List[Candidate]:
         """Query using FAISS index."""
         # Check if FAISS is available
         try:
@@ -199,8 +341,35 @@ class RetrieverIndex:
             if idx < len(self._cached_item_ids):
                 item_id = self._cached_item_ids[idx]
                 # Convert inner product score to cosine similarity (they're the same for normalized vectors)
-                results.append(SearchResult(item_id=item_id, score=float(score)))
-        
+
+                # Get chunk text
+                chunk_text = ""
+                try:
+                    if self._is_corpus():
+                        # For corpus, item_id is chunk_id
+                        chunk = self.embedded_data_source.get_chunk(
+                            chunk_id=item_id,
+                            materialize_if_necessary=False
+                        )
+                        chunk_text = chunk.text if chunk else ""
+                    else:
+                        # For library, item_id is finding_id, but we don't have chunk_idx
+                        # Get the first chunk or the finding text itself
+                        chunks = self.embedded_data_source.get_chunks(
+                            finding_id=item_id,
+                            materialize_if_necessary=False
+                        )
+                        if chunks:
+                            chunk_text = chunks[0]  # Get first chunk
+                        else:
+                            # Fallback: get the finding text
+                            finding = self.embedded_data_source.library.get_finding(item_id)
+                            chunk_text = finding.text if finding else ""
+                except Exception:
+                    chunk_text = ""
+
+                results.append(Candidate(item_id=item_id, ann_score=float(score), text=chunk_text))
+
         return results
     
     

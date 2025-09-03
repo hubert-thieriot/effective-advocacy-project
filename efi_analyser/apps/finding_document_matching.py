@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Finding-Document Matcher App
+Finding Document Matching App
 
 This app finds the best matches between findings from a library and document chunks from a corpus.
 It uses existing embeddings and can optionally build FAISS indexes for faster search.
@@ -16,13 +16,14 @@ import numpy as np
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from efi_core.retrieval import RetrieverIndex, SearchResult
+from efi_core.retrieval import RetrieverIndex
 from efi_core.retrieval.index_builder import IndexBuilder
 from efi_analyser.chunkers import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_library.embedded.embedded_library import EmbeddedLibrary
-from efi_analyser.rescorers import NLIReScorer, NLIReScorerConfig
+from efi_analyser.scorers import NLIHFScorer, NLIHFScorerConfig
+from efi_core.types import Task, Candidate, RescoreEngine, RerankPolicy, RerankingEngine
 
 
 
@@ -146,11 +147,16 @@ def main():
     print(f"  ✓ Found {len(findings_to_process)} findings with embeddings")
 
     # Optional re-scoring step
-    rescorer = None
+    rescore_engine = None
     if args.rescore:
-        rescorer = NLIReScorer(
-            NLIReScorerConfig(model_name=args.rescorer_model)
+        nli_scorer = NLIHFScorer(
+            name="nli_roberta",
+            task=Task.NLI,
+            config=NLIHFScorerConfig(model_name=args.rescorer_model)
         )
+        rescore_engine = RescoreEngine(scorers=[nli_scorer])
+        rerank_policy = RerankPolicy(positive_labels={"entails": 1.0})
+        reranking_engine = RerankingEngine(policies={"nli_roberta": rerank_policy})
 
     # Create retriever for finding-to-document search
     print(f"\n🔍 Creating retriever for finding → document search...")
@@ -182,23 +188,29 @@ def main():
                 continue
             
             # Search for similar document chunks
-            results = retriever.query(finding_embedding, top_k=args.top_k)
+            candidates = retriever.query(finding.text, top_k=args.top_k)
 
-            if results:
-                # Retrieve chunk text for each result
-                for result in results:
-                    doc_id, chunk_idx = result.item_id.split('_chunk_')
-                    chunk_idx_int = int(chunk_idx)
-                    chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=False)
-                    if chunks and chunk_idx_int < len(chunks):
-                        chunk_text = chunks[chunk_idx_int].text
-                    else:
-                        chunk_text = "Chunk not found"
-                    result.metadata["text"] = chunk_text
+            if candidates:
+                # Enrich candidates with text
+                enriched_candidates = []
+                for candidate in candidates:
+                    try:
+                        chunk = embedded_corpus.get_chunk(
+                            chunk_id=candidate.item_id,
+                            materialize_if_necessary=False
+                        )
+                        candidate.text = chunk.text if chunk else "Chunk not found"
+                        enriched_candidates.append(candidate)
+                    except Exception:
+                        candidate.text = "Chunk not found"
+                        enriched_candidates.append(candidate)
 
                 # Apply optional re-scoring
-                if rescorer:
-                    results = rescorer.rescore(finding.text, results)
+                if rescore_engine:
+                    enriched_candidates = rescore_engine.rescore(enriched_candidates, finding.text)
+                    enriched_candidates = reranking_engine.rerank(enriched_candidates)
+
+                results = enriched_candidates
 
                 # Print finding header
                 finding_preview = finding.text[:60] + "..." if len(finding.text) > 60 else finding.text
@@ -207,9 +219,8 @@ def main():
                 print("-" * 120)
 
                 for j, result in enumerate(results, 1):
-                    chunk_text = result.metadata.get("text", "")
-                    chunk_preview = chunk_text[:75] + "..." if len(chunk_text) > 75 else chunk_text
-                    print(f"{result.item_id:<20} {result.score:<8.4f} {chunk_preview}")
+                    chunk_preview = result.text[:75] + "..." if len(result.text) > 75 else result.text
+                    print(f"{result.item_id:<20} {result.ann_score:<8.4f} {chunk_preview}")
 
                 total_matches += len(results)
             else:

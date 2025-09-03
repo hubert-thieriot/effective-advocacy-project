@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import List, Dict, Any
 from datetime import datetime
 
-from efi_core.retrieval import RetrieverIndex, SearchResult
+from efi_core.retrieval import RetrieverIndex
+from efi_core.types import Candidate, Task
 from efi_analyser.chunkers import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
-from efi_analyser.rescorers import NLIReScorer
+from efi_analyser.scorers import NLIHFScorer
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from ..types import ClaimSupportingConfig, ClaimSupportingResults, ClaimSupportingResult
 from ..utils import MediaSourceMapper
@@ -48,10 +49,10 @@ class ClaimSupportingPipeline:
             embedder_spec=self.embedder
         )
         
-        # Initialize NLI rescorer
-        from ..rescorers.nli_rescorer import NLIReScorerConfig
-        nli_config = NLIReScorerConfig(model_name=config.nli_model)
-        self.nli_rescorer = NLIReScorer(config=nli_config)
+        # Initialize NLI scorer
+        from ..rescorers.nli_hf_scorer import NLIHFScorerConfig
+        nli_config = NLIHFScorerConfig(model_name=config.nli_model)
+        self.nli_scorer = NLIHFScorer(name="nli_roberta", task=Task.NLI, config=nli_config)
     
     def run(self, claims: List[str]) -> List[ClaimSupportingResults]:
         """Run the complete claim supporting pipeline."""
@@ -88,7 +89,7 @@ class ClaimSupportingPipeline:
         # Step 4: Aggregate results
         return self._aggregate_results(claim, claim_results)
     
-    def _retrieve_chunks(self, claim: str) -> List[SearchResult]:
+    def _retrieve_chunks(self, claim: str) -> List[Candidate]:
         """Retrieve relevant chunks for a claim."""
         try:
             # Query using the retriever
@@ -107,7 +108,7 @@ class ClaimSupportingPipeline:
             logger.error(f"Error retrieving chunks for claim: {e}")
             return []
     
-    def _apply_nli_scoring(self, claim: str, chunks: List[SearchResult]) -> List[SearchResult]:
+    def _apply_nli_scoring(self, claim: str, chunks: List[Candidate]) -> List[Candidate]:
         """Apply NLI rescoring to chunks."""
         try:
             # Enrich chunks with text content
@@ -129,15 +130,23 @@ class ClaimSupportingPipeline:
                 logger.warning("No chunks with text content found")
                 return []
             
-            # Apply NLI rescoring
-            scored_chunks = self.nli_rescorer.rescore(claim, enriched_chunks)
-            return scored_chunks
+            # Apply NLI rescoring using new interface
+            targets = [claim] * len(enriched_chunks)
+            passages = [chunk.text for chunk in enriched_chunks]
+            nli_scores = self.nli_rescorer.batch_score(targets, passages)
+
+            # Attach scores to chunks
+            for i, chunk in enumerate(enriched_chunks):
+                scores = nli_scores[i]
+                chunk.scores["nli_roberta"] = scores
+
+            return enriched_chunks
             
         except Exception as e:
             logger.error(f"Error applying NLI scoring: {e}")
             return []
     
-    def _extract_claim_results(self, claim: str, chunks: List[SearchResult]) -> List[ClaimSupportingResult]:
+    def _extract_claim_results(self, claim: str, chunks: List[Candidate]) -> List[ClaimSupportingResult]:
         """Extract results for a single claim."""
         results = []
         
@@ -168,11 +177,12 @@ class ClaimSupportingPipeline:
                 # Extract media source
                 media_source = self.media_mapper.get_media_source(doc.url)
                 
-                # Extract NLI scores
+                # Extract NLI scores from new structure
+                nli_scores_dict = chunk.scores.get("nli_roberta", {})
                 nli_scores = {
-                    'contradiction': chunk.metadata.get('nli_contradiction', 0.0),
-                    'neutral': chunk.metadata.get('nli_neutral', 0.0),
-                    'entailment': chunk.metadata.get('nli_entailment', 0.0)
+                    'contradiction': nli_scores_dict.get('contradicts', 0.0),
+                    'neutral': nli_scores_dict.get('neutral', 0.0),
+                    'entailment': nli_scores_dict.get('entails', 0.0)
                 }
                 
                 # Classify chunk based on threshold
@@ -187,7 +197,7 @@ class ClaimSupportingPipeline:
                     entailment_score=nli_scores['entailment'],
                     neutral_score=nli_scores['neutral'],
                     contradiction_score=nli_scores['contradiction'],
-                    cosine_score=chunk.score,
+                    cosine_score=chunk.ann_score,
                     media_source=media_source,
                     date=date_str,
                     url=doc.url,

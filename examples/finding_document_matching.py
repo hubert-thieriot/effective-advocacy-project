@@ -58,10 +58,10 @@ def main():
         exclude_keywords=["russian", "russia", "china", "chinese", "pakistan"]
     )
 
-    # Run matching with more findings
+    # Run matching with fewer findings for testing
     results = pipeline.run_matching(
         finding_filters=filters,
-        n_findings=20,
+        n_findings=2,
         top_n_retrieval=100,
         top_n_rescoring_stage1=15
     )

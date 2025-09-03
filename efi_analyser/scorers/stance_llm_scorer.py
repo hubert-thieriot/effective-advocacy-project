@@ -72,8 +72,15 @@ class StanceLLMScorer(StanceScorer):
             return [{"pro": 0.0, "anti": 0.0, "neutral": 0.0, "uncertain": 0.0} for _ in passages]
 
         results = []
+        total_pairs = len(targets)
 
-        for target, passage in zip(targets, passages):
+        if self._llm_interface.config.verbose:
+            print(f"🔬 Processing {total_pairs} stance pairs with {self.name}...")
+
+        for i, (target, passage) in enumerate(zip(targets, passages)):
+            if self._llm_interface.config.verbose:
+                print(f"  [{i+1}/{total_pairs}] Scoring target-text pair...")
+
             # Build stance-specific messages
             messages = self._build_stance_messages(target, passage)
 
@@ -83,6 +90,9 @@ class StanceLLMScorer(StanceScorer):
             # Parse stance response
             stance_scores = self._parse_stance_response(raw_response)
             results.append(stance_scores)
+
+        if self._llm_interface.config.verbose:
+            print(f"✅ Completed stance scoring for {total_pairs} pairs with {self.name}")
 
         return results
 

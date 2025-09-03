@@ -72,8 +72,15 @@ class NLILLMScorer(NLIScorer):
             return [{"entails": 0.0, "contradicts": 0.0, "neutral": 0.0} for _ in passages]
 
         results = []
+        total_pairs = len(targets)
 
-        for target, passage in zip(targets, passages):
+        if self._llm_interface.config.verbose:
+            print(f"🔬 Processing {total_pairs} NLI pairs with {self.name}...")
+
+        for i, (target, passage) in enumerate(zip(targets, passages)):
+            if self._llm_interface.config.verbose:
+                print(f"  [{i+1}/{total_pairs}] Scoring premise-hypothesis pair...")
+
             # Build NLI-specific messages
             messages = self._build_nli_messages(target, passage)
 
@@ -83,6 +90,9 @@ class NLILLMScorer(NLIScorer):
             # Parse NLI response
             nli_scores = self._parse_nli_response(raw_response)
             results.append(nli_scores)
+
+        if hasattr(self._llm_interface.config, 'verbose') and self._llm_interface.config.verbose:
+            print(f"✅ Completed NLI scoring for {total_pairs} pairs with {self.name}")
 
         return results
 

@@ -31,7 +31,7 @@ from efi_analyser.report_generator import ValidationReportGenerator
 from efi_analyser.types import ReportConfig
 
 
-def create_scorers(scorer_names: List[str]):
+def create_scorers(scorer_names: List[str], verbose: bool = False):
     """Create scorers based on names."""
     scorers = []
 
@@ -40,17 +40,17 @@ def create_scorers(scorer_names: List[str]):
             scorers.append(NLIHFScorer(name="nli_hf"))
         elif name == "nli_llm_phi3":
             # Disable cache for validation to ensure fresh results
-            config = LLMScorerConfig(model="phi3:3.8b", ignore_cache=True)
+            config = LLMScorerConfig(model="phi3:3.8b", ignore_cache=True, verbose=verbose)
             scorers.append(NLILLMScorer(name="nli_llm_phi3", config=config))
         elif name == "nli_llm_gemma":
             # Disable cache for validation to ensure fresh results
-            config = LLMScorerConfig(model="gemma3:4b", ignore_cache=True)
+            config = LLMScorerConfig(model="gemma3:4b", ignore_cache=True, verbose=verbose)
             scorers.append(NLILLMScorer(name="nli_llm_gemma", config=config))
         elif name == "stance_hf":
             scorers.append(StanceHFScorer(name="stance_hf"))
         elif name == "stance_llm":
             # Disable cache for validation to ensure fresh results
-            config = LLMScorerConfig(model="phi3:3.8b", ignore_cache=True)
+            config = LLMScorerConfig(model="phi3:3.8b", ignore_cache=True, verbose=verbose)
             scorers.append(StanceLLMScorer(name="stance_llm", config=config))
         else:
             print(f"Warning: Unknown scorer '{name}', skipping")
@@ -91,6 +91,12 @@ def main():
         choices=["html", "csv", "json"],
         help="Report formats to generate"
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose output showing inference progress"
+    )
 
     args = parser.parse_args()
 
@@ -115,7 +121,7 @@ def main():
 
     # Create scorers
     print(f"\nSetting up scorers: {args.scorers}")
-    scorers = create_scorers(args.scorers)
+    scorers = create_scorers(args.scorers, verbose=args.verbose)
 
     if not scorers:
         print("Error: No valid scorers specified")
@@ -126,7 +132,7 @@ def main():
 
     # Run evaluation
     print("\nRunning validation...")
-    runner = EvaluationRunner(scorers)
+    runner = EvaluationRunner(scorers, verbose=args.verbose)
     results = runner.evaluate_all([dataset])
 
     # Print summary

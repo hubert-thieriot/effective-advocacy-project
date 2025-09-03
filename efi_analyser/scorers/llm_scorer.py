@@ -31,6 +31,7 @@ class LLMScorerConfig:
     ignore_cache: bool = False  # New parameter to bypass cache
     base_url: Optional[str] = None  # Ollama/OpenAI base URL
     api_key: Optional[str] = None  # API key for authentication
+    verbose: bool = False  # Enable verbose output for inference progress
 
 
 class LLMInterface:
@@ -113,12 +114,18 @@ class LLMInterface:
 
         cached = self._read_cache(path)
         if cached is not None and not self.config.ignore_cache:
+            if self.config.verbose:
+                print(f"📋 Using cached response for {self.name} ({self.config.model})")
             return cached.get("raw_text", "")
 
         # Make inference call
+        if self.config.verbose:
+            print(f"🚀 Making inference call to {self.name} ({self.config.model})...")
         start_time = time.time()
         raw_text = self._safe_infer(messages)
         inference_time = time.time() - start_time
+        if self.config.verbose:
+            print(f"✅ Inference completed in {inference_time:.2f}s for {self.name} ({self.config.model})")
 
         # Cache the raw response
         payload = {

@@ -84,26 +84,43 @@ class ScorerEvaluator:
 class EvaluationRunner:
     """Runs multiple scorers on multiple datasets."""
 
-    def __init__(self, scorers: List[PairScorer]):
+    def __init__(self, scorers: List[PairScorer], verbose: bool = False):
         """Initialize with multiple scorers."""
         self.scorers = scorers
         self.evaluators = [ScorerEvaluator(scorer) for scorer in scorers]
+        self.verbose = verbose
 
     def evaluate_all(self, datasets: List[ValidationDataset]) -> List[EvaluationResult]:
         """Evaluate all scorers on all datasets."""
         results = []
+        total_evaluations = sum(1 for evaluator in self.evaluators for dataset in datasets
+                               if self._task_matches(evaluator.scorer.task, dataset.task_type))
+        current_evaluation = 0
+
+        if self.verbose:
+            print(f"\n🔬 Starting evaluation of {len(self.evaluators)} scorers on {len(datasets)} datasets...")
+            print(f"   Total evaluations to perform: {total_evaluations}")
 
         for evaluator in self.evaluators:
             for dataset in datasets:
                 # Only evaluate if scorer task matches dataset task
                 if self._task_matches(evaluator.scorer.task, dataset.task_type):
+                    current_evaluation += 1
+                    if self.verbose:
+                        print(f"\n📊 [{current_evaluation}/{total_evaluations}] Evaluating {evaluator.scorer.name} on {dataset.name}...")
+
                     result = evaluator.evaluate_dataset(dataset)
                     results.append(result)
-                    print(f"Evaluated {result.scorer_name} on {result.dataset_name}: "
+
+                    print(f"✅ Evaluated {result.scorer_name} on {result.dataset_name}: "
                           f"Accuracy={result.accuracy:.3f}, Macro-F1={result.macro_f1:.3f}")
                 else:
-                    print(f"Skipping {evaluator.scorer.name} on {dataset.name}: "
-                          f"Task mismatch ({evaluator.scorer.task.value} vs {dataset.task_type.value})")
+                    if self.verbose:
+                        print(f"⏭️  Skipping {evaluator.scorer.name} on {dataset.name}: "
+                              f"Task mismatch ({evaluator.scorer.task.value} vs {dataset.task_type.value})")
+
+        if self.verbose:
+            print(f"\n🎉 Evaluation completed! Processed {len(results)} scorer-dataset combinations.")
 
         return results
 

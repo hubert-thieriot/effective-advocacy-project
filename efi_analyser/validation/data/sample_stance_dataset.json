@@ -1,0 +1,152 @@
+[
+  {
+    "sample_id": "stance_climate_support_001",
+    "text_a": "The government should invest more in renewable energy sources.",
+    "text_b": "Climate change is a serious threat that requires immediate action.",
+    "gold_label": "pro",
+    "metadata": {
+      "category": "climate_policy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "stance_climate_oppose_002",
+    "text_a": "Increasing fuel taxes will hurt working families.",
+    "text_b": "Climate policies should focus on economic growth over environmental concerns.",
+    "gold_label": "anti",
+    "metadata": {
+      "category": "climate_policy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "stance_tech_neutral_003",
+    "text_a": "Social media platforms should be regulated more strictly.",
+    "text_b": "Technology companies have both positive and negative impacts on society.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "technology_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_health_uncertain_004",
+    "text_a": "The new vaccine shows promising early results.",
+    "text_b": "More research is needed before widespread adoption.",
+    "gold_label": "uncertain",
+    "metadata": {
+      "category": "health_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_economy_support_005",
+    "text_a": "Universal basic income could reduce poverty and inequality.",
+    "text_b": "Economic policies should prioritize helping the most vulnerable citizens.",
+    "gold_label": "pro",
+    "metadata": {
+      "category": "economic_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_economy_oppose_006",
+    "text_a": "Government spending programs create dependency and reduce motivation.",
+    "text_b": "Free market policies are better for long-term economic growth.",
+    "gold_label": "anti",
+    "metadata": {
+      "category": "economic_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_education_neutral_007",
+    "text_a": "Online learning has both advantages and disadvantages compared to traditional classrooms.",
+    "text_b": "Education systems need to adapt to changing technology and societal needs.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "education_policy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "stance_environment_support_008",
+    "text_a": "Protecting endangered species is crucial for biodiversity.",
+    "text_b": "Environmental conservation efforts should be a global priority.",
+    "gold_label": "pro",
+    "metadata": {
+      "category": "environmental_policy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "stance_environment_uncertain_009",
+    "text_a": "The impact of microplastics on marine life is not fully understood yet.",
+    "text_b": "More scientific research is needed on environmental issues.",
+    "gold_label": "uncertain",
+    "metadata": {
+      "category": "environmental_policy",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "stance_social_oppose_010",
+    "text_a": "Traditional family values are being eroded by modern society.",
+    "text_b": "Social changes have gone too far and need to be reversed.",
+    "gold_label": "anti",
+    "metadata": {
+      "category": "social_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_social_neutral_011",
+    "text_a": "Work-life balance is important for employee well-being.",
+    "text_b": "Companies should offer flexible work arrangements when possible.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "social_policy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "stance_tech_support_012",
+    "text_a": "Artificial intelligence will revolutionize healthcare and medicine.",
+    "text_b": "Technological advancement should be embraced and accelerated.",
+    "gold_label": "pro",
+    "metadata": {
+      "category": "technology_policy",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "stance_tech_uncertain_013",
+    "text_a": "The long-term effects of artificial intelligence are unpredictable.",
+    "text_b": "We need to be cautious about rapid technological development.",
+    "gold_label": "uncertain",
+    "metadata": {
+      "category": "technology_policy",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "stance_economy_neutral_014",
+    "text_a": "Trade policies have complex effects on different sectors of the economy.",
+    "text_b": "Economic decisions require careful consideration of multiple factors.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "economic_policy",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "stance_health_support_015",
+    "text_a": "Mental health should receive the same attention as physical health.",
+    "text_b": "Healthcare systems need to be more comprehensive and inclusive.",
+    "gold_label": "pro",
+    "metadata": {
+      "category": "health_policy",
+      "difficulty": "easy"
+    }
+  }
+]

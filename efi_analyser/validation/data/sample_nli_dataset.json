@@ -1,0 +1,152 @@
+[
+  {
+    "sample_id": "entailment_direct_001",
+    "text_a": "The cat is sitting on the mat.",
+    "text_b": "A cat is on the mat.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "direct_entailment",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "entailment_implicit_002",
+    "text_a": "The restaurant serves Italian food.",
+    "text_b": "The restaurant offers Italian cuisine.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "lexical_entailment",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "entailment_partial_003",
+    "text_a": "The company increased profits by 25% this quarter.",
+    "text_b": "The company's profits grew.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "partial_entailment",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "contradiction_direct_004",
+    "text_a": "The weather is sunny today.",
+    "text_b": "It's raining outside.",
+    "gold_label": "contradicts",
+    "metadata": {
+      "category": "direct_contradiction",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "contradiction_quantity_005",
+    "text_a": "John has three children.",
+    "text_b": "John has no children.",
+    "gold_label": "contradicts",
+    "metadata": {
+      "category": "quantity_contradiction",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "neutral_synonym_006",
+    "text_a": "The movie was excellent.",
+    "text_b": "The film was outstanding.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "synonym_neutral",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "neutral_unrelated_007",
+    "text_a": "Paris is the capital of France.",
+    "text_b": "The weather is nice today.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "unrelated_neutral",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "sample_id": "neutral_orthogonal_008",
+    "text_a": "The book is interesting.",
+    "text_b": "The book has 300 pages.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "orthogonal_neutral",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "entailment_world_knowledge_009",
+    "text_a": "The person graduated from Harvard University in 2020.",
+    "text_b": "The person completed their education at Harvard.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "world_knowledge_entailment",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "contradiction_temporal_010",
+    "text_a": "The meeting is scheduled for tomorrow.",
+    "text_b": "The meeting happened yesterday.",
+    "gold_label": "contradicts",
+    "metadata": {
+      "category": "temporal_contradiction",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "sample_id": "neutral_ambiguous_011",
+    "text_a": "The bank is closed on Sundays.",
+    "text_b": "People can withdraw money from the bank.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "ambiguous_neutral",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "entailment_negation_012",
+    "text_a": "No students failed the exam.",
+    "text_b": "All students passed the exam.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "negation_entailment",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "contradiction_double_negation_013",
+    "text_a": "The patient is not alive.",
+    "text_b": "The patient is dead.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "negation_entailment",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "neutral_presupposition_014",
+    "text_a": "John stopped smoking cigarettes.",
+    "text_b": "John used to smoke cigarettes.",
+    "gold_label": "entails",
+    "metadata": {
+      "category": "presupposition_entailment",
+      "difficulty": "hard"
+    }
+  },
+  {
+    "sample_id": "neutral_no_overlap_015",
+    "text_a": "The algorithm uses machine learning techniques.",
+    "text_b": "The implementation is written in Python.",
+    "gold_label": "neutral",
+    "metadata": {
+      "category": "no_overlap_neutral",
+      "difficulty": "medium"
+    }
+  }
+]

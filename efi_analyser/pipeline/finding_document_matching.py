@@ -1,5 +1,5 @@
 """
-Document Matching Pipeline
+Finding Document Matching Pipeline
 
 A simple orchestration class for running document matching between corpus and library.
 """
@@ -11,29 +11,30 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from efi_core.types import (
-    FindingFilters, DocumentMatchingResults, FindingResults, DocumentMatch
+    FindingFilters, DocumentMatchingResults, FindingResults, DocumentMatch,
+    Candidate, RescoreEngine, RerankPolicy, RerankingEngine, Task
 )
 from efi_core.retrieval import RetrieverIndex
-from efi_core.protocols import ReScorer
+from efi_analyser.scorers import PairScorer
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_library.embedded.embedded_library import EmbeddedLibrary
 
 
-class DocumentMatchingPipeline:
+class FindingDocumentMatchingPipeline:
     """Simple pipeline for document matching between corpus and library."""
     
-    def __init__(self, 
+    def __init__(self,
                  embedded_corpus: EmbeddedCorpus,
                  embedded_library: EmbeddedLibrary,
-                 rescorers_stage1: List[ReScorer],
-                 rescorers_stage2: List[ReScorer],
+                 scorers_stage1: List[PairScorer],
+                 scorers_stage2: List[PairScorer],
                  workspace_path: Path):
         self.embedded_corpus = embedded_corpus
         self.embedded_library = embedded_library
-        self.rescorers_stage1 = rescorers_stage1
-        self.rescorers_stage2 = rescorers_stage2
+        self.scorers_stage1 = scorers_stage1
+        self.scorers_stage2 = scorers_stage2
         self.workspace_path = workspace_path
-        
+
         # Initialize retriever
         self.retriever = RetrieverIndex(
             embedded_data_source=embedded_corpus,
@@ -42,6 +43,21 @@ class DocumentMatchingPipeline:
             embedder_spec=embedded_corpus.embedder.spec,
             auto_rebuild=True,
         )
+
+        # Initialize rescoring engines
+        self.rescore_engine_stage1 = RescoreEngine(scorers_stage1) if scorers_stage1 else None
+        self.rescore_engine_stage2 = RescoreEngine(scorers_stage2) if scorers_stage2 else None
+
+        # Initialize reranking policies (simple positive labels for NLI/STANCE)
+        self.rerank_policies = {}
+        for scorer in scorers_stage1 + scorers_stage2:
+            if scorer.task == Task.NLI:
+                self.rerank_policies[scorer.name] = RerankPolicy(positive_labels={"entails": 1.0})
+            elif scorer.task == Task.STANCE:
+                self.rerank_policies[scorer.name] = RerankPolicy(positive_labels={"pro": 1.0})
+            else:
+                # Default positive label for other tasks
+                self.rerank_policies[scorer.name] = RerankPolicy(positive_labels={"positive": 1.0})
     
     def run_matching(self,
                     finding_filters: Optional[FindingFilters] = None,
@@ -138,109 +154,84 @@ class DocumentMatchingPipeline:
         return True
     
     def _process_finding(self, finding, top_n_retrieval: int, top_n_rescoring_stage1: int) -> FindingResults:
-        """Process a single finding with two-stage rescoring."""
+        """Process a single finding with two-stage rescoring using new architecture."""
         start_time = time.time()
-        
+
         # Stage 1: Initial retrieval with more candidates
-        initial_candidates = self.retriever.query(finding.text, top_k=top_n_retrieval)
-        
-        # Enrich all initial candidates with text
-        enriched_candidates = []
-        for candidate in initial_candidates:
-            try:
-                chunk = self.embedded_corpus.get_chunk(
-                    chunk_id=candidate.item_id, 
-                    materialize_if_necessary=False
-                )
-                candidate.metadata["text"] = chunk.text if chunk else ""
-                enriched_candidates.append(candidate)
-            except Exception:
-                enriched_candidates.append(candidate)
-        
-        # Stage 2: Use stage1 rescorers to filter down to top candidates
-        if self.rescorers_stage1:
-            try:
-                # Apply all stage1 rescorers and combine scores
-                stage1_scores = {}
-                for rescorer in self.rescorers_stage1:
-                    rescorer_start = time.time()
-                    rescorer_name = rescorer.name
-                    
-                    try:
-                        rescored = rescorer.rescore(finding.text, enriched_candidates)
-                        stage1_scores[rescorer_name] = [float(r.score) for r in rescored]
-                    except Exception:
-                        stage1_scores[rescorer_name] = [0.0] * len(enriched_candidates)
-                    
-                    timing[rescorer_name] = time.time() - rescorer_start
-                
-                # Combine stage1 scores (simple average for now)
-                combined_scores = []
-                for i in range(len(enriched_candidates)):
-                    scores = [stage1_scores[name][i] for name in stage1_scores.keys()]
-                    combined_scores.append(sum(scores) / len(scores))
-                
-                # Sort by combined stage1 scores and take top candidates
-                candidate_scores = list(zip(enriched_candidates, combined_scores))
-                candidate_scores.sort(key=lambda x: x[1], reverse=True)
-                top_candidates = [c[0] for c in candidate_scores[:top_n_rescoring_stage1]]
-                
-            except Exception:
-                # Fallback to cosine similarity if stage1 fails
-                top_candidates = enriched_candidates[:top_n_rescoring_stage1]
-        else:
-            # No stage1 rescorers, use cosine similarity
-            top_candidates = enriched_candidates[:top_n_rescoring_stage1]
-        
-        # Stage 3: Apply stage2 rescorers only to top candidates
-        rescorer_scores = {}
+        # Retriever now populates candidate text directly
+        candidates = self.retriever.query(finding.text, top_k=top_n_retrieval)
+
+        # Stage 1: Apply stage1 scorers to all candidates
         timing = {}
-        
-        # Add stage1 scores for all initial candidates
-        if self.rescorers_stage1:
-            for rescorer_name, scores in stage1_scores.items():
-                rescorer_scores[rescorer_name] = scores
-        
-        # Apply stage2 rescorers only to top candidates
-        for rescorer in self.rescorers_stage2:
-            rescorer_start = time.time()
-            rescorer_name = rescorer.name
-            
-            try:
-                stage2_rescored = rescorer.rescore(finding.text, top_candidates)
-                # Create full score list (stage2 scores for top candidates, 0 for others)
-                full_scores = [0.0] * len(initial_candidates)
-                for i, candidate in enumerate(top_candidates):
-                    # Find the position of this candidate in the original list
-                    original_idx = next(j for j, c in enumerate(initial_candidates) 
-                                     if c.item_id == candidate.item_id)
-                    full_scores[original_idx] = float(stage2_rescored[i].score)
-                
-                rescorer_scores[rescorer_name] = full_scores
-            except Exception:
-                rescorer_scores[rescorer_name] = [0.0] * len(initial_candidates)
-            
-            timing[rescorer_name] = time.time() - rescorer_start
-        
-        # Create matches only for the top candidates (those with both stage1 and stage2 scores)
+        rescorer_scores = {}
+
+        if self.rescore_engine_stage1:
+            stage1_start = time.time()
+            candidates = self.rescore_engine_stage1.rescore(candidates, finding.text)
+            timing["stage1_rescoring"] = time.time() - stage1_start
+
+            # Store stage1 scores
+            for candidate in candidates:
+                for scorer_name, score_dict in candidate.scores.items():
+                    if scorer_name not in rescorer_scores:
+                        rescorer_scores[scorer_name] = []
+                    rescorer_scores[scorer_name].append(score_dict)
+
+        # Apply reranking to get top candidates for stage2
+        if self.scorers_stage1:
+            reranking_engine = RerankingEngine(self.rerank_policies)
+            candidates = reranking_engine.rerank(candidates)
+
+        # Take top candidates after stage1
+        top_candidates = candidates[:top_n_rescoring_stage1]
+
+        # Stage 2: Apply stage2 scorers only to top candidates
+        if self.rescore_engine_stage2:
+            stage2_start = time.time()
+            top_candidates = self.rescore_engine_stage2.rescore(top_candidates, finding.text)
+            timing["stage2_rescoring"] = time.time() - stage2_start
+
+            # Store stage2 scores - scores are dicts like {"entails": 0.8, "contradicts": 0.1, "neutral": 0.1}
+            for candidate in top_candidates:
+                for scorer_name, score_dict in candidate.scores.items():
+                    if scorer_name not in rescorer_scores:
+                        # Initialize with empty dicts for all candidates
+                        rescorer_scores[scorer_name] = [{"entails": 0.0, "contradicts": 0.0, "neutral": 0.0} for _ in range(len(candidates))]
+                    # Find original position and update score
+                    original_idx = next(j for j, c in enumerate(candidates)
+                                       if c.item_id == candidate.item_id)
+                    rescorer_scores[scorer_name][original_idx] = score_dict
+        else:
+            # If no stage2 scorers, fill with default dicts for remaining candidates
+            for scorer_name in rescorer_scores.keys():
+                if len(rescorer_scores[scorer_name]) < len(candidates):
+                    default_score = {"entails": 0.0, "contradicts": 0.0, "neutral": 0.0}
+                    rescorer_scores[scorer_name].extend([default_score] * (len(candidates) - len(rescorer_scores[scorer_name])))
+
+        # Apply final reranking to top candidates
+        if self.scorers_stage2:
+            reranking_engine = RerankingEngine(self.rerank_policies)
+            top_candidates = reranking_engine.rerank(top_candidates)
+
+        # Create matches for top candidates
         matches = []
         for candidate in top_candidates:
             # Find the position of this candidate in the original list
-            original_idx = next(j for j, c in enumerate(initial_candidates) 
-                             if c.item_id == candidate.item_id)
-            
+            original_idx = next(j for j, c in enumerate(candidates)
+                               if c.item_id == candidate.item_id)
+
             match = DocumentMatch(
                 chunk_id=candidate.item_id,
-                chunk_text=candidate.metadata.get("text", ""),
-                cosine_score=float(candidate.score),
+                chunk_text=candidate.text,
+                cosine_score=float(candidate.ann_score),
                 rescorer_scores={
-                    name: scores[original_idx] if original_idx < len(scores) else 0.0
+                    name: scores[original_idx] if original_idx < len(scores) else {"entails": 0.0, "contradicts": 0.0, "neutral": 0.0}
                     for name, scores in rescorer_scores.items()
                 },
-                metadata=candidate.metadata
+                metadata=candidate.meta
             )
             matches.append(match)
-        
+
         return FindingResults(
             finding_id=finding.finding_id,
             finding_text=finding.text,

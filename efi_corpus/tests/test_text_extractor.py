@@ -163,11 +163,8 @@ class TestContentFetchingAndExtraction:
     def test_urls_fetch_and_extract_required_text(self, test_cases):
         """Test that URLs can be fetched and their content contains required text (integration test)"""
         # Check if integration tests should be run via environment variable
-        import os
-        if not os.environ.get("RUN_INTEGRATION_TESTS"):
-            pytest.skip("Integration tests require RUN_INTEGRATION_TESTS environment variable")
-        
-        import requests
+
+        import requests        
         
         if not test_cases:
             pytest.skip("No test cases loaded")

@@ -22,7 +22,7 @@ def main():
         top_k_retrieval=1000,
         nli_model="typeform/distilbert-base-uncased-mnli",
         classification_threshold=0.7,
-        output_formats=["csv", "json", "html"]
+        output_formats=["html"]
     )
     
     # Initialize app

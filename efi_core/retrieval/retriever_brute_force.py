@@ -11,13 +11,12 @@ from pathlib import Path
 from typing import List, Union, Optional, Dict, Any
 import logging
 
-from efi_core.types import ChunkerSpec, EmbedderSpec
-from efi_core.retrieval.retriever import SearchResult
+from efi_core.types import ChunkerSpec, EmbedderSpec, Candidate, Retriever
 
 logger = logging.getLogger(__name__)
 
 
-class RetrieverBrute:
+class RetrieverBrute(Retriever):
     """
     Brute-force retriever using cosine similarity.
     
@@ -25,52 +24,60 @@ class RetrieverBrute:
     using any indexes. Simple, reliable, and works well for
     small to medium-sized datasets.
     """
-    
+
     def __init__(
         self,
         embedded_data_source,  # EmbeddedCorpus or EmbeddedLibrary
+        workspace_path: Path,
         chunker_spec: ChunkerSpec,
         embedder_spec: EmbedderSpec
     ):
         """
         Initialize brute-force retriever.
-        
+
         Args:
             embedded_data_source: EmbeddedCorpus or EmbeddedLibrary instance
+            workspace_path: Path to workspace directory
             chunker_spec: Chunker specification
             embedder_spec: Embedder specification
         """
+        # Initialize instance variables
         self.embedded_data_source = embedded_data_source
+        self.workspace_path = workspace_path
         self.chunker_spec = chunker_spec
         self.embedder_spec = embedder_spec
-        
-        # Determine if this is a corpus or library
-        self.is_corpus = hasattr(embedded_data_source, 'corpus')
-        self.name = embedded_data_source.corpus.corpus_path.name if self.is_corpus else embedded_data_source.library.library_path.name
-        
-        logger.info(f"Initialized brute-force retriever for {self.name}")
-    
+
+        logger.info(f"Initialized brute-force retriever for {self._get_data_source_name()}")
+
+    def _get_data_source_name(self) -> str:
+        """Get the name of the data source."""
+        if hasattr(self.embedded_data_source, 'corpus'):
+            return self.embedded_data_source.corpus.corpus_path.name
+        else:
+            return self.embedded_data_source.library.library_path.name
+
+    def _is_corpus(self) -> bool:
+        """Check if the data source is a corpus."""
+        return hasattr(self.embedded_data_source, 'corpus')
+
     def query(
         self,
         query_vector: Union[str, np.ndarray],
         top_k: int = 10
-    ) -> List[SearchResult]:
+    ) -> List[Candidate]:
         """
         Query for similar items using brute-force cosine similarity.
-        
+
         Args:
             query_vector: Either text string or pre-computed embedding vector
             top_k: Number of top results to return
-            
+
         Returns:
-            List of SearchResult objects sorted by score (highest first)
+            List of Candidate objects sorted by score (highest first)
         """
         # Handle text queries by embedding them
         if isinstance(query_vector, str):
-            query_text = query_vector
             query_vector = self._embed_text(query_vector)
-        else:
-            query_text = None
         
         if query_vector is None:
             logger.error("Failed to create query vector")
@@ -101,7 +108,7 @@ class RetrieverBrute:
         
         return None
     
-    def _query_brute_force(self, query_vector: np.ndarray, top_k: int) -> List[SearchResult]:
+    def _query_brute_force(self, query_vector: np.ndarray, top_k: int) -> List[Candidate]:
         """Query using brute-force cosine similarity."""
         query_vector = query_vector.astype(np.float32)
         
@@ -139,10 +146,11 @@ class RetrieverBrute:
                             
                             # Create chunk ID
                             chunk_id = f"{doc.doc_id}_chunk_{chunk_idx}"
-                            all_results.append(SearchResult(
+                            all_results.append(Candidate(
                                 item_id=chunk_id,
-                                score=float(similarity),
-                                metadata={"doc_id": doc.doc_id, "chunk_idx": chunk_idx}
+                                ann_score=float(similarity),
+                                text="",  # TODO: populate text
+                                meta={"doc_id": doc.doc_id, "chunk_idx": chunk_idx}
                             ))
                     
                     except Exception as e:
@@ -172,10 +180,11 @@ class RetrieverBrute:
                                 chunk_embedding = chunk_embedding / chunk_norm
                                 similarity = np.dot(query_vector, chunk_embedding)
                                 
-                                all_results.append(SearchResult(
+                                all_results.append(Candidate(
                                     item_id=finding.finding_id,
-                                    score=float(similarity),
-                                    metadata={"finding_id": finding.finding_id, "chunk_idx": chunk_idx}
+                                    ann_score=float(similarity),
+                                    text="",  # TODO: populate text
+                                    meta={"finding_id": finding.finding_id, "chunk_idx": chunk_idx}
                                 ))
                         
                         except Exception as e:

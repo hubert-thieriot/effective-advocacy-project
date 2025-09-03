@@ -4,12 +4,15 @@ Shared domain types and model specifications.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Tuple
+from enum import Enum
+from typing import Optional, Dict, Any, List, Tuple, Union
 from pathlib import Path
 from datetime import datetime
 import json
 import hashlib
+import numpy as np
 
 
 @dataclass
@@ -133,6 +136,7 @@ class FindingState:
 
 
 # Document Matching Pipeline Types
+
 @dataclass
 class FindingFilters:
     """Configurable filters for findings."""
@@ -172,4 +176,125 @@ class DocumentMatchingResults:
     score_stats: Dict[str, Any]
     metadata: Dict[str, Any]
 
+
+# Scoring and Reranking Types
+
+class Task(Enum):
+    """Types of scoring tasks."""
+    NLI = "nli"
+    STANCE = "stance"
+
+
+class LabelSpace(Enum):
+    """Canonical label spaces for different tasks."""
+    NLI = "entails|contradicts|neutral"
+    STANCE = "pro|anti|neutral|uncertain"
+
+
+@dataclass
+class Candidate:
+    """A candidate result from retrieval, enriched with scores and utilities."""
+    item_id: str                    # e.g. f"{doc_id}:{chunk_id}"
+    ann_score: float                # raw retrieval score (cosine/BM25)
+    text: str                       # passage text
+    meta: Dict[str, Any] = field(default_factory=dict)    # doc_id, offsets, etc.
+    scores: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    # e.g. scores["nli_roberta"] = {"entails": 0.73, "contradicts": 0.06, "neutral": 0.21}
+    #      scores["stance_tata"] = {"pro": 0.19, "anti": 0.64, "neutral": 0.17}
+    utilities: Dict[str, float] = field(default_factory=dict)
+    # utilities["nli_entails"] = 0.73; utilities["stance_pro"] = 0.19
+
+
+class PairScorer(ABC):
+    """Base class for scorers that evaluate target-passage pairs."""
+
+    def __init__(self, name: str, task: Task):
+        self.name = name
+        self.task = task
+
+    @abstractmethod
+    def batch_score(self, targets: List[str], passages: List[str]) -> List[Dict[str, float]]:
+        """Return calibrated label→prob dict per (target, passage) pair."""
+        raise NotImplementedError
+
+
+class RescoreEngine:
+    """Applies multiple scorers to candidates and adds their scores."""
+
+    def __init__(self, scorers: List[PairScorer]):
+        self.scorers = scorers
+
+    def rescore(self, candidates: List[Candidate], target: str) -> List[Candidate]:
+        """Apply all scorers to candidates for the given target."""
+        passages = [c.text for c in candidates]
+
+        # For each scorer, batch score all candidates
+        for scorer in self.scorers:
+            probs_list = scorer.batch_score([target] * len(passages), passages)
+
+            # Attach results to each candidate
+            for i, (cand, probs) in enumerate(zip(candidates, probs_list)):
+                cand.scores[scorer.name] = probs
+
+        return candidates
+
+
+class Retriever(ABC):
+    """Abstract base class for vector retrievers."""
+
+    @abstractmethod
+    def query(
+        self,
+        query_vector: Union[str, np.ndarray],
+        top_k: int = 10
+    ) -> List[Candidate]:
+        """
+        Query for similar items.
+
+        Args:
+            query_vector: Either text string or pre-computed embedding vector
+            top_k: Number of top results to return
+
+        Returns:
+            List of Candidate objects sorted by score (highest first)
+        """
+        pass
+
+
+
+
+
+class RerankPolicy:
+    """Policy for converting label probabilities to utility scores."""
+
+    def __init__(self, positive_labels: Dict[str, float]):
+        """Initialize with label→weight mapping for positive contributions."""
+        self.positive_labels = positive_labels
+
+    def to_utility(self, label_probs: Dict[str, float]) -> float:
+        """Convert label probabilities to utility score."""
+        return sum(self.positive_labels.get(lbl, 0.0) * prob for lbl, prob in label_probs.items())
+
+
+class RerankingEngine:
+    """Applies reranking policies to compute utilities and sort candidates."""
+
+    def __init__(self, policies: Dict[str, RerankPolicy]):
+        """Initialize with scorer.name -> policy mapping."""
+        self.policies = policies
+
+    def rerank(self, candidates: List[Candidate]) -> List[Candidate]:
+        """Compute utilities for all candidates and return sorted list."""
+        for cand in candidates:
+            for scorer_name, policy in self.policies.items():
+                if scorer_name in cand.scores:
+                    utility = policy.to_utility(cand.scores[scorer_name])
+                    cand.utilities[scorer_name] = utility
+
+        # Sort by the first utility score (can be made configurable later)
+        if candidates and candidates[0].utilities:
+            first_utility_key = next(iter(candidates[0].utilities.keys()))
+            candidates.sort(key=lambda c: c.utilities.get(first_utility_key, 0), reverse=True)
+
+        return candidates
 

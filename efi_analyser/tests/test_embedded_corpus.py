@@ -305,10 +305,10 @@ class TestEmbeddedCorpusIntegration:
             
             meta_path = doc_dir / "meta.json"
             meta_path.write_text(json.dumps({"title": "Test Doc"}))
-            
+
             fetch_path = doc_dir / "fetch.json"
             fetch_path.write_text(json.dumps({"url": "https://example.com/doc1"}))
-            
+
             # Create index.jsonl
             index_path = corpus_path / "index.jsonl"
             with open(index_path, 'w') as f:

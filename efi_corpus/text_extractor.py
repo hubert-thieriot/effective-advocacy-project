@@ -83,7 +83,8 @@ class TextExtractor:
                 "extraction_attempts": extraction_attempts,
                 "error": error
             }
-            (failed_dir / "debug.json").write_text(json.dumps(debug_info, indent=2), encoding="utf-8")
+            from efi_core.utils import DateTimeEncoder
+            (failed_dir / "debug.json").write_text(json.dumps(debug_info, indent=2, cls=DateTimeEncoder), encoding="utf-8")
             
             print(f"Failed extraction saved to: {failed_dir}")
             

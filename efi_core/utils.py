@@ -2,12 +2,24 @@
 Utility functions for efi_core
 """
 
-from datetime import datetime
+import json
+from datetime import datetime, date
 from typing import Optional, Union
 from dateutil import parser
 
 # Type alias for date fields
 DateField = Union[datetime, str, None]
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles datetime and date objects"""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 def normalize_date(date_value: DateField) -> Optional[datetime]:

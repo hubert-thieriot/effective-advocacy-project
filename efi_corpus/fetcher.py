@@ -134,13 +134,14 @@ class Fetcher:
                 "fetched_at": time.time(),
                 "size": len(content)
             }
-            meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+            from efi_core.utils import DateTimeEncoder
+            meta_path.write_text(json.dumps(meta, indent=2, cls=DateTimeEncoder), encoding="utf-8")
         else:
             meta = json.loads(meta_path.read_text())
 
         # Update URL→blob map
         map_path.write_text(
-            json.dumps({"canonical_url": canon_url, "blob_id": blob_id}, indent=2), 
+            json.dumps({"canonical_url": canon_url, "blob_id": blob_id}, indent=2, cls=DateTimeEncoder),
             encoding="utf-8"
         )
         

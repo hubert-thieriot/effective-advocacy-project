@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from efi_core.types import DocState, FindingState, ChunkerSpec, EmbedderSpec
+from efi_core.utils import DateTimeEncoder
 from efi_core.layout import EmbeddedCorpusLayout
 
 
@@ -33,7 +34,7 @@ class DocStateStore:
     def write(self, state: DocState) -> None:
         p = self.layout.doc_state_path(state.document_id)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(asdict(state), indent=2, ensure_ascii=False), encoding="utf-8")
+        p.write_text(json.dumps(asdict(state), indent=2, ensure_ascii=False, cls=DateTimeEncoder), encoding="utf-8")
 
     def needs_rebuild(self, *, doc_id: str, fingerprint: str, chunker: ChunkerSpec, embedder: EmbedderSpec) -> bool:
         st = self.read(doc_id)
@@ -61,7 +62,7 @@ class FindingStateStore:
     def write(self, state: FindingState) -> None:
         p = self.path(state.finding_id)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(asdict(state), indent=2, ensure_ascii=False), encoding="utf-8")
+        p.write_text(json.dumps(asdict(state), indent=2, ensure_ascii=False, cls=DateTimeEncoder), encoding="utf-8")
 
     def needs_rebuild(self, *, finding_id: str, fingerprint: str, embedder: EmbedderSpec) -> bool:
         st = self.read(finding_id)

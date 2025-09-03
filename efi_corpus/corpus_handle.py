@@ -8,10 +8,12 @@ import zstandard as zstd
 from pathlib import Path
 from typing import List, Dict, Any, Iterator, Optional
 from functools import wraps
+from datetime import datetime
 
 from .types import Document
 from efi_core.layout import CorpusLayout
 from efi_core.protocols import Corpus
+from efi_core.utils import DateTimeEncoder
 
 
 def write_only(func):
@@ -250,7 +252,7 @@ class CorpusHandle(Corpus):
         
         # meta.json
         (doc_dir / "meta.json").write_text(
-            json.dumps(meta, indent=2, ensure_ascii=False), 
+            json.dumps(meta, indent=2, ensure_ascii=False, cls=DateTimeEncoder),
             encoding="utf-8"
         )
 
@@ -263,7 +265,7 @@ class CorpusHandle(Corpus):
         # fetch.json
         fetch_payload = {**fetch_info}
         (doc_dir / "fetch.json").write_text(
-            json.dumps(fetch_payload, indent=2), 
+            json.dumps(fetch_payload, indent=2, cls=DateTimeEncoder),
             encoding="utf-8"
         )
 
@@ -271,12 +273,12 @@ class CorpusHandle(Corpus):
     def append_index(self, row: Dict[str, Any]):
         """Append a row to the index.jsonl file"""
         with open(self.layout.index_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.write(json.dumps(row, ensure_ascii=False, cls=DateTimeEncoder) + "\n")
 
     @write_only
     def save_manifest(self, manifest: Dict[str, Any]):
         """Save the manifest.json file"""
         self.layout.manifest_path.write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False), 
+            json.dumps(manifest, indent=2, ensure_ascii=False, cls=DateTimeEncoder),
             encoding="utf-8"
         )

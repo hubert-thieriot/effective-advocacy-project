@@ -91,7 +91,7 @@ class NLILLMScorer(NLIScorer):
             nli_scores = self._parse_nli_response(raw_response)
             results.append(nli_scores)
 
-        if hasattr(self._llm_interface.config, 'verbose') and self._llm_interface.config.verbose:
+        if self._llm_interface.config.verbose:
             print(f"✅ Completed NLI scoring for {total_pairs} pairs with {self.name}")
 
         return results

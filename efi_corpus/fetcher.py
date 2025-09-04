@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Tuple, Dict, Any, Union
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from efi_core.utils import DateTimeEncoder
 
 
 class Fetcher:
@@ -134,7 +135,6 @@ class Fetcher:
                 "fetched_at": time.time(),
                 "size": len(content)
             }
-            from efi_core.utils import DateTimeEncoder
             meta_path.write_text(json.dumps(meta, indent=2, cls=DateTimeEncoder), encoding="utf-8")
         else:
             meta = json.loads(meta_path.read_text())

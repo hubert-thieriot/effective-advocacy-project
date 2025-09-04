@@ -31,6 +31,7 @@ python-decouple = "^3.8"
 pandas = "^2.3.2"
 reportlab = "^4.4.3"
 youtube-transcript-api = "^1.2.2"
+scrapy = "^2.11.0"
 
 [tool.poetry.group.analysis]
 optional = true
@@ -47,11 +48,18 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "llm: marks tests that require LLM access",
+    "internet: marks tests that require internet access",
+    "timeout: marks tests with timeout requirements",
     "skip_ci: marks tests to skip in CI/CD",
 ]
 testpaths = ["efi_analyser/tests", "efi_corpus/tests", "efi_library/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
+filterwarnings = [
+    "ignore::DeprecationWarning:faiss.*",
+    "ignore::DeprecationWarning:setuptools.*",
+    "ignore::DeprecationWarning:distutils.*",
+]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 

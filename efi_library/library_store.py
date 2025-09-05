@@ -266,7 +266,7 @@ class LibraryStore(LibraryStoreProtocol):
             results = []
             
             # Load all findings and search
-            all_findings = self.list_all_findings()
+            all_findings = self.list_documents()
             
             for findings in all_findings:
                 # Search in findings text
@@ -468,7 +468,7 @@ class LibraryStore(LibraryStoreProtocol):
             total_documents = len([d for d in self.layout.documents_dir.iterdir() if d.is_dir()])
             
             # Count findings
-            total_findings = sum(len(f.findings) for f in self.list_all_findings())
+            total_findings = sum(len(f.findings) for f in self.list_documents())
             
             # Calculate total file size
             total_size = 0

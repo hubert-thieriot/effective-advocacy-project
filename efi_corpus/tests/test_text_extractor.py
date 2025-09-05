@@ -159,7 +159,7 @@ class TestContentFetchingAndExtraction:
             except Exception as e:
                 pytest.fail(f"Mocked test failed for {url}: {e}")
 
-    @pytest.mark.integration
+    @pytest.mark.internet
     def test_urls_fetch_and_extract_required_text(self, test_cases):
         """Test that URLs can be fetched and their content contains required text (integration test)"""
         # Check if integration tests should be run via environment variable

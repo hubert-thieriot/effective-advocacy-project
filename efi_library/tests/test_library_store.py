@@ -61,8 +61,8 @@ class TestLibraryStore:
         """Test listing all findings"""
         store = LibraryStore("test_lib", str(temp_library_dir))
         store.store_findings(sample_document)
-        
-        results = store.list_all_findings()
+
+        results = store.list_documents()
         assert len(results) == 1
         from efi_core.types import Finding
         expected_doc_id = Finding.generate_doc_id("https://example.com")

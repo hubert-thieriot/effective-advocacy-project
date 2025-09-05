@@ -352,7 +352,7 @@ class LibraryHandle(Library):
                 'findings_file': str(self.layout.findings_path),
                 'metadata_file': str(self.layout.metadata_path),
                 'documents_count': self.get_findings_count(),
-                'total_findings_count': self.get_total_findings_count(),
+                'total_findings_count': self.get_findings_count(),
                 'structure_type': self._structure,
                 'file_size_bytes': 0,
                 'last_modified': None
@@ -389,17 +389,11 @@ class LibraryHandle(Library):
         """
         search_query = query if case_sensitive else query.lower()
         
-        for doc_findings in self.iter_findings():
-            # Check if query appears in any finding text
-            found = False
-            for finding in doc_findings.findings:
-                finding_text = finding.text if case_sensitive else finding.text.lower()
-                if search_query in finding_text:
-                    found = True
-                    break
-            
-            if found:
-                yield doc_findings
+        for finding in self.iter_findings():
+            # Check if query appears in finding text
+            finding_text = finding.text if case_sensitive else finding.text.lower()
+            if search_query in finding_text:
+                yield finding
     
     def filter_by_category(self, category: str) -> Iterator[LibraryDocumentWFindings]:
         """
@@ -411,16 +405,10 @@ class LibraryHandle(Library):
         Yields:
             LibraryDocumentWFindings objects that contain findings in the specified category
         """
-        for doc_findings in self.iter_findings():
-            # Check if any finding has the specified category
-            found = False
-            for finding in doc_findings.findings:
-                if finding.category == category:
-                    found = True
-                    break
-            
-            if found:
-                yield doc_findings
+        for finding in self.iter_findings():
+            # Check if finding has the specified category
+            if finding.category == category:
+                yield finding
     
     def filter_by_confidence(self, min_confidence: float) -> Iterator[LibraryDocumentWFindings]:
         """
@@ -432,14 +420,8 @@ class LibraryHandle(Library):
         Yields:
             LibraryDocumentWFindings objects that contain findings above the confidence threshold
         """
-        for doc_findings in self.iter_findings():
-            # Check if any finding has confidence above threshold
-            found = False
-            for finding in doc_findings.findings:
-                if finding.confidence and finding.confidence >= min_confidence:
-                    found = True
-                    break
-            
-            if found:
-                yield doc_findings
+        for finding in self.iter_findings():
+            # Check if finding has confidence above threshold
+            if finding.confidence and finding.confidence >= min_confidence:
+                yield finding
     

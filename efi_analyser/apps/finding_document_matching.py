@@ -18,7 +18,7 @@ sys.path.insert(0, str(project_root))
 
 from efi_core.retrieval import RetrieverIndex
 from efi_core.retrieval.index_builder import IndexBuilder
-from efi_analyser.chunkers import SentenceChunker
+from efi_analyser.chunkers import TextChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_library.embedded.embedded_library import EmbeddedLibrary
@@ -95,7 +95,7 @@ def main():
         args.workspace.mkdir(parents=True, exist_ok=True)
     
     # Initialize components (use lazy loading for faster startup)
-    chunker = SentenceChunker()
+    chunker = TextChunker()
     embedder = SentenceTransformerEmbedder(lazy_load=True)
     
     print("🔍 Finding-Document Matcher")
@@ -206,8 +206,9 @@ def main():
                         enriched_candidates.append(candidate)
 
                 # Apply optional re-scoring
+                # For finding document matching: finding (premise) entails document (hypothesis)
                 if rescore_engine:
-                    enriched_candidates = rescore_engine.rescore(enriched_candidates, finding.text)
+                    enriched_candidates = rescore_engine.rescore(enriched_candidates, finding.text, premise_is_target=True)
                     enriched_candidates = reranking_engine.rerank(enriched_candidates)
 
                 results = enriched_candidates

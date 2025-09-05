@@ -10,7 +10,7 @@ from pathlib import Path
 from efi_analyser.pipeline.finding_document_matching import FindingDocumentMatchingPipeline
 from efi_analyser.report_generator import FindingDocumentMatchingReportGenerator
 from efi_analyser.types import ReportConfig
-from efi_analyser.chunkers import SentenceChunker
+from efi_analyser.chunkers import TextChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_analyser.scorers import NLIHFScorer, NLILLMScorer, LLMScorerConfig
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
@@ -29,7 +29,7 @@ def main():
     results_dir.mkdir(exist_ok=True)
 
     # Initialize components
-    chunker = SentenceChunker()
+    chunker = TextChunker()
     embedder = SentenceTransformerEmbedder(lazy_load=True)
 
     # Load embedded data

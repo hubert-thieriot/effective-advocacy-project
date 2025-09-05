@@ -16,6 +16,7 @@ from .nli_hf_scorer import NLIHFScorer, NLIHFScorerConfig
 from .nli_llm_scorer import NLILLMScorer, NLILLMScorerConfig
 from .stance_hf_scorer import StanceHFScorer, StanceHFScorerConfig
 from .stance_llm_scorer import StanceLLMScorer, StanceLLMScorerConfig
+from .tata_scorer import StanceTATAScorer, StanceTATAScorerConfig
 
 # Base implementations (used by task-specific scorers)
 from .llm_scorer import LLMInterface, LLMScorerConfig
@@ -38,6 +39,7 @@ __all__ = [
     # Stance implementations
     'StanceHFScorer', 'StanceHFScorerConfig',
     'StanceLLMScorer', 'StanceLLMScorerConfig',
+    'StanceTATAScorer', 'StanceTATAScorerConfig',
 
     # Main NLI implementation
     'NLIHFScorer', 'NLIHFScorerConfig',

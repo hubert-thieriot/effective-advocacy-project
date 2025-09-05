@@ -232,7 +232,6 @@ class TestStanceLLMScorer:
         assert sum(scores.values()) > 0
 
 
-@pytest.mark.integration
 @pytest.mark.llm
 def test_stance_llm_scorer_real_integration():
     """Integration test with real LLM for stance scoring."""
@@ -296,7 +295,6 @@ def test_stance_llm_scorer_real_integration():
         pytest.fail(f"Real LLM integration test failed: {e}")
 
 
-@pytest.mark.integration
 @pytest.mark.llm
 def test_stance_llm_scorer_no_all_zeros_real():
     """Test that real stance LLM scorer never returns all zeros across various inputs."""

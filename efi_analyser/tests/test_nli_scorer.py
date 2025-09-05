@@ -72,7 +72,6 @@ class TestNLIHFScorer:
                 assert scores["neutral"] < 0.1
                 assert scores["contradicts"] < 0.1
 
-    @pytest.mark.slow
     def test_entailment_examples_real_model(self, rescorer):
         """Test clear entailment cases with actual NLI model."""
         
@@ -141,7 +140,6 @@ class TestNLIHFScorer:
                 assert scores["neutral"] > 0.8
                 assert scores["contradicts"] < 0.2
 
-    @pytest.mark.slow
     def test_neutral_examples_real_model(self, rescorer):
         """Test neutral cases with actual NLI model."""
 
@@ -167,7 +165,6 @@ class TestNLIHFScorer:
             assert "contradicts" in scores
 
 
-    @pytest.mark.slow
     def test_contradiction_examples_real_model(self, rescorer):
         """Test contradiction cases with actual NLI model."""
         
@@ -463,7 +460,6 @@ class TestNLILLMScorer:
 
 
 
-@pytest.mark.integration
 @pytest.mark.llm
 def test_nli_llm_scorer_real_integration():
     """Integration test with real LLM for NLI scoring."""
@@ -527,7 +523,6 @@ def test_nli_llm_scorer_real_integration():
 
 
 
-@pytest.mark.integration
 @pytest.mark.llm
 def test_nli_llm_scorer_no_all_zeros_real():
     """Test that real NLI LLM scorer never returns all zeros across various inputs."""

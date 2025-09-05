@@ -29,21 +29,26 @@ def write_only(func):
 class CorpusHandle(Corpus):
     """
     Unified corpus handle that handles both reading and writing operations.
-    
+
     When read_only=True (default), only reading operations are available.
     When read_only=False, both reading and writing operations are available.
+
+    When store_raw_files=False (default), raw document files are not stored to save space.
+    When store_raw_files=True, raw document files (e.g., raw.html) are stored in the corpus.
     """
     
-    def __init__(self, corpus_path: Path, read_only: bool = True):
+    def __init__(self, corpus_path: Path, read_only: bool = True, store_raw_files: bool = False):
         """
         Initialize corpus handle
-        
+
         Args:
             corpus_path: Path to corpus directory
             read_only: If True, only reading operations are available
+            store_raw_files: If True, store raw document files (e.g., raw.html) in corpus
         """
         self.corpus_path = Path(corpus_path)
         self.read_only = read_only
+        self.store_raw_files = store_raw_files
         
         # Initialize layout (no workspace needed for basic corpus operations)
         self.layout = CorpusLayout(self.corpus_path)
@@ -259,8 +264,9 @@ class CorpusHandle(Corpus):
         # text.txt (plain text, no compression)
         (doc_dir / "text.txt").write_text(text, encoding="utf-8")
 
-        # raw file (copy from cache)
-        (doc_dir / f"raw.{raw_ext}").write_bytes(raw_bytes)
+        # raw file (copy from cache) - only if store_raw_files is True
+        if self.store_raw_files:
+            (doc_dir / f"raw.{raw_ext}").write_bytes(raw_bytes)
 
         # fetch.json
         fetch_payload = {**fetch_info}

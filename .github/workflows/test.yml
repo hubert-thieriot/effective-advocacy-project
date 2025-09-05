@@ -15,7 +15,6 @@ name: Tests
         options:
         - fast
         - all
-        - slow
 
 jobs:
   test:
@@ -69,24 +68,31 @@ jobs:
       run: mkdir -p test-results
     
     - name: Run fast tests (efi_analyser)
-      if: github.event.inputs.test_type != 'slow'
+      if: github.event.inputs.test_type != 'all'
       run: |
-        poetry run pytest efi_analyser/tests/ -m "not slow and not local_llm and not integration" -v --tb=short --junitxml=test-results/efi_analyser.xml
+        poetry run pytest efi_analyser/tests/ -m "not llm and not api" -v --tb=short --junitxml=test-results/efi_analyser.xml
     
     - name: Run fast tests (efi_corpus)
-      if: github.event.inputs.test_type != 'slow'
+      if: github.event.inputs.test_type != 'all'
       run: |
-        poetry run pytest efi_corpus/tests/ -v --tb=short --junitxml=test-results/efi_corpus.xml
+        poetry run pytest efi_corpus/tests/ -m "not llm and not api" -v --tb=short --junitxml=test-results/efi_corpus.xml
     
-    - name: Run all tests (including slow)
+    - name: Run fast tests (efi_library)
+      if: github.event.inputs.test_type != 'all'
+      run: |
+        poetry run pytest efi_library/tests/ -m "not llm and not api" -v --tb=short --junitxml=test-results/efi_library.xml
+    
+    - name: Run internet tests
+      if: github.event.inputs.test_type != 'all'
+      run: |
+        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -m "internet and not llm and not api" -v --tb=short --junitxml=test-results/internet_tests.xml
+    
+    - name: Run all tests (including LLM and API)
       if: github.event.inputs.test_type == 'all'
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -v --tb=short --junitxml=test-results/all_tests.xml
-    
-    - name: Run slow tests only
-      if: github.event.inputs.test_type == 'slow'
-      run: |
-        poetry run pytest efi_analyser/tests/ efi_corpus/tests/ efi_library/tests/ -m "slow" -v --tb=short --junitxml=test-results/slow_tests.xml
     
     - name: Upload test results
       if: always()

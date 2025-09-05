@@ -32,6 +32,10 @@ pandas = "^2.3.2"
 reportlab = "^4.4.3"
 youtube-transcript-api = "^1.2.2"
 scrapy = "^2.11.0"
+torch = "^2.0.0"
+transformers = "^4.30.0"
+protobuf = "^4.0.0"
+tiktoken = "^0.5.0"
 
 [tool.poetry.group.analysis]
 optional = true
@@ -45,12 +49,9 @@ seaborn = "^0.12.0"
 
 [tool.pytest.ini_options]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "llm: marks tests that require LLM access",
     "internet: marks tests that require internet access",
-    "timeout: marks tests with timeout requirements",
-    "skip_ci: marks tests to skip in CI/CD",
+    "llm: marks tests that require LLM access",
+    "api: marks tests that require external API access",
 ]
 testpaths = ["efi_analyser/tests", "efi_corpus/tests", "efi_library/tests"]
 python_files = ["test_*.py"]
@@ -64,10 +65,10 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.poetry.scripts]
-test = "pytest"
-test-no-llm = "pytest -m 'not llm'"
-test-llm-only = "pytest -m 'llm'"
-test-no-integration = "pytest -m 'not integration'"
-test-fast = "pytest -m 'not slow'"
-validate-scorers = "python scripts/validate_scorers.py"
+test = "pytest:main"
+test-no-llm = "pytest:main"
+test-llm-only = "pytest:main"
+test-no-integration = "pytest:main"
+test-fast = "pytest:main"
+validate-scorers = "scripts.validate_scorers:main"
 

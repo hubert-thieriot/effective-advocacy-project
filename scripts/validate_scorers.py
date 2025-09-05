@@ -25,7 +25,7 @@ from typing import List
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from efi_analyser.scorers import NLIHFScorer, NLILLMScorer, LLMScorerConfig, StanceHFScorer, StanceLLMScorer
+from efi_analyser.scorers import NLIHFScorer, NLILLMScorer, LLMScorerConfig, StanceHFScorer, StanceLLMScorer, StanceTATAScorer, StanceTATAScorerConfig
 from efi_analyser.validation import NLIDataset, StanceDataset, EvaluationRunner
 from efi_analyser.report_generator import ValidationReportGenerator
 from efi_analyser.types import ReportConfig
@@ -52,6 +52,14 @@ def create_scorers(scorer_names: List[str], verbose: bool = False):
             # Disable cache for validation to ensure fresh results
             config = LLMScorerConfig(model="phi3:3.8b", ignore_cache=True, verbose=verbose)
             scorers.append(StanceLLMScorer(name="stance_llm", config=config))
+        elif name == "stance_tata":
+            # TATA stance detection scorer
+            config = StanceTATAScorerConfig(
+                model_path="models/tata.pt",
+                batch_size=4,
+                verbose=verbose
+            )
+            scorers.append(StanceTATAScorer(name="stance_tata", config=config))
         else:
             print(f"Warning: Unknown scorer '{name}', skipping")
 
@@ -70,7 +78,7 @@ def main():
         "--scorers",
         nargs="+",
         default=["nli_hf", "nli_llm_phi3", "nli_llm_gemma"],
-        choices=["nli_hf", "nli_llm_phi3", "nli_llm_gemma", "stance_hf", "stance_llm"],
+        choices=["nli_hf", "nli_llm_phi3", "nli_llm_gemma", "stance_hf", "stance_llm", "stance_tata"],
         help="Scorers to evaluate"
     )
     parser.add_argument(

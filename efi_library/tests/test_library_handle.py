@@ -23,16 +23,17 @@ class TestLibraryHandle:
         with patch('efi_library.library_handle.LibraryLayout'):
             with patch('efi_library.library_handle.LibraryStore') as mock_store_class:
                 mock_store = Mock()
-                mock_store.list_all_findings.return_value = [sample_document]
+                mock_store.list_documents.return_value = [sample_document]
                 mock_store_class.return_value = mock_store
-                
+
                 handle = LibraryHandle(temp_library_dir)
-                
+
                 results = list(handle.iter_findings())
-                assert len(results) == 1
-                expected_doc_id = Finding.generate_doc_id("https://example.com")
-                assert results[0].doc_id == expected_doc_id
-                mock_store.list_all_findings.assert_called_once()
+                assert len(results) == 2  # sample_document has 2 findings
+                # Findings don't have doc_id, they have finding_id
+                assert results[0].finding_id is not None
+                assert results[1].finding_id is not None
+                mock_store.list_documents.assert_called_once()
     
     def test_get_finding_by_id(self, temp_library_dir, sample_document):
         """Test getting a finding by ID"""
@@ -109,54 +110,59 @@ class TestLibraryHandle:
         with patch('efi_library.library_handle.LibraryLayout'):
             with patch('efi_library.library_handle.LibraryStore') as mock_store_class:
                 mock_store = Mock()
-                mock_store.list_all_findings.return_value = [sample_document]
+                mock_store.list_documents.return_value = [sample_document]
                 mock_store_class.return_value = mock_store
-                
+
                 handle = LibraryHandle(temp_library_dir)
-                
+
                 results = list(handle.search_findings("Sample finding"))
-                assert len(results) == 1
-                expected_doc_id = Finding.generate_doc_id("https://example.com")
-                assert results[0].doc_id == expected_doc_id
+                assert len(results) == 2  # Both findings contain "Sample finding"
+                # Findings don't have doc_id, they have finding_id
+                assert results[0].finding_id is not None
+                assert results[1].finding_id is not None
     
     def test_filter_by_category(self, temp_library_dir, sample_document):
         """Test filtering by category"""
         with patch('efi_library.library_handle.LibraryLayout'):
             with patch('efi_library.library_handle.LibraryStore') as mock_store_class:
                 mock_store = Mock()
-                mock_store.list_all_findings.return_value = [sample_document]
+                mock_store.list_documents.return_value = [sample_document]
                 mock_store_class.return_value = mock_store
-                
+
                 handle = LibraryHandle(temp_library_dir)
-                
+
                 results = list(handle.filter_by_category("test"))
-                assert len(results) == 1
-                expected_doc_id = Finding.generate_doc_id("https://example.com")
-                assert results[0].doc_id == expected_doc_id
+                assert len(results) == 2  # Both findings have category "test"
+                # Findings don't have doc_id, they have finding_id
+                assert results[0].finding_id is not None
+                assert results[1].finding_id is not None
     
     def test_filter_by_confidence(self, temp_library_dir, sample_document):
         """Test filtering by confidence"""
         with patch('efi_library.library_handle.LibraryLayout'):
             with patch('efi_library.library_handle.LibraryStore') as mock_store_class:
                 mock_store = Mock()
-                mock_store.list_all_findings.return_value = [sample_document]
+                mock_store.list_documents.return_value = [sample_document]
                 mock_store_class.return_value = mock_store
-                
+
                 handle = LibraryHandle(temp_library_dir)
-                
+
                 results = list(handle.filter_by_confidence(0.85))
-                assert len(results) == 1
-                expected_doc_id = Finding.generate_doc_id("https://example.com")
-                assert results[0].doc_id == expected_doc_id
+                assert len(results) == 1  # Only the first finding has confidence 0.9 >= 0.85
+                # Findings don't have doc_id, they have finding_id
+                assert results[0].finding_id is not None
     
-    def test_get_findings_count(self, temp_library_dir):
+    def test_get_findings_count(self, temp_library_dir, sample_document):
         """Test getting findings count"""
-        with patch('efi_library.library_handle.LibraryLayout') as mock_layout:
-            mock_layout.return_value.get_document_ids.return_value = ["123", "456"]
-            
-            handle = LibraryHandle(temp_library_dir)
-            count = handle.get_findings_count()
-            assert count == 2
+        with patch('efi_library.library_handle.LibraryLayout'):
+            with patch('efi_library.library_handle.LibraryStore') as mock_store_class:
+                mock_store = Mock()
+                mock_store.list_documents.return_value = [sample_document]
+                mock_store_class.return_value = mock_store
+
+                handle = LibraryHandle(temp_library_dir)
+                count = handle.get_findings_count()
+                assert count == 2  # sample_document has 2 findings
     
     def test_get_library_info(self, temp_library_dir):
         """Test getting library information"""

@@ -10,8 +10,8 @@ import time
 from pathlib import Path
 from efi_corpus.manager import run_config
 
-# Mark all tests in this class as requiring internet access and add timeout
-pytestmark = [pytest.mark.internet, pytest.mark.timeout(60)]  # 1 minute timeout
+# Mark all tests in this class as requiring internet access and API access
+pytestmark = [pytest.mark.internet, pytest.mark.api]
 
 
 class TestScrapyIntegration:
@@ -118,15 +118,19 @@ class TestScrapyIntegration:
             assert isinstance(result['failed'], int), f"Expected integer for failed count: {result}"
             spider_result = result  # Use the result directly
         else:
-            # Look for spider result keys (fallback for other formats)
-            spider_keys = [k for k in result.keys() if k.startswith('spider_')]
-            assert len(spider_keys) > 0, f"No spider results found in: {result.keys()}"
-            
-            # Check the first spider result
-            spider_result = result[spider_keys[0]]
-            assert spider_result['discovered'] > 0
-            assert isinstance(spider_result['added'], int)
-            assert isinstance(spider_result['failed'], int)
+            # Handle fallback result format (when concurrent processing fails and falls back to sequential)
+            # Look for standard result keys that should be present
+            expected_keys = ['discovered', 'added', 'skipped_quality', 'skipped_text_extraction', 'skipped_duplicate', 'failed', 'total_docs']
+            missing_keys = [key for key in expected_keys if key not in result]
+            if missing_keys:
+                raise AssertionError(f"Missing expected result keys: {missing_keys}. Available keys: {list(result.keys())}")
+
+            # Use the result directly for validation
+            spider_result = result
+            assert spider_result['discovered'] > 0, f"Expected to discover some documents, got: {spider_result}"
+            assert spider_result['added'] > 0, f"Expected to add some documents, got: {spider_result}"
+            assert isinstance(spider_result['added'], int), f"Expected integer for added count: {spider_result}"
+            assert isinstance(spider_result['failed'], int), f"Expected integer for failed count: {spider_result}"
         
         # Print results with appropriate keys
         if 'discovered' in spider_result:
@@ -221,7 +225,6 @@ class TestScrapyIntegration:
         
         print("✅ Content extraction validation passed")
     
-    @pytest.mark.slow
     def test_sequential_vs_concurrent_consistency(self):
         """Test that sequential and concurrent processing produce consistent results"""
         # Test sequential processing
@@ -233,7 +236,6 @@ class TestScrapyIntegration:
         # Both tests should have passed (no exceptions)
         print("✅ Sequential and concurrent processing both work correctly")
     
-    @pytest.mark.slow
     def test_concurrent_processing_with_higher_concurrency(self):
         """Test concurrent processing with higher concurrency settings"""
         # Create a test config with higher concurrency

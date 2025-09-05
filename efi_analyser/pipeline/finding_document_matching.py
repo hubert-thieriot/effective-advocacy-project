@@ -167,7 +167,7 @@ class FindingDocumentMatchingPipeline:
 
         if self.rescore_engine_stage1:
             stage1_start = time.time()
-            candidates = self.rescore_engine_stage1.rescore(candidates, finding.text)
+            candidates = self.rescore_engine_stage1.rescore(candidates, finding.text, premise_is_target=True)
             timing["stage1_rescoring"] = time.time() - stage1_start
 
             # Store stage1 scores
@@ -188,7 +188,7 @@ class FindingDocumentMatchingPipeline:
         # Stage 2: Apply stage2 scorers only to top candidates
         if self.rescore_engine_stage2:
             stage2_start = time.time()
-            top_candidates = self.rescore_engine_stage2.rescore(top_candidates, finding.text)
+            top_candidates = self.rescore_engine_stage2.rescore(top_candidates, finding.text, premise_is_target=True)
             timing["stage2_rescoring"] = time.time() - stage2_start
 
             # Store stage2 scores - scores are dicts like {"entails": 0.8, "contradicts": 0.1, "neutral": 0.1}

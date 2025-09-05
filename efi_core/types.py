@@ -224,13 +224,25 @@ class RescoreEngine:
     def __init__(self, scorers: List[PairScorer]):
         self.scorers = scorers
 
-    def rescore(self, candidates: List[Candidate], target: str) -> List[Candidate]:
-        """Apply all scorers to candidates for the given target."""
+    def rescore(self, candidates: List[Candidate], target: str, premise_is_target: bool = False) -> List[Candidate]:
+        """Apply all scorers to candidates for the given target.
+
+        Args:
+            candidates: List of candidate documents/chunks
+            target: The target text (finding, hypothesis, etc.)
+            premise_is_target: If True, target is premise and candidates are hypotheses.
+                              If False, candidates are premises and target is hypothesis.
+        """
         passages = [c.text for c in candidates]
 
         # For each scorer, batch score all candidates
         for scorer in self.scorers:
-            probs_list = scorer.batch_score([target] * len(passages), passages)
+            if premise_is_target:
+                # Finding Document Matching: premise=target (finding), hypothesis=passage (document)
+                probs_list = scorer.batch_score([target] * len(passages), passages)
+            else:
+                # Coal Analysis: premise=passage (document), hypothesis=target (config statement)
+                probs_list = scorer.batch_score(passages, [target] * len(passages))
 
             # Attach results to each candidate
             for i, (cand, probs) in enumerate(zip(candidates, probs_list)):

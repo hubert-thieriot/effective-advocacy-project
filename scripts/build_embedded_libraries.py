@@ -18,7 +18,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from efi_core.types import ChunkerSpec
-from efi_analyser.chunkers import SentenceChunker
+from efi_analyser.chunkers import TextChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_library.embedded.embedded_library import EmbeddedLibrary
 
@@ -85,7 +85,7 @@ def main():
     embedded_library = EmbeddedLibrary(
         library_path=args.library,
         workspace_path=args.workspace,
-        chunker=SentenceChunker(),
+        chunker=TextChunker(),
         embedder=SentenceTransformerEmbedder()
     )
     

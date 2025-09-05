@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from efi_analyser.chunkers import SentenceChunker
+from efi_analyser.chunkers import TextChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 
@@ -150,7 +150,7 @@ def build_single_corpus(corpus_path: Path, workspace_path: Path, max_documents: 
         embedded_corpus = EmbeddedCorpus(
             corpus_path=corpus_path,
             workspace_path=workspace_path,
-            chunker=SentenceChunker(),
+            chunker=TextChunker(),
             embedder=SentenceTransformerEmbedder()
         )
         

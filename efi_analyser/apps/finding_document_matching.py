@@ -35,8 +35,8 @@ def main():
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=Path("corpora/mediacloud_india"),
-        help="Path to corpus directory (default: corpora/mediacloud_india)"
+        default=Path("corpora/mediacloud_india_coal"),
+        help="Path to corpus directory (default: corpora/mediacloud_india_coal)"
     )
     parser.add_argument(
         "--library", 

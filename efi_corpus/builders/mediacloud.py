@@ -157,7 +157,20 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 self.rate_limiter.wait_if_needed()
         
         print(f"Total stories discovered: {len(all_stories)}")
-        
+
+        # Sort stories anti-chronologically (most recent first) for better relevance
+        # and to prioritize recent articles if processing is interrupted
+        def get_publish_timestamp(story):
+            """Extract publish timestamp for sorting"""
+            published_at = story.get('publish_date')
+            if published_at:
+                return published_at
+            # If no publish_date, put at the end (oldest)
+            return 0
+
+        all_stories.sort(key=get_publish_timestamp, reverse=True)
+        print(f"Stories sorted anti-chronologically (most recent first)")
+
         # Convert MediaCloud stories to DiscoveryItem objects
         for story in all_stories:
             try:

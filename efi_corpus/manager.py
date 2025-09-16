@@ -25,10 +25,11 @@ class CorpusManager:
     def __init__(self, config_path: Path):
         """Initialize with a config file path"""
         self.config_path = Path(config_path)
-        
+
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
         self.config = self._load_config(self.config_path)
+        self._preprocess_config()
 
     def run(self) -> Dict[str, Any]:
         """Run the corpus building process using the specified builder"""
@@ -93,6 +94,24 @@ class CorpusManager:
         if key not in obj or obj[key] is None:
             raise ValueError(f"Missing required config key: {key}")
         return obj[key]
+
+    def _preprocess_config(self):
+        """Preprocess config to handle special values like 'today' in date fields"""
+        def _process_value(value):
+            if isinstance(value, str):
+                if value.strip().lower() == "today":
+                    today_date = datetime.now().date().isoformat()
+                    print(f"📅 Converting 'today' to: {today_date}")
+                    return today_date
+                return value
+            elif isinstance(value, dict):
+                return {k: _process_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [_process_value(item) for item in value]
+            else:
+                return value
+
+        self.config = _process_value(self.config)
 
     @staticmethod
     def _resolve_date_string(value: Optional[str]) -> str:

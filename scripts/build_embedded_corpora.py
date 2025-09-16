@@ -30,8 +30,8 @@ def main():
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=Path("corpora/mediacloud_india"),
-        help="Path to corpus directory (default: corpora/mediacloud_india)"
+        default=Path("corpora/mediacloud_india_coal"),
+        help="Path to corpus directory (default: corpora/mediacloud_india_coal)"
     )
     parser.add_argument(
         "--workspace",
@@ -162,7 +162,9 @@ def build_single_corpus(corpus_path: Path, workspace_path: Path, max_documents: 
             print(f"  Processing only the first {max_documents} documents")
             embedded_corpus.build_all(max_documents=max_documents)
         else:
-            embedded_corpus.build_all()
+            # embedded_corpus.build_all()
+            # embedded_corpus.build_embeddings()
+            embedded_corpus.build_index()
             
         print(f"  ✓ Successfully built corpus: {corpus_path.name}")
         return True

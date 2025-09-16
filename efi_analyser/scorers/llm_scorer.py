@@ -14,6 +14,13 @@ import time
 import requests
 
 from efi_core.types import PairScorer, Task
+import sys
+from pathlib import Path
+
+# Add project root to path for cache manager
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+from cache.llm_cache_manager import get_cache_manager
 
 
 @dataclass
@@ -50,6 +57,9 @@ class LLMInterface:
         # Set up API connection details
         self.base_url = self.config.base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
         self.api_key = self.config.api_key or os.getenv("LLM_API_KEY", "ollama")
+        
+        # Initialize cache manager
+        self.cache_manager = get_cache_manager()
 
     # -------- Public API --------
     def infer(self, messages: List[Dict[str, str]]) -> str:
@@ -108,15 +118,21 @@ class LLMInterface:
     # -------- Internals --------
 
     def _inference_with_cache(self, messages: List[Dict[str, str]]) -> str:
-        """Get raw response from LLM with caching."""
-        key = self._make_cache_key(messages, {})
-        path = self._cache_path(self.config.model, self.config.prompt_version, key)
-
-        cached = self._read_cache(path)
-        if cached is not None and not self.config.ignore_cache:
-            if self.config.verbose:
-                print(f"📋 Using cached response for {self.name} ({self.config.model})")
-            return cached.get("raw_text", "")
+        """Get raw response from LLM with centralized caching."""
+        # Prepare parameters for cache lookup
+        parameters = {
+            "temperature": self.config.temperature,
+            "top_p": self.config.top_p,
+            "prompt_version": self.config.prompt_version
+        }
+        
+        # Check cache first
+        if not self.config.ignore_cache:
+            cached_entry = self.cache_manager.get(self.config.model, messages, parameters)
+            if cached_entry is not None:
+                if self.config.verbose:
+                    print(f"📋 Using cached response for {self.name} ({self.config.model})")
+                return cached_entry.response
 
         # Make inference call
         if self.config.verbose:
@@ -127,17 +143,15 @@ class LLMInterface:
         if self.config.verbose:
             print(f"✅ Inference completed in {inference_time:.2f}s for {self.name} ({self.config.model})")
 
-        # Cache the raw response
-        payload = {
-            "model": self.config.model,
-            "prompt_version": self.config.prompt_version,
-            "params": {"temperature": self.config.temperature, "top_p": self.config.top_p},
-            "messages_hash": key,
-            "created_at": time.time(),
-            "raw_text": raw_text,
-            "inference_time": inference_time,
-        }
-        self._write_cache(path, payload)
+        # Cache the response using centralized cache manager
+        self.cache_manager.put(
+            model=self.config.model,
+            messages=messages,
+            parameters=parameters,
+            response=raw_text,
+            inference_time=inference_time
+        )
+        
         return raw_text
 
     def _safe_infer(self, messages: List[Dict[str, str]]) -> str:

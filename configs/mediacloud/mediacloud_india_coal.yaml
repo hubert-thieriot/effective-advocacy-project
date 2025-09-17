@@ -1,0 +1,36 @@
+builder: mediacloud
+
+corpus:
+  base_dir: corpora/mediacloud_india_coal
+
+parameters:
+  keywords:
+    en: ["coal", "coal-fired", "coal fuelled", "thermal power", "coal power", "coal plant", "coal plants", "coal station", "coal stations", "coal-based"]
+  collections:
+    - id: 34412118
+      name: India - National
+  date_from: 2020-01-01
+  date_to: 2024-12-31
+  rate_limit:
+    requests_per_minute: 30
+    min_interval: 20.0
+    enabled: true
+  # Enable concurrent processing with Scrapy (default: true)
+  use_concurrent_processing: true
+  concurrent_requests: 16
+  download_delay: 0.1
+  # Force refresh cache to get fresh data (set to false for production)
+  force_refresh_cache: false
+  # Limit for testing (remove for production)
+  limit: 10
+  domain_blacklist:
+    - "livemint.com"
+    - "latest.inkhabar.com"  # Already failing in your corpus build
+
+extra_meta:
+  country_iso3: IND
+  comment: National coal and thermal power corpus for India
+  topic: coal
+  max_stories: 1000
+
+

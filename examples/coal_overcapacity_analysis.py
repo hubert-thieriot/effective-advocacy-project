@@ -171,22 +171,22 @@ def rescore_candidates_with_all_models(candidates: List[Candidate], hypotheses: 
             rescorer_results = {
                 "hypothesis_scores": {}
             }
-            
+
             # Score each hypothesis category (pro/anti)
             for stance, hypothesis_list in hypotheses.items():
                 category_scores = []
-                
+
                 for hypothesis in hypothesis_list:
                     # Score the hypothesis against the candidate text
                     scores = scorer.batch_score([candidate.text], [hypothesis])[0]
-                    
+
                     category_scores.append({
                         "hypothesis": hypothesis,
                         "entails": scores.get("entails", 0.0),
                         "contradicts": scores.get("contradicts", 0.0),
                         "neutral": scores.get("neutral", 0.0)
                     })
-                
+
                 rescorer_results["hypothesis_scores"][stance] = category_scores
             
             # Calculate aggregate scores for this rescorer
@@ -753,8 +753,8 @@ def generate_html_report(analysis_results: Dict[str, Any], output_path: Path) ->
                         <tr>
                             <th>Hypothesis</th>"""
 
-                # Add column headers for each available model
-                model_names = list(model_scores.keys())
+                # Add column headers for each available model - get from rescorers list in target data
+                model_names = analysis_results[target_name].get("rescorers", [])
                 for model_name in model_names:
                     html_content += f"""
                             <th>{model_name}</th>"""
@@ -774,39 +774,39 @@ def generate_html_report(analysis_results: Dict[str, Any], output_path: Path) ->
                     for hypothesis_idx, hypothesis_text in enumerate(hypotheses_list):
                         stance_class = f"{stance}-hypothesis"
                     
-                    html_content += f"""
-                        <tr class="{stance_class}">
-                            <td class="hypothesis-cell"><strong>[{stance.upper()}]</strong> {hypothesis_text}</td>"""
+                        html_content += f"""
+                            <tr class="{stance_class}">
+                                <td class="hypothesis-cell"><strong>[{stance.upper()}]</strong> {hypothesis_text}</td>"""
 
-                    # Add scores for each model
-                    for model_name in model_names:
-                        # Get hypothesis scores for this model from the new rescorers structure
-                        rescorers = candidate_data.get("rescorers", {})
-                        model_hypothesis_scores = None
-                        
-                        if model_name in rescorers:
-                            model_hypothesis_scores = rescorers[model_name].get("hypothesis_scores", {})
+                        # Add scores for each model
+                        for model_name in model_names:
+                            # Get hypothesis scores for this model from the new rescorers structure
+                            rescorers = candidate_data.get("rescorers", {})
+                            model_hypothesis_scores = None
+                            
+                            if model_name in rescorers:
+                                model_hypothesis_scores = rescorers[model_name].get("hypothesis_scores", {})
 
-                        if model_hypothesis_scores and stance in model_hypothesis_scores:
-                            stance_scores = model_hypothesis_scores[stance]
-                            if hypothesis_idx < len(stance_scores):
-                                hypothesis_scores = stance_scores[hypothesis_idx]
-                                entails = hypothesis_scores.get("entails", 0.0)
-                                neutral = hypothesis_scores.get("neutral", 0.0) 
-                                contradicts = hypothesis_scores.get("contradicts", 0.0)
-                                
-                                # Create the formatted score triple
-                                score_triple = create_score_triple(entails, neutral, contradicts)
-                                html_content += f"""
+                            if model_hypothesis_scores and stance in model_hypothesis_scores:
+                                stance_scores = model_hypothesis_scores[stance]
+                                if hypothesis_idx < len(stance_scores):
+                                    hypothesis_scores = stance_scores[hypothesis_idx]
+                                    entails = hypothesis_scores.get("entails", 0.0)
+                                    neutral = hypothesis_scores.get("neutral", 0.0) 
+                                    contradicts = hypothesis_scores.get("contradicts", 0.0)
+                                    
+                                    # Create the formatted score triple
+                                    score_triple = create_score_triple(entails, neutral, contradicts)
+                                    html_content += f"""
                         <td class="score-triple">{score_triple}</td>"""
+                                else:
+                                    html_content += f"""
+                        <td class="score-triple">-</td>"""
                             else:
                                 html_content += f"""
                         <td class="score-triple">-</td>"""
-                        else:
-                            html_content += f"""
-                        <td class="score-triple">-</td>"""
 
-                    html_content += """
+                        html_content += """
                         </tr>"""
 
                 html_content += """

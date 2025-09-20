@@ -48,3 +48,16 @@ test_cases:
       - "trains"
     expected_min_length: 800
     site: "ndtv.com"
+    
+  # NDTV Profit business articles
+  ndtv_profit_tata_steel_coal:
+    url: "https://www.ndtvprofit.com/business/ukraine-conflict-tata-steel-seeks-alternative-to-russian-coal-2819370"
+    description: "NDTV Profit business article about Tata Steel seeking alternative coal sources"
+    required_text:
+      - "Tata Steel Limited is looking at alternative markets for coal imports"
+      - "Russia-Ukraine conflict"
+      - "coal imports"
+      - "pulverised coal injection"
+      - "supply vacuum"
+    expected_min_length: 1000
+    site: "ndtvprofit.com"

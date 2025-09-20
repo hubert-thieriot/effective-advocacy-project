@@ -186,10 +186,16 @@ class TextExtractor:
                 
                 # If we got substantial text, return it even if validation fails
                 if text and len(text) > 500:  # Lower threshold for substantial content
+                    # Try to extract published date from both HTML and JSON-LD
+                    published_at = self._extract_published_date_from_html(html)
+                    if not published_at and BEAUTIFULSOUP_AVAILABLE:
+                        soup = BeautifulSoup(html, 'html.parser')
+                        published_at = self._extract_published_date_from_json_ld(soup)
+                    
                     return {
                         "text": text,
                         "title": self._extract_title_from_html(html),
-                        "published_at": None,  # Would need more sophisticated extraction
+                        "published_at": published_at,
                         "language": "en",  # Would need language detection
                         "authors": []  # Would need author extraction
                     }
@@ -257,6 +263,8 @@ class TextExtractor:
                     text = content_element.get_text(separator='\n\n')
                     
                     # Clean up the text
+                    if text is None:
+                        text = ""
                     lines = [line.strip() for line in text.splitlines() if line.strip()]
                     cleaned_text = '\n\n'.join(lines)
                     
@@ -276,6 +284,8 @@ class TextExtractor:
                 if elements:
                     content_element = max(elements, key=lambda e: len(e.get_text()))
                     text = content_element.get_text(separator='\n\n')
+                    if text is None:
+                        text = ""
                     lines = [line.strip() for line in text.splitlines() if line.strip()]
                     cleaned_text = '\n\n'.join(lines)
                     
@@ -290,6 +300,11 @@ class TextExtractor:
     def _extract_with_beautifulsoup(self, html: str, url: str = "") -> str:
         """Extract text using BeautifulSoup with content selection"""
         soup = BeautifulSoup(html, 'html.parser')
+        
+        # First, try to extract from JSON-LD structured data (common in modern news sites)
+        json_ld_text = self._extract_from_json_ld(soup)
+        if json_ld_text and len(json_ld_text) > 500:
+            return json_ld_text
         
         # Remove unwanted elements
         for unwanted in soup.select('script, style, nav, header, footer, .ads, .comments, .sidebar, .social-share, .related-posts'):
@@ -343,8 +358,49 @@ class TextExtractor:
                     text = soup.get_text(separator='\n\n')
         
         # Clean up the text
+        if text is None:
+            text = ""
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         return '\n\n'.join(lines)
+    
+    def _extract_from_json_ld(self, soup: BeautifulSoup) -> str:
+        """Extract article content from JSON-LD structured data"""
+        try:
+            import json
+            
+            # Find all script tags with type="application/ld+json"
+            json_ld_scripts = soup.find_all('script', type='application/ld+json')
+            
+            for script in json_ld_scripts:
+                try:
+                    data = json.loads(script.string)
+                    
+                    # Handle both single objects and arrays
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and item.get('@type') == 'NewsArticle':
+                                article_body = item.get('articleBody', '')
+                                if article_body and len(article_body) > 200:
+                                    # Clean up the text - replace HTML entities and normalize
+                                    article_body = article_body.replace('&quot;', '"').replace('&amp;', '&')
+                                    article_body = article_body.replace('..', '.')  # Fix double periods
+                                    return article_body
+                    elif isinstance(data, dict) and data.get('@type') == 'NewsArticle':
+                        article_body = data.get('articleBody', '')
+                        if article_body and len(article_body) > 200:
+                            # Clean up the text - replace HTML entities and normalize
+                            article_body = article_body.replace('&quot;', '"').replace('&amp;', '&')
+                            article_body = article_body.replace('..', '.')  # Fix double periods
+                            return article_body
+                            
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    continue
+                    
+        except Exception as e:
+            # If anything fails, return empty string
+            pass
+            
+        return ""
     
     def _extract_with_regex(self, html: str) -> str:
         """Basic regex-based text extraction as fallback"""
@@ -369,6 +425,131 @@ class TextExtractor:
         if h1_match:
             return h1_match.group(1).strip()
         
+        return None
+
+    def _extract_published_date_from_html(self, html: str) -> Optional[str]:
+        """Extract published date from HTML"""
+        if not BEAUTIFULSOUP_AVAILABLE:
+            return None
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Try different date selectors and attributes
+        date_selectors = [
+            'time[datetime]',
+            'time[pubdate]',
+            '.published',
+            '.date',
+            '.publish-date',
+            '.article-date',
+            '.post-date',
+            '.entry-date',
+            '[property="article:published_time"]',
+            '[name="article:published_time"]',
+            '[property="og:published_time"]',
+            '[name="twitter:card"]',
+            'meta[property="article:published_time"]',
+            'meta[name="article:published_time"]',
+            'meta[property="og:published_time"]'
+        ]
+        
+        for selector in date_selectors:
+            element = soup.select_one(selector)
+            if element:
+                # Try datetime attribute first
+                date_str = element.get('datetime') or element.get('pubdate')
+                if date_str:
+                    try:
+                        from datetime import datetime
+                        # Try to parse the date
+                        dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                        return dt.strftime('%Y-%m-%d')
+                    except:
+                        pass
+                
+                # Try text content
+                date_text = element.get_text().strip()
+                if date_text:
+                    try:
+                        from datetime import datetime
+                        # Try common date formats
+                        for fmt in ['%Y-%m-%d', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%B %d, %Y', '%d %B %Y', '%Y-%m-%d %H:%M:%S']:
+                            try:
+                                dt = datetime.strptime(date_text, fmt)
+                                return dt.strftime('%Y-%m-%d')
+                            except:
+                                continue
+                    except:
+                        pass
+        
+        # Try to find date patterns in the HTML content
+        date_patterns = [
+            r'(\d{4}-\d{2}-\d{2})',  # YYYY-MM-DD
+            r'(\d{4}/\d{2}/\d{2})',  # YYYY/MM/DD
+            r'(\d{2}/\d{2}/\d{4})',  # MM/DD/YYYY
+            r'(\d{1,2}\s+\w+\s+\d{4})',  # DD Month YYYY
+            r'(\w+\s+\d{1,2},?\s+\d{4})',  # Month DD, YYYY
+        ]
+        
+        for pattern in date_patterns:
+            matches = re.findall(pattern, html)
+            if matches:
+                try:
+                    from datetime import datetime
+                    for match in matches:
+                        # Try to parse the date
+                        for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%m/%d/%Y', '%d %B %Y', '%B %d, %Y', '%B %d %Y']:
+                            try:
+                                dt = datetime.strptime(match, fmt)
+                                return dt.strftime('%Y-%m-%d')
+                            except:
+                                continue
+                except:
+                    pass
+        
+        return None
+
+    def _extract_published_date_from_json_ld(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract published date from JSON-LD structured data"""
+        try:
+            import json
+            from datetime import datetime
+            
+            # Find all script tags with type="application/ld+json"
+            json_ld_scripts = soup.find_all('script', type='application/ld+json')
+            
+            for script in json_ld_scripts:
+                try:
+                    data = json.loads(script.string)
+                    
+                    # Handle both single objects and arrays
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and item.get('@type') == 'NewsArticle':
+                                date_published = item.get('datePublished')
+                                if date_published:
+                                    try:
+                                        # Try to parse ISO format
+                                        dt = datetime.fromisoformat(date_published.replace('Z', '+00:00'))
+                                        return dt.strftime('%Y-%m-%d')
+                                    except:
+                                        pass
+                    elif isinstance(data, dict) and data.get('@type') == 'NewsArticle':
+                        date_published = data.get('datePublished')
+                        if date_published:
+                            try:
+                                # Try to parse ISO format
+                                dt = datetime.fromisoformat(date_published.replace('Z', '+00:00'))
+                                return dt.strftime('%Y-%m-%d')
+                            except:
+                                pass
+                            
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    continue
+                    
+        except Exception:
+            pass
+            
         return None
     
     def _extract_from_pdf(self, pdf_bytes: bytes, url: str = "", extraction_attempts: Dict[str, Any] = {}) -> Dict[str, Any]:
@@ -413,7 +594,7 @@ class TextExtractor:
     
     def _is_valid_content(self, text: str) -> bool:
         """Determine if extracted content is valid"""
-        if not text or len(text) < 200:
+        if not text or len(text) < 100:  # Reduced from 200
             return False
         
         # Check for error phrases
@@ -424,7 +605,7 @@ class TextExtractor:
         
         # Check for reasonable word count
         words = text.split()
-        if len(words) < 20:  # Reduced from 100 for testing
+        if len(words) < 10:  # Reduced from 20
             return False
         
         return True

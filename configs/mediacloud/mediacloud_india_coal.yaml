@@ -22,15 +22,15 @@ parameters:
   # Force refresh cache to get fresh data (set to false for production)
   force_refresh_cache: false
   # Limit for testing (remove for production)
-  limit: 10
+  # limit: 10
   domain_blacklist:
     - "livemint.com"
-    - "latest.inkhabar.com"  # Already failing in your corpus build
+    - "latest.inkhabar.com"
+    - "cms.abclive.in"  # Already failing in your corpus build
 
 extra_meta:
   country_iso3: IND
   comment: National coal and thermal power corpus for India
   topic: coal
-  max_stories: 1000
 
 

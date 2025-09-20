@@ -866,9 +866,9 @@ class YouTubeCorpusBuilder(BaseCorpusBuilder):
         skipped_text_extraction = 0
         skipped_duplicate = len(discovered_by_url) - len(frontier)  # Already in corpus
 
-        for url, stable_id in frontier:
+        for i, (url, stable_id) in enumerate(frontier, 1):
             try:
-                print(f"Processing URL: {url}")
+                print(f"Processing URL ({i}/{len(frontier)}): {url}")
 
                 raw_bytes, fetch_meta, raw_ext = self.fetch_raw(url, stable_id)
                 parsed = self.parse_text(raw_bytes, raw_ext, url)

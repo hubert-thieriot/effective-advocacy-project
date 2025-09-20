@@ -16,6 +16,13 @@ parameters:
     requests_per_minute: 3
     min_interval: 20.0
     enabled: true
+  # MediaCloud search cache settings
+  force_refresh_cache: false  # Set to true to bypass cache and fetch fresh data
+  cache_max_age_hours: 24     # Cache entries older than this will be refreshed
+  # Enable concurrent processing with Scrapy (default: true)
+  use_concurrent_processing: true
+  concurrent_requests: 16
+  download_delay: 0.1
   domain_blacklist:
     - "livemint.com"
     - "latest.inkhabar.com"  # Already failing in your corpus build

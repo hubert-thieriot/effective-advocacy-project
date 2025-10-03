@@ -15,6 +15,7 @@ class Frame:
     description: str
     keywords: List[str]
     examples: List[str]
+    short_name: str = ""
 
 
 @dataclass
@@ -24,14 +25,29 @@ class FrameSchema:
     domain: str
     frames: List[Frame]
     notes: str = ""
+    schema_id: str = ""
 
 
 @dataclass
 class FrameAssignment:
     """Probabilistic assignment of a candidate text to frames in a schema."""
 
-    candidate: str
-    frame_probabilities: Dict[str, float]
-    candidate_id: Optional[str] = None
-    top_frames: List[str] = field(default_factory=list)
+    passage_id: str
+    passage_text: str
+    probabilities: Dict[str, float]
+    top_frames: List[str]
+    rationale: str = ""
+    evidence_spans: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class Candidate:
+    """Candidate passage with metadata used across induction/application."""
+
+    item_id: str
+    text: str
+    ann_score: float = 0.0
+    meta: Dict[str, Any] = field(default_factory=dict)
+    scores: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    utilities: Dict[str, float] = field(default_factory=dict)

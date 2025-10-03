@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from inspect import Parameter, signature
-from typing import Any, Iterable, List, Sequence
+from typing import Any, Dict, Iterable, List, Sequence
 
 from .types import Frame, FrameSchema
 
@@ -15,9 +15,10 @@ class FrameInducer:
     MAX_PASSAGES: int = 400
     MAX_CHARS_PER_PASSAGE: int = 800
     SYSTEM_PROMPT: str = (
-        "Discover distinct media frames (lenses/angles) for the given domain. "
-        "Output valid JSON matching the schema; avoid sentiment labels; ensure frames "
-        "are generalizable and non-overlapping."
+        "Discover distinct, non-overlapping media frames (lenses/angles) for the given domain. "
+        "Deliverables per frame: a crisp definition; positive triggers (explicit phrases/keywords and semantic cues); anti-triggers (words/contexts that should not fire this frame); near-misses (confusable content with rationale why it's not this frame); decision rules (boolean logic, e.g., MUST/SHOULD/NEVER conditions); hard evidence cues (verbatim text patterns); soft cues (semantic signals); regex seeds; 3 positive examples and 3 counter-examples from the passages; and a scoring rubric (0–3 scale) you'd apply to a passage. "
+        "Avoid sentiment or policy prescriptions. Prefer generalizable, domain-portable language. Frames must be mutually exclusive on triggers (if two share triggers, split or refine). When narratives oppose (e.g., jobs vs. health harms), split them. "
+        "Output valid JSON only, matching the provided schema. No prose."
     )
 
     def __init__(
@@ -26,6 +27,11 @@ class FrameInducer:
         domain: str,
         frame_target: int | str = 8,
         infer_timeout: float | None = 600,
+        max_chars_per_passage: int | None = None,
+        chunk_overlap_chars: int = 80,
+        max_passages_per_call: int | None = None,
+        max_total_passages: int | None = None,
+        frame_guidance: str | None = None,
     ) -> None:
         """Initialize the inducer with an LLM client and target domain."""
         self.llm_client = llm_client
@@ -35,40 +41,59 @@ class FrameInducer:
         self._infer_supports_timeout = self._llm_accepts_timeout()
         self._frame_target_text = self._format_frame_target(frame_target)
 
-    def induce(self, passages: Iterable[str]) -> FrameSchema:
-        """Produce a frame schema for the configured domain and passages.
+        if max_chars_per_passage is None:
+            max_chars_per_passage = self.MAX_CHARS_PER_PASSAGE
+        if max_chars_per_passage is not None and max_chars_per_passage <= 0:
+            raise ValueError("max_chars_per_passage must be positive when provided.")
 
-        Args:
-            passages: Iterable of passage strings (list, generator, etc.).
-        """
+        self.max_chars_per_passage = max_chars_per_passage
+        self.chunk_overlap_chars = max(0, chunk_overlap_chars)
+
+        if max_passages_per_call is None:
+            max_passages_per_call = self.MAX_PASSAGES
+        if max_passages_per_call <= 0:
+            raise ValueError("max_passages_per_call must be positive.")
+        self.max_passages_per_call = max_passages_per_call
+
+        if max_total_passages is None:
+            max_total_passages = max_passages_per_call * 5
+        if max_total_passages < max_passages_per_call:
+            raise ValueError("max_total_passages must be >= max_passages_per_call.")
+        self.max_total_passages = max_total_passages
+        self.frame_guidance = frame_guidance.strip() if frame_guidance else ""
+
+    def induce(self, passages: Iterable[str]) -> FrameSchema:
+        """Produce a frame schema for the configured domain and passages."""
         prepared = self._prepare_passages(passages)
         if not prepared:
             raise ValueError("Frame induction requires at least one passage string.")
 
-        messages = self._build_messages(prepared)
-        infer_kwargs: dict[str, Any] = {}
-        if self.infer_timeout is not None and self._infer_supports_timeout:
-            infer_kwargs["timeout"] = self.infer_timeout
+        if len(prepared) <= self.max_passages_per_call:
+            return self._induce_single(prepared)
 
-        raw_response = self.llm_client.infer(messages, **infer_kwargs)
-        return self._parse_response(raw_response)
+        partial_schemas: List[FrameSchema] = []
+        for chunk in self._chunk_passages(prepared):
+            partial_schemas.append(self._induce_single(chunk))
+
+        return self._merge_schemas(prepared, partial_schemas)
 
     # ------------------------------------------------------------------ utils
     def _prepare_passages(self, passages: Iterable[str]) -> List[str]:
         seen = set()
         unique: List[str] = []
         for passage in passages:
-            if not passage:
-                continue
             normalized = passage.strip()
             if not normalized or normalized in seen:
                 continue
-            seen.add(normalized)
-            if len(normalized) > self.MAX_CHARS_PER_PASSAGE:
-                truncated = normalized[: self.MAX_CHARS_PER_PASSAGE].rstrip()
+            if (
+                self.max_chars_per_passage is not None
+                and len(normalized) > self.max_chars_per_passage
+            ):
+                truncated = normalized[: self.max_chars_per_passage].rstrip()
                 normalized = f"{truncated}..."
+            seen.add(normalized)
             unique.append(normalized)
-            if len(unique) >= self.MAX_PASSAGES:
+            if len(unique) >= self.max_total_passages:
                 break
         return unique
 
@@ -78,23 +103,124 @@ class FrameInducer:
         frame_target_line = ""
         if self._frame_target_text:
             frame_target_line = f"Frame target: {self._frame_target_text}\n"
-        schema_instruction = (
-            '{"domain":"' + self.domain.replace('"', "'") + '",'  # Avoid double quotes in domain
-            '"frames":[{"frame_id":"...","name":"...","description":"...",'
-            '"keywords":["..."],"examples":["..."]},...],"notes":""}'
-        )
+        schema_instruction = self._schema_instruction()
 
         user_prompt = (
             f"DOMAIN: {self.domain}\n"
-            f"{frame_target_line}Passages (≤{self.MAX_PASSAGES}, sampled & deduped):\n"
+            f"Goal: Induce a compact, mutually-exclusive frame set for this domain and derive operational detection rules.\n\n"
+            f"Constraints:\n"
+            "- Start from the guidance seed frames if provided, but refine/split/merge as needed for non-overlap.\n"
+            "- Triggers must include both lexical (quoted phrases) and semantic cues (paraphrasable conditions).\n"
+            "- Anti-triggers must explicitly name *false positives* (e.g., \"capacity addition\" is NOT \"overcapacity\").\n"
+            "- Decision rules must include at least one MUST, at most three SHOULD, and at least two NEVER conditions per frame.\n"
+            "- Regex seeds should be robust but conservative (lower FP > higher FN).\n"
+            "- Examples/counter-examples MUST be exact quotes from the provided passages when possible; if not available, construct minimal plausible snippets.\n\n"
+            + (f"Seed frames (optional):\n{self.frame_guidance}\n\n" if self.frame_guidance else "")
+            + f"Passages (≤ {self.max_passages_per_call}, sampled & deduped):\n"
             f"{passages_joined}\n\n"
-            f"Return JSON: {schema_instruction}"
+            f"Return JSON only using this schema. Make sure it is valid JSON:\n"
+            f"{schema_instruction}"
         )
 
         return [
             {"role": "system", "content": self.SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ]
+
+    def _induce_single(self, passages: Sequence[str]) -> FrameSchema:
+        messages = self._build_messages(passages)
+        infer_kwargs: dict[str, Any] = {}
+        if self.infer_timeout is not None and self._infer_supports_timeout:
+            infer_kwargs["timeout"] = self.infer_timeout
+        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+        return self._parse_response(raw_response)
+
+    def _chunk_passages(self, passages: Sequence[str]) -> List[Sequence[str]]:
+        chunked: List[Sequence[str]] = []
+        for index in range(0, len(passages), self.max_passages_per_call):
+            chunked.append(passages[index : index + self.max_passages_per_call])
+        return chunked
+
+    def _merge_schemas(
+        self, all_passages: Sequence[str], partial_schemas: Sequence[FrameSchema]
+    ) -> FrameSchema:
+        if not partial_schemas:
+            raise ValueError("Frame induction produced no partial schemas.")
+        if len(partial_schemas) == 1:
+            return partial_schemas[0]
+
+        messages = self._build_merge_messages(all_passages, partial_schemas)
+        infer_kwargs: dict[str, Any] = {}
+        if self.infer_timeout is not None and self._infer_supports_timeout:
+            infer_kwargs["timeout"] = self.infer_timeout
+        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+        return self._parse_response(raw_response)
+
+    def _build_merge_messages(
+        self, passages: Sequence[str], partial_schemas: Sequence[FrameSchema]
+    ) -> List[dict[str, str]]:
+        frames_summary = []
+        for batch_idx, schema in enumerate(partial_schemas, start=1):
+            for frame in schema.frames:
+                frames_summary.append(
+                    {
+                        "batch": batch_idx,
+                        "frame_id": frame.frame_id,
+                        "name": frame.name,
+                        "short_name": frame.short_name,
+                        "description": frame.description[:300],
+                        "keywords": frame.keywords[:6],
+                        "examples": frame.examples[:2],
+                    }
+                )
+
+        frames_json = json.dumps(frames_summary, ensure_ascii=False)
+        sample_limit = min(40, len(passages))
+        sampled_passages = "\n".join(
+            f"{idx + 1}. {text}" for idx, text in enumerate(passages[:sample_limit])
+        )
+        schema_instruction = self._schema_instruction()
+
+        guidance_line = f"GUIDANCE: {self.frame_guidance}\n" if self.frame_guidance else ""
+
+        user_prompt = (
+            f"DOMAIN: {self.domain}\n"
+            f"Goal: Induce a compact, mutually-exclusive frame set for this domain and derive operational detection rules.\n\n"
+            f"Constraints:\n"
+            "- Start from the guidance seed frames if provided, but refine/split/merge as needed for non-overlap.\n"
+            "- Triggers must include both lexical (quoted phrases) and semantic cues (paraphrasable conditions).\n"
+            "- Anti-triggers must explicitly name *false positives* (e.g., \"capacity addition\" is NOT \"overcapacity\").\n"
+            "- Decision rules must include at least one MUST, at most three SHOULD, and at least two NEVER conditions per frame.\n"
+            "- Regex seeds should be robust but conservative (lower FP > higher FN).\n"
+            "- Examples/counter-examples MUST be exact quotes from the provided passages when possible; if not available, construct minimal plausible snippets.\n\n"
+            + (f"Seed frames (optional):\n{self.frame_guidance}\n\n" if self.frame_guidance else "")
+            + f"Passages (≤ {self.max_passages_per_call}, sampled & deduped):\n"
+            f"{sampled_passages}\n\n"
+            f"Return JSON only using this schema:\n"
+            f"{schema_instruction}"
+        )
+
+        return [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+
+    def _schema_instruction(self) -> str:
+        instruction = (
+            '{"domain":"' + self.domain.replace('"', "'") + '",'
+            '"frames":[{'
+            '"frame_id":"...",'
+            '"short_name":"...",'
+            '"name":"...",'
+            '"description":"...",'
+            '"keywords":["..."],'
+            '"triggers":{"positive":["..."],"anti":["..."]},'
+            '"examples":["..."],'
+            '"counter_examples":["..."]'
+            '},...],'
+            '"notes":""}'
+        )
+        return instruction
 
     def _llm_accepts_timeout(self) -> bool:
         infer = getattr(self.llm_client, "infer", None)
@@ -151,9 +277,17 @@ class FrameInducer:
             description = entry.get("description", "")
             keywords = entry.get("keywords", [])
             examples = entry.get("examples", [])
+            short_name = entry.get("short_name")
 
             if not frame_id or not name:
                 continue
+
+            resolved_short = (
+                str(short_name).strip()
+                if short_name
+                else str(name).split()[0] if str(name).split() else str(frame_id)
+            )
+            resolved_short = resolved_short[:12]
 
             frames.append(
                 Frame(
@@ -162,6 +296,7 @@ class FrameInducer:
                     description=str(description),
                     keywords=[str(keyword) for keyword in keywords if isinstance(keyword, str)],
                     examples=[str(example) for example in examples if isinstance(example, str)],
+                    short_name=resolved_short,
                 )
             )
 

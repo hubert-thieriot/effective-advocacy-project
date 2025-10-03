@@ -47,6 +47,7 @@ def main():
     parser.add_argument(
         "--build-all",
         action="store_true",
+        default=True,
         help="Build all available corpora instead of just one"
     )
     

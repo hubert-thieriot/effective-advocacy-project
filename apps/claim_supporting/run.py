@@ -7,7 +7,7 @@ a corpus using NLI scoring and classification.
 """
 
 from pathlib import Path
-from efi_analyser.apps import ClaimSupportingApp
+from apps.claim_supporting import ClaimSupportingApp
 from efi_analyser.types import ClaimSupportingConfig
 
 

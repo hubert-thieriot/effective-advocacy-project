@@ -6,6 +6,8 @@ results/
 libraries/
 debug/
 models/
+tmp/
+workspace/
 
 
 

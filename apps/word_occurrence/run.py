@@ -7,7 +7,7 @@ occurrences in a corpus.
 """
 
 from pathlib import Path
-from efi_analyser.apps import WordOccurrenceApp
+from apps.word_occurrence import WordOccurrenceApp
 from efi_analyser.types import WordOccurrenceConfig
 
 

@@ -30,13 +30,32 @@ class OpenAIConfig:
     """Configuration for OpenAI interface."""
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.0
-    max_tokens: int = 200
     timeout: float = 60.0
     max_retries: int = 3
     retry_delay: float = 1.0
     cache_dir: Path = Path("cache") / "openai"
     ignore_cache: bool = False
     verbose: bool = False
+    
+    # Models that only support default temperature (1.0)
+    _DEFAULT_TEMP_MODELS = {"gpt-5-nano"}
+    
+    def __post_init__(self):
+        """Validate and adjust temperature based on model capabilities."""
+        if self.model in self._DEFAULT_TEMP_MODELS and self.temperature != 1.0:
+            if self.verbose:
+                print(f"⚠️ Model {self.model} only supports default temperature (1.0), overriding {self.temperature} -> 1.0")
+            self.temperature = 1.0
+    
+    @classmethod
+    def get_default_temperature(cls, model: str) -> float:
+        """Get the default temperature for a given model."""
+        return 1.0 if model in cls._DEFAULT_TEMP_MODELS else 0.0
+    
+    @classmethod
+    def supports_custom_temperature(cls, model: str) -> bool:
+        """Check if a model supports custom temperature values."""
+        return model not in cls._DEFAULT_TEMP_MODELS
 
 
 class OpenAIInterface:
@@ -65,6 +84,18 @@ class OpenAIInterface:
         # Initialize cache manager
         self.cache_manager = get_cache_manager()
 
+    def spec_key(self) -> str:
+        payload = {
+            "name": self.name,
+            "model": self.config.model,
+            "temperature": self.config.temperature,
+            "timeout": self.config.timeout,
+        }
+        serialized = json.dumps(payload, sort_keys=True)
+        import hashlib
+
+        return hashlib.sha1(serialized.encode("utf-8")).hexdigest()[:12]
+
     def infer(self, messages: List[Dict[str, str]]) -> str:
         """Send messages to OpenAI and get response.
         
@@ -81,7 +112,6 @@ class OpenAIInterface:
         # Prepare parameters for cache lookup
         parameters = {
             "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
             "timeout": self.config.timeout
         }
         
@@ -123,7 +153,6 @@ class OpenAIInterface:
                     model=self.config.model,
                     messages=messages,
                     temperature=self.config.temperature,
-                    max_tokens=self.config.max_tokens,
                     timeout=self.config.timeout
                 )
                 
@@ -147,8 +176,7 @@ class OpenAIInterface:
         payload = json.dumps({
             "model": self.config.model,
             "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens
+            "temperature": self.config.temperature
         }, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 

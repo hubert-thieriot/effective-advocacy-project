@@ -91,7 +91,6 @@ class LLMInterface:
                 "messages": messages,
                 "temperature": self.config.temperature,
                 "top_p": self.config.top_p,
-                "max_tokens": 200,  # Reasonable limit for JSON responses
             }
 
             response = requests.post(

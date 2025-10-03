@@ -7,14 +7,7 @@ It uses existing embeddings and can optionally build FAISS indexes for faster se
 """
 
 import argparse
-import sys
 from pathlib import Path
-from typing import List, Tuple
-import numpy as np
-
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from efi_core.retrieval import RetrieverIndex
 from efi_core.retrieval.index_builder import IndexBuilder

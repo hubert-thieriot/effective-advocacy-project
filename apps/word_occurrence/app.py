@@ -5,13 +5,13 @@ This app provides a high-level interface for analyzing keyword occurrences in a 
 using the new clean architecture with dedicated pipeline and report generator.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from pathlib import Path
 
 from efi_corpus import CorpusHandle
-from ..pipeline.word_occurrence import WordOccurrencePipeline
-from ..report_generator.word_occurrence import WordOccurrenceReportGenerator
-from ..types import WordOccurrenceConfig, WordOccurrenceResults, ReportConfig
+from efi_analyser.pipeline.word_occurrence import WordOccurrencePipeline
+from efi_analyser.report_generator.word_occurrence import WordOccurrenceReportGenerator
+from efi_analyser.types import WordOccurrenceConfig, WordOccurrenceResults, ReportConfig
 
 
 class WordOccurrenceApp:

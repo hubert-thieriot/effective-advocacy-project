@@ -19,6 +19,20 @@ class StubLLM:
         return self.response
 
 
+class SequencedLLM:
+    def __init__(self, responses: list[str]) -> None:
+        self.responses = list(responses)
+        self.calls: list[list[dict[str, str]]] = []
+        self.timeouts: list[float | None] = []
+
+    def infer(self, messages, timeout=None):
+        self.calls.append(messages)
+        self.timeouts.append(timeout)
+        if not self.responses:
+            raise AssertionError("SequencedLLM exhausted responses")
+        return self.responses.pop(0)
+
+
 class TimeoutAwareLLM:
     def __init__(self, response: str) -> None:
         self.response = response
@@ -79,7 +93,8 @@ def test_induce_parses_and_returns_schema(sample_response):
     assert "1. First passage about green jobs" in user_content
     assert "2. Second passage about national security" in user_content
     assert "Frame target: 6 frames" in user_content
-    # Truncated long passage should end with ellipsis marker
+    # Long passage should be truncated with ellipsis marker
+    assert "3. Third passage" in user_content
     assert "..." in user_content
 
     assert schema.domain == "energy transition"
@@ -94,12 +109,14 @@ def test_induce_accepts_textual_frame_target(sample_response):
         llm_client=llm,
         domain="energy transition",
         frame_target="between 5 and 20",
+        frame_guidance="Include a frame on overcapacity",
     )
 
     inducer.induce(["Passage about policy targets"])
 
     user_content = llm.messages[1]["content"]
     assert "Frame target: between 5 and 20" in user_content
+    assert "GUIDANCE: Include a frame on overcapacity" in user_content
 
 
 def test_timeout_forwarded_when_supported(sample_response):
@@ -131,3 +148,83 @@ def test_induce_requires_passages():
 
     with pytest.raises(ValueError):
         inducer.induce([])
+
+
+def test_induce_handles_multiple_batches(sample_response):
+    partial_response_one = json.dumps(
+        {
+            "domain": "energy transition",
+            "frames": [
+                {
+                    "frame_id": "A1",
+                    "name": "Economic Benefits",
+                    "description": "Highlights job growth and investments.",
+                    "keywords": ["jobs", "investment"],
+                    "examples": ["Passage on jobs."],
+                }
+            ],
+            "notes": "batch one",
+        }
+    )
+    partial_response_two = json.dumps(
+        {
+            "domain": "energy transition",
+            "frames": [
+                {
+                    "frame_id": "B1",
+                    "name": "Environmental Harm",
+                    "description": "Focus on pollution and health impacts.",
+                    "keywords": ["pollution", "health"],
+                    "examples": ["Passage on pollution."],
+                }
+            ],
+            "notes": "batch two",
+        }
+    )
+    merged_response = json.dumps(
+        {
+            "domain": "energy transition",
+            "frames": [
+                {
+                    "frame_id": "F1",
+                    "name": "Economic Benefits",
+                    "description": "Jobs and investment narratives.",
+                    "keywords": ["jobs", "investment"],
+                    "examples": ["Passage on jobs."],
+                },
+                {
+                    "frame_id": "F2",
+                    "name": "Environmental Harm",
+                    "description": "Pollution and health narratives.",
+                    "keywords": ["pollution", "health"],
+                    "examples": ["Passage on pollution."],
+                },
+            ],
+            "notes": "merged",
+        }
+    )
+
+    llm = SequencedLLM([partial_response_one, partial_response_two, merged_response])
+    inducer = FrameInducer(
+        llm_client=llm,
+        domain="energy transition",
+        frame_target="between 5 and 10",
+        max_passages_per_call=2,
+        max_total_passages=10,
+    )
+
+    passages = [
+        "Economic passage one",
+        "Economic passage two",
+        "Environmental passage one",
+        "Environmental passage two",
+    ]
+
+    schema = inducer.induce(passages)
+
+    assert len(llm.calls) == 3  # two batches + merge
+    assert schema.domain == "energy transition"
+    assert {frame.name for frame in schema.frames} == {
+        "Economic Benefits",
+        "Environmental Harm",
+    }

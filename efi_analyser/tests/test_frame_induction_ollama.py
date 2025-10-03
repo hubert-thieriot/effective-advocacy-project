@@ -24,7 +24,7 @@ def test_frame_induction_with_openai() -> None:
     model = os.getenv("OPENAI_LLM_MODEL", "gpt-4o-mini")
     client = OpenAIInterface(
         name="frame_induction_e2e",
-        config=OpenAIConfig(model=model, temperature=0.0, max_tokens=600, timeout=600.0),
+        config=OpenAIConfig(model=model, temperature=0.0, timeout=600.0),
     )
 
     passages = [

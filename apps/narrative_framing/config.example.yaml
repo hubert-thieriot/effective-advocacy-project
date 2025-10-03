@@ -1,0 +1,57 @@
+# Example configuration for the narrative framing workflow.
+corpus: mediacloud_india_coal
+corpora_root: corpora
+workspace_root: workspace
+
+# Narrative framing parameters
+domain: "India coal media coverage"
+# Model configurations - use more powerful model for induction, lighter for application
+induction_model: gpt-5-nano  # More powerful model for frame induction
+application_model: gpt-5-nano  # Lighter model for frame application
+# Temperature settings (optional - will use model defaults if not specified)
+# induction_temperature: 0.0  # Override for induction (will be adjusted to 1.0 for gpt-5-nano)
+# application_temperature: 0.0  # Override for application (will be adjusted to 1.0 for gpt-5-nano)
+seed: 42
+filter_keywords:
+  - coal
+target_words: 200
+max_chars: 900
+induction_sample_size: 100
+application_sample_size: 1000
+application_batch_size: 8
+application_max_chars: 1200
+application_top_k: 100
+skip_application: false
+reload_induction: true
+reload_application: true
+reload_classifier: true
+results_dir: results/narrative_framing
+assignment_preview: 5
+induction_guidance: |
+  Start by inducing a set of distinct, non-overlapping frames relevant to this domain. 
+  Ensure each frame has:
+    - A clear, generalizable description.
+    - Positive triggers: lexical or semantic cues that strongly indicate the frame.
+    - Anti-triggers: words, contexts, or patterns that should not activate the frame.
+    - Examples and counter-examples from the passages where possible.
+
+  At minimum, include these seven frames (refine, merge, or split if needed for clarity or non-overlap):
+    - Pollution and health impacts of coal
+    - Coal mining, supply and transportation
+    - Corruption and illegality in the coal sector
+    - Economic contributions of coal (e.g., jobs, energy production, local development)
+    - Competition with renewables and the energy transition
+    - Climate impacts of coal (e.g., emissions, warming, international pledges)
+    - Overcapacity (i.e., when additional coal power plants are unnecessary because of surplus capacity, renewable energy growth, idle units, stranded assets, or low utilisation in general)
+
+  Make sure the output frames are framed as **lenses or angles** in media coverage, not as opinions or sentiments.  
+  Distinguish carefully between frames with similar language (e.g., “capacity additions” vs. “overcapacity”), using anti-triggers and counter-examples to prevent leakage.
+
+classifier_corpus_sample_size: 10000
+
+classifier:
+  enabled: true
+  model_name: distilbert-base-uncased
+  output_dir: workspace/frame_classifier_model
+  batch_size: 8
+  inference_batch_size: 1

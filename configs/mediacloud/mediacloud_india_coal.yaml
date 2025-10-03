@@ -27,6 +27,8 @@ parameters:
     - "livemint.com"
     - "latest.inkhabar.com"
     - "cms.abclive.in"  # Already failing in your corpus build
+    - "economictimes.indiatimes.com/markets/stocks/stock-watch"
+    - "thehindubusinessline.com/markets/"
 
 extra_meta:
   country_iso3: IND

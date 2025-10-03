@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import math
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -313,6 +314,80 @@ def _plot_performance_dashboard(metrics: Dict[str, Dict[str, float]], frame_name
     return _fig_to_base64(fig)
 
 
+def _plot_domain_counts_bar(domain_counts: Sequence[Tuple[str, int]]) -> str:
+    if not domain_counts:
+        return ""
+    domains = [item[0] for item in domain_counts]
+    counts = [item[1] for item in domain_counts]
+    indices = np.arange(len(domains))
+
+    fig, ax = plt.subplots(figsize=(10, max(5, len(domains) * 0.35)))
+    bars = ax.barh(indices, counts, color="#4F8EF7", alpha=0.85)
+    ax.set_yticks(indices)
+    ax.set_yticklabels(domains, fontsize=9)
+    ax.invert_yaxis()
+    ax.set_xlabel("Document count", fontsize=12)
+    ax.set_title("Top domains by document count", fontsize=14, fontweight="bold")
+    ax.grid(axis="x", alpha=0.3)
+    for bar, value in zip(bars, counts):
+        ax.text(
+            value + max(counts) * 0.01,
+            bar.get_y() + bar.get_height() / 2,
+            str(value),
+            va="center",
+            fontsize=9,
+        )
+    plt.tight_layout()
+    return _fig_to_base64(fig)
+
+
+def _plot_domain_frame_facets(
+    domain_frame_summaries: Sequence[Dict[str, object]],
+    frame_lookup: Dict[str, Dict[str, str]],
+    color_map: Dict[str, str],
+) -> str:
+    if not domain_frame_summaries:
+        return ""
+
+    frame_ids = list(frame_lookup.keys())
+    frame_labels = [frame_lookup[fid]["short"] for fid in frame_ids]
+    colors = [color_map.get(fid, "#4F8EF7") for fid in frame_ids]
+
+    total_domains = len(domain_frame_summaries)
+    cols = min(5, max(1, int(math.ceil(math.sqrt(total_domains)))))
+    rows = int(math.ceil(total_domains / cols))
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3.4, rows * 2.8))
+    axes_array = np.atleast_1d(axes).flatten()
+
+    for ax in axes_array[total_domains:]:
+        ax.axis("off")
+
+    for idx, summary in enumerate(domain_frame_summaries):
+        ax = axes_array[idx]
+        shares = summary.get("shares", {})
+        values = [float(shares.get(fid, 0.0)) for fid in frame_ids]
+        ax.bar(range(len(frame_ids)), values, color=colors, alpha=0.9)
+        ymax = max(values) if values else 0.0
+        if ymax <= 0:
+            upper = 1.0
+        else:
+            upper = min(1.0, ymax * 1.15) if ymax < 1.0 else ymax * 1.05
+        upper = max(0.1, upper)
+        ax.set_ylim(0, upper)
+        ax.set_xticks(range(len(frame_ids)))
+        ax.set_xticklabels(frame_labels, rotation=45, ha="right", fontsize=7)
+        count = summary.get("count")
+        subtitle = summary.get("domain", "")
+        if count is not None:
+            subtitle = f"{subtitle}\n(n={count})"
+        ax.set_title(subtitle, fontsize=9)
+        ax.grid(axis="y", alpha=0.2)
+
+    fig.suptitle("Frame distribution across top domains", fontsize=14, fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    return _fig_to_base64(fig)
+
+
 def _fig_to_base64(fig) -> str:
     """Convert matplotlib figure to base64 string."""
     buffer = BytesIO()
@@ -372,11 +447,12 @@ def write_html_report(
     *,
     global_frame_share: Optional[Dict[str, float]] = None,
     timeseries_records: Optional[Sequence[Dict[str, object]]] = None,
-    document_highlights: Optional[Sequence[Dict[str, object]]] = None,
     classified_documents: int = 0,
     classifier_sample_limit: Optional[int] = None,
     area_chart_b64: Optional[str] = None,
     include_classifier_plots: bool = True,
+    domain_counts: Optional[Sequence[Tuple[str, int]]] = None,
+    domain_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
 
@@ -390,7 +466,6 @@ def write_html_report(
         }
         for frame in schema.frames
     }
-    
     # Generate classifier performance plots if requested
     classifier_plots_html = ""
     if include_classifier_plots and assignments:
@@ -486,37 +561,54 @@ def write_html_report(
                 "</tr>"
             )
 
-    highlights_rows = []
-    if document_highlights:
-        for item in document_highlights:
-            title = item.get("title") or item.get("doc_id", "")
-            url = item.get("url")
-            title_html = html.escape(title)
-            if url:
-                title_html = (
-                    f"<a href=\"{html.escape(url)}\" target=\"_blank\" rel=\"noopener noreferrer\">{title_html}</a>"
-                )
-            top_frames = item.get("top_frames") or []
-            frame_bits = []
-            for frame_entry in top_frames:
-                label = html.escape(str(frame_entry.get("label") or frame_entry.get("frame_id", "")))
-                score = float(frame_entry.get("score", 0.0))
-                frame_bits.append(f"{label} ({score:.2f})")
-            frame_html = ", ".join(frame_bits) if frame_bits else "—"
-            published = item.get("published_at") or "—"
-            highlights_rows.append(
-                "<tr>"
-                f"<td>{title_html}</td>"
-                f"<td>{html.escape(str(published))}</td>"
-                f"<td>{frame_html}</td>"
-                "</tr>"
-            )
-
     coverage_text = """No documents were classified."""
     if classified_documents > 0:
         coverage_text = f"Classifier applied to {classified_documents} documents."
         if classifier_sample_limit:
             coverage_text += f" Target sample: {classifier_sample_limit}."
+
+    domain_counts_chart_html = ""
+    domain_distribution_chart_html = ""
+    domain_counts_table_html = ""
+
+    if domain_counts:
+        domain_counts_chart_b64 = _plot_domain_counts_bar(domain_counts[:20])
+        if domain_counts_chart_b64:
+            domain_counts_chart_html = (
+                "<figure class=\"chart\">"
+                f"<img src=\"data:image/png;base64,{domain_counts_chart_b64}\" alt=\"Top domains by document count\" />"
+                "<figcaption>Top domains ranked by number of classified documents.</figcaption>"
+                "</figure>"
+            )
+        rows = []
+        for domain, count in domain_counts[:20]:
+            rows.append(
+                "<tr>"
+                f"<td>{html.escape(domain)}</td>"
+                f"<td>{count}</td>"
+                "</tr>"
+            )
+        if rows:
+            domain_counts_table_html = (
+                "<div class=\"domain-table\">"
+                "<table class=\"summary-table\">"
+                "<thead><tr><th>Domain</th><th>Documents</th></tr></thead>"
+                f"<tbody>{''.join(rows)}</tbody>"
+                "</table>"
+                "</div>"
+            )
+
+    if domain_frame_summaries:
+        ordered_domain_frames = [entry for entry in domain_frame_summaries if entry.get("shares")]
+        if ordered_domain_frames:
+            domain_frame_chart_b64 = _plot_domain_frame_facets(ordered_domain_frames, frame_lookup, color_map)
+            if domain_frame_chart_b64:
+                domain_distribution_chart_html = (
+                    "<figure class=\"chart\">"
+                    f"<img src=\"data:image/png;base64,{domain_frame_chart_b64}\" alt=\"Frame distribution by domain\" />"
+                    "<figcaption>Frame score distribution for the top domains. Each subplot shows average frame scores across documents from that domain.</figcaption>"
+                    "</figure>"
+                )
 
     chart_html = ""
     if area_chart_b64:
@@ -549,16 +641,19 @@ def write_html_report(
             "</table>"
             "</div>"
         )
-    if highlights_rows:
-        document_summary_sections.append(
-            "<div class=\"document-highlights\">"
-            "<h3>Documents with highest coverage</h3>"
-            "<table class=\"summary-table\">"
-            "<thead><tr><th>Document</th><th>Date</th><th>Top frames</th></tr></thead>"
-            f"<tbody>{''.join(highlights_rows)}</tbody>"
-            "</table>"
-            "</div>"
-        )
+    if domain_counts_chart_html or domain_counts_table_html or domain_distribution_chart_html:
+        domain_section_parts = [
+            "<div class=\"domain-stats\">",
+            "<h3>Source domain analysis</h3>",
+        ]
+        if domain_counts_chart_html:
+            domain_section_parts.append(domain_counts_chart_html)
+        if domain_counts_table_html:
+            domain_section_parts.append(domain_counts_table_html)
+        if domain_distribution_chart_html:
+            domain_section_parts.append(domain_distribution_chart_html)
+        domain_section_parts.append("</div>")
+        document_summary_sections.append("".join(domain_section_parts))
     if chart_html:
         document_summary_sections.append(chart_html)
     
@@ -681,6 +776,9 @@ def write_html_report(
     .plot-container h4 {{ margin: 0 0 12px 0; font-size: 1rem; color: #333; }}
     .metrics-table {{ margin-top: 20px; }}
     .metrics-table h4 {{ margin: 0 0 12px 0; font-size: 1rem; color: #333; }}
+    .domain-stats {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
+    .domain-table table {{ width: 100%; max-width: 520px; }}
+    .domain-table th, .domain-table td {{ text-align: left; }}
   </style>
 </head>
 <body>

@@ -73,6 +73,7 @@ class LLMFrameApplicator:
                 pending.append((passage_id, text, cache_key))
 
         results: Dict[str, FrameAssignment] = dict(cached)
+        skipped_passages: List[str] = []
 
         if pending:
             for batch in self._chunk(pending, self.batch_size):
@@ -80,15 +81,27 @@ class LLMFrameApplicator:
                 infer_kwargs: Dict[str, Any] = {}
                 if self.infer_timeout is not None and self._infer_supports_timeout:
                     infer_kwargs["timeout"] = self.infer_timeout
-                raw_response = self.llm_client.infer(messages, **infer_kwargs)
-                parsed = self._parse_batch_response(schema, batch, raw_response, top_k)
+                try:
+                    raw_response = self.llm_client.infer(messages, **infer_kwargs)
+                    parsed = self._parse_batch_response(schema, batch, raw_response, top_k)
+                except ValueError as exc:
+                    print(
+                        f"⚠️ Skipping frame application batch of {len(batch)} passages due to parse error: {exc}"
+                    )
+                    skipped_passages.extend(pid for pid, _, _ in batch)
+                    continue
 
                 for passage_id, assignment in parsed.items():
                     cache_key = next(key for pid, _, key in batch if pid == passage_id)
                     self._cache[cache_key] = self._clone_assignment(assignment)
                     results[passage_id] = assignment
 
-        ordered = [results[pid] for pid, _ in prepared]
+        if skipped_passages:
+            print(
+                f"⚠️ Dropped {len(skipped_passages)} passages due to malformed LLM responses."
+            )
+
+        ordered = [results[pid] for pid, _ in prepared if pid in results]
         return ordered
 
     # ------------------------------------------------------------------ helpers
@@ -301,22 +314,9 @@ class LLMFrameApplicator:
 
         missing_ids = {pid for pid, _, _ in batch} - assignments.keys()
         if missing_ids:
-            frame_id_list = list(frame_ids)
-            zero_template = {fid: 0.0 for fid in frame_id_list}
             print(
-                f"⚠️ Frame applicator response missing {len(missing_ids)} passages; inserting placeholders."
+                f"⚠️ Frame applicator response missing {len(missing_ids)} passages; dropping them from this batch."
             )
-            for pid in missing_ids:
-                metadata = {"doc_id": pid.split(":", 1)[0]}
-                assignments[pid] = FrameAssignment(
-                    passage_id=pid,
-                    passage_text=batch_lookup.get(pid, ""),
-                    probabilities=zero_template.copy(),
-                    top_frames=[],
-                    rationale="LLM response missing; placeholder inserted.",
-                    evidence_spans=[],
-                    metadata=metadata,
-                )
 
         return assignments
 

@@ -15,18 +15,19 @@ seed: 42
 filter_keywords:
   - coal
 target_words: 200
-max_chars: 900
 induction_sample_size: 100
-application_sample_size: 1000
+application_sample_size: 1200
 application_batch_size: 8
-application_max_chars: 1200
 application_top_k: 100
-skip_application: false
 reload_induction: true
 reload_application: true
 reload_classifier: true
+reload_chunk_classifications: true
+reload_document_aggregates: false
+reload_time_series: false
+reset_chunk_classifications: false
+reset_document_aggregates: false
 results_dir: results/narrative_framing
-assignment_preview: 5
 induction_guidance: |
   Start by inducing a set of distinct, non-overlapping frames relevant to this domain. 
   Ensure each frame has:
@@ -47,11 +48,10 @@ induction_guidance: |
   Make sure the output frames are framed as **lenses or angles** in media coverage, not as opinions or sentiments.  
   Distinguish carefully between frames with similar language (e.g., “capacity additions” vs. “overcapacity”), using anti-triggers and counter-examples to prevent leakage.
 
-classifier_corpus_sample_size: 10000
+classifier_corpus_sample_size: 5000
 
 classifier:
   enabled: true
   model_name: distilbert-base-uncased
-  output_dir: workspace/frame_classifier_model
   batch_size: 8
   inference_batch_size: 1

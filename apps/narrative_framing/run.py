@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 import pandas as pd
 from tqdm import tqdm
@@ -53,7 +55,10 @@ class ResultPaths:
     schema: Optional[Path] = None
     assignments: Optional[Path] = None
     classifier_predictions: Optional[Path] = None
+    classifier_dir: Optional[Path] = None
     document_aggregates: Optional[Path] = None
+    chunk_classifications_dir: Optional[Path] = None
+    aggregated_documents_dir: Optional[Path] = None
     frame_timeseries: Optional[Path] = None
     frame_area_chart: Optional[Path] = None
     html: Optional[Path] = None
@@ -65,36 +70,19 @@ class ClassifierRun:
     model: Optional[FrameClassifierModel]
 
 
-def create_chunker(target_words: int, max_chars: int) -> object:
-    """Return a chunker compatible with the embedded corpus layout."""
-    if TextChunker and TextChunkerConfig:
-        try:
-            return TextChunker(TextChunkerConfig(max_words=target_words))
-        except Exception:
-            pass  # Fall back to regex chunker if spaCy model is unavailable.
-    if _TEXT_CHUNKER_ERROR:
-        print(
-            "⚠️ Falling back to regex sentence chunker; spaCy-based chunker unavailable:",
-            _TEXT_CHUNKER_ERROR,
-        )
-    overlap_chars = max(0, min(max_chars - 1, int(max_chars * 0.15)))
-    return SentenceChunker(max_chunk_size=max_chars, overlap=overlap_chars)
-
-
-def create_embedder() -> SentenceTransformerEmbedder:
-    """Instantiate a lazy-loading embedder to avoid heavyweight startup."""
-    return SentenceTransformerEmbedder(lazy_load=True)
-
-
 def resolve_result_paths(results_dir: Optional[Path]) -> ResultPaths:
     if not results_dir:
         return ResultPaths()
     results_dir.mkdir(parents=True, exist_ok=True)
+    classifier_dir = results_dir / "classifier"
     return ResultPaths(
         schema=results_dir / "frame_schema.json",
         assignments=results_dir / "frame_assignments.json",
         classifier_predictions=results_dir / "frame_classifier_predictions.json",
+        classifier_dir=classifier_dir,
         document_aggregates=results_dir / "frame_document_aggregates.json",
+        chunk_classifications_dir=results_dir / "classified_chunks",
+        aggregated_documents_dir=results_dir / "aggregated_documents",
         frame_timeseries=results_dir / "frame_timeseries.json",
         frame_area_chart=results_dir / "frame_area_chart.png",
         html=results_dir / "frame_report.html",
@@ -187,14 +175,37 @@ def load_classifier_predictions(path: Path) -> List[Dict[str, object]]:
 
 
 def save_document_aggregates(path: Path, aggregates: Sequence[DocumentFrameAggregate]) -> None:
-    payload = [aggregate.to_dict() for aggregate in aggregates]
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Two ways to save document aggregates:
+    # 1. A single JSON file
+    # 2. A directory of JSON files
+    if path.suffix:
+        payload = [aggregate.to_dict() for aggregate in aggregates]
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return
+
+    path.mkdir(parents=True, exist_ok=True)
+    for aggregate in aggregates:
+        doc_path = path / f"{aggregate.doc_id}.json"
+        doc_path.write_text(json.dumps(aggregate.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
     aggregates: List[DocumentFrameAggregate] = []
-    for item in payload:
+
+    if path.suffix:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        records: Iterable[Dict[str, object]] = payload
+    else:
+        if not path.exists():
+            return []
+        records = []
+        for child in sorted(path.glob("*.json")):
+            try:
+                records.append(json.loads(child.read_text(encoding="utf-8")))
+            except Exception:
+                continue
+
+    for item in records:
         aggregates.append(
             DocumentFrameAggregate(
                 doc_id=item["doc_id"],
@@ -207,6 +218,122 @@ def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
             )
         )
     return aggregates
+
+
+def save_chunk_classification(directory: Path, payload: Dict[str, object]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    doc_id = str(payload.get("doc_id"))
+    if not doc_id:
+        raise ValueError("Chunk classification payload missing doc_id")
+    path = directory / f"{doc_id}.json"
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def load_chunk_classifications(directory: Path, doc_ids: Optional[Iterable[str]] = None) -> List[Dict[str, object]]:
+    if not directory.exists():
+        return []
+    doc_id_filter = set(doc_ids) if doc_ids is not None else None
+    payloads: List[Dict[str, object]] = []
+    for child in sorted(directory.glob("*.json")):
+        doc_id = child.stem
+        if doc_id_filter and doc_id not in doc_id_filter:
+            continue
+        try:
+            payloads.append(json.loads(child.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    return payloads
+
+
+def write_chunk_classifications(directory: Path, documents: Sequence[Dict[str, object]]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    keep_doc_ids: set[str] = set()
+    for payload in documents:
+        doc_id = str(payload.get("doc_id"))
+        if not doc_id:
+            continue
+        keep_doc_ids.add(doc_id)
+        path = directory / f"{doc_id}.json"
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Remove stale files not present in the provided documents
+    for existing in directory.glob("*.json"):
+        if existing.stem not in keep_doc_ids:
+            existing.unlink(missing_ok=True)
+
+
+def _extract_domain(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    parsed = urlparse(url)
+    netloc = parsed.netloc or parsed.path
+    if not netloc:
+        return None
+    domain = netloc.lower()
+    if domain.startswith("www."):
+        domain = domain[4:]
+    return domain or None
+
+
+def _compute_domain_statistics(
+    aggregates: Sequence[DocumentFrameAggregate],
+    frame_ids: Sequence[str],
+    top_n: int = 20,
+) -> Tuple[List[Tuple[str, int]], List[Dict[str, object]]]:
+    if not aggregates:
+        return [], []
+
+    frame_ids_list = list(frame_ids)
+    domain_state: Dict[str, Dict[str, object]] = {}
+
+    for aggregate in aggregates:
+        domain = _extract_domain(aggregate.url)
+        if not domain:
+            continue
+        state = domain_state.setdefault(
+            domain,
+            {
+                "count": 0,
+                "weight": 0.0,
+                "frame_sums": {frame_id: 0.0 for frame_id in frame_ids_list},
+            },
+        )
+        state["count"] = int(state["count"]) + 1
+        weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
+        state["weight"] = float(state["weight"]) + weight
+        frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+        for frame_id in frame_ids_list:
+            frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
+
+    if not domain_state:
+        return [], []
+
+    ordered_domains = sorted(
+        domain_state.items(), key=lambda item: (item[1]["count"], item[1]["weight"]), reverse=True
+    )
+    top_domains = ordered_domains[: max(top_n, 0)]
+
+    domain_counts: List[Tuple[str, int]] = []
+    domain_frame_summaries: List[Dict[str, object]] = []
+
+    for domain, state in top_domains:
+        count = int(state["count"])
+        weight = float(state["weight"])
+        frame_sums = state["frame_sums"]  # type: ignore[assignment]
+        if weight <= 0:
+            shares = {frame_id: 0.0 for frame_id in frame_ids_list}
+        else:
+            shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids_list}
+        domain_counts.append((domain, count))
+        domain_frame_summaries.append(
+            {
+                "domain": domain,
+                "count": count,
+                "shares": shares,
+            }
+        )
+
+    return domain_counts, domain_frame_summaries
 
 
 def save_frame_timeseries(path: Path, records: Sequence[Dict[str, object]]) -> None:
@@ -223,7 +350,7 @@ def load_frame_timeseries(path: Path) -> pd.DataFrame:
     return df
 
 
-def enrich_assignments_with_links(
+def enrich_assignments_with_metadata(
     assignments: Sequence[FrameAssignment],
     embedded_corpus: EmbeddedCorpus,
 ) -> None:
@@ -306,6 +433,7 @@ def train_and_apply_classifier(
     schema: FrameSchema,
     assignments: Sequence[FrameAssignment],
     samples: Sequence[Tuple[str, str]],
+    output_dir: Optional[Path],
 ) -> ClassifierRun:
     if not settings.enabled:
         return ClassifierRun(predictions=[], model=None)
@@ -318,9 +446,13 @@ def train_and_apply_classifier(
         print("⚠️ Label set is empty; skipping classifier training.")
         return ClassifierRun(predictions=[], model=None)
 
-    spec = FrameClassifierSpec(model_name=settings.model_name, output_dir=str(settings.output_dir))
-    settings.output_dir.mkdir(parents=True, exist_ok=True)
-    trainer = FrameClassifierTrainer(spec)
+    spec_kwargs = {"model_name": settings.model_name}
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        spec_kwargs["output_dir"] = str(output_dir)
+    else:
+        print("⚠️ Results directory not configured; classifier artifacts will use the trainer default output path.")
+    trainer = FrameClassifierTrainer(FrameClassifierSpec(**spec_kwargs))
     print(f"→ Training classifier model: {settings.model_name}")
     model = trainer.train(label_set)
     print("→ Classifier training complete.")
@@ -351,49 +483,60 @@ def train_and_apply_classifier(
             }
         )
 
-    model.save(settings.output_dir)
+    if output_dir is not None:
+        model.save(output_dir)
+    else:
+        print("⚠️ Skipping classifier model persistence (no results directory provided).")
     return ClassifierRun(predictions=predictions, model=model)
 
 
-def classify_corpus_documents(
+def classify_corpus_chunks(
     model: FrameClassifierModel,
     embedded_corpus: EmbeddedCorpus,
     batch_size: int,
-    aggregator: Optional[FrameAggregationStrategy] = None,
     sample_size: Optional[int] = None,
     seed: Optional[int] = None,
-) -> Sequence[DocumentFrameAggregate]:
-    frame_ids = [frame.frame_id for frame in model.schema.frames]
-    active_aggregator = aggregator or LengthWeightedFrameAggregator(frame_ids)
-
-    doc_ids = embedded_corpus.corpus.list_ids()
-    if not doc_ids:
+    output_dir: Optional[Path] = None,
+    doc_ids: Optional[Sequence[str]] = None,
+) -> List[Dict[str, object]]:
+    if doc_ids is not None:
+        doc_id_list = list(doc_ids)
+    else:
+        doc_id_list = embedded_corpus.corpus.list_ids()
+    if not doc_id_list:
         return []
 
-    if sample_size is not None:
-        limited = max(0, min(sample_size, len(doc_ids)))
+    if doc_ids is None and sample_size is not None:
+        limited = max(0, min(sample_size, len(doc_id_list)))
         rng = random.Random(seed)
-        rng.shuffle(doc_ids)
-        doc_ids = doc_ids[:limited]
+        rng.shuffle(doc_id_list)
+        doc_id_list = doc_id_list[:limited]
+    elif doc_ids is None:
+        # When no explicit sample size and doc_ids not provided, respect original ordering.
+        doc_id_list = list(doc_id_list)
+
+    if output_dir:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    classified_documents: List[Dict[str, object]] = []
 
     iterator = tqdm(
-        doc_ids,
+        doc_id_list,
         desc="Classifying documents",
         unit="doc",
         leave=False,
     )
 
-    for idx, doc_id in enumerate(iterator, start=1):
+    for doc_id in iterator:
         doc = embedded_corpus.corpus.get_document(doc_id)
         if doc is None:
             continue
 
-        # Extract published_at from metadata if not available on document
         published_at = doc.published_at
         if not published_at:
             metadata = embedded_corpus.corpus.get_metadata(doc_id)
             if metadata and isinstance(metadata, dict):
-                published_at = metadata.get('published_at')
+                published_at = metadata.get("published_at")
 
         chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=True) or []
         texts: List[str] = []
@@ -410,88 +553,101 @@ def classify_corpus_documents(
             continue
 
         probabilities = model.predict_proba_batch(texts, batch_size=batch_size)
+        chunk_records: List[Dict[str, object]] = []
         for (chunk_id, passage_text), probs in zip(chunk_text_pairs, probabilities):
+            ordered = sorted(probs.items(), key=lambda item: item[1], reverse=True)
+            chunk_records.append(
+                {
+                    "chunk_id": chunk_id,
+                    "text": passage_text,
+                    "probabilities": {frame_id: float(score) for frame_id, score in probs.items()},
+                    "top_frames": [fid for fid, _ in ordered[:3]],
+                }
+            )
+
+        payload = {
+            "doc_id": doc_id,
+            "title": doc.title,
+            "url": doc.url,
+            "published_at": published_at,
+            "chunks": chunk_records,
+        }
+
+        classified_documents.append(payload)
+        if output_dir:
+            save_chunk_classification(output_dir, payload)
+
+    iterator.close()
+
+    return classified_documents
+
+
+def aggregate_classified_documents(
+    documents: Sequence[Dict[str, object]],
+    schema: FrameSchema,
+    aggregator: Optional[FrameAggregationStrategy] = None,
+) -> Sequence[DocumentFrameAggregate]:
+    if not documents:
+        return []
+
+    frame_ids = [frame.frame_id for frame in schema.frames]
+    active_aggregator = aggregator or LengthWeightedFrameAggregator(frame_ids)
+
+    for doc_record in documents:
+        doc_id = str(doc_record.get("doc_id"))
+        chunks = doc_record.get("chunks", [])
+        if not doc_id or not isinstance(chunks, Sequence):
+            continue
+        published_at = doc_record.get("published_at")
+        title = doc_record.get("title")
+        url = doc_record.get("url")
+        for chunk in chunks:
+            if not isinstance(chunk, dict):
+                continue
+            passage_text = str(chunk.get("text", ""))
+            if not passage_text.strip():
+                continue
+            probabilities = chunk.get("probabilities", {})
+            if isinstance(probabilities, dict):
+                probs = {fid: float(val) for fid, val in probabilities.items()}
+            else:
+                probs = {}
             active_aggregator.accumulate(
                 doc_id=doc_id,
                 passage_text=passage_text,
                 probabilities=probs,
                 published_at=published_at,
-                title=doc.title,
-                url=doc.url,
+                title=title,
+                url=url,
             )
-
-    iterator.close()
 
     return active_aggregator.finalize()
 
-
-def _select_document_highlights(
-    aggregates: Sequence[DocumentFrameAggregate],
-    schema: FrameSchema,
-    limit: int = 10,
-) -> List[Dict[str, object]]:
-    if not aggregates:
-        return []
-    frame_labels = {
-        frame.frame_id: frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
-        for frame in schema.frames
-    }
-    sorted_aggs = sorted(aggregates, key=lambda agg: float(agg.total_weight), reverse=True)
-    highlights: List[Dict[str, object]] = []
-    for aggregate in sorted_aggs[: max(limit, 0)]:
-        ordered = sorted(aggregate.frame_scores.items(), key=lambda item: item[1], reverse=True)
-        top_frames = [
-            {
-                "frame_id": frame_id,
-                "label": frame_labels.get(frame_id, frame_id),
-                "score": float(score),
-            }
-            for frame_id, score in ordered[:3]
-        ]
-        highlights.append(
-            {
-                "doc_id": aggregate.doc_id,
-                "title": aggregate.title or aggregate.doc_id,
-                "url": aggregate.url,
-                "published_at": aggregate.published_at,
-                "top_frames": top_frames,
-            }
-        )
-    return highlights
 
 
 def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     # INITIALIZATION AND SETUP
     # ============================================================================
-    
     corpus_path = config.corpora_root / config.corpus
     if not corpus_path.exists():
         raise FileNotFoundError(f"Corpus not found at {corpus_path}")
     config.workspace_root.mkdir(parents=True, exist_ok=True)
-
-    print(f"Loading embedded corpus from {corpus_path}...")
-    chunker = create_chunker(config.target_words, config.max_chars)
-    embedder = create_embedder()
-
-    embedded_corpus = EmbeddedCorpus(
-        corpus_path=corpus_path,
-        workspace_path=config.workspace_root,
-        chunker=chunker,
-        embedder=embedder,
-    )
-
-    print(
-        "Using chunker key",
-        embedded_corpus.chunker_spec.key(),
-        "and embedder",
-        embedded_corpus.embedder_spec.model_name,
-    )
-
-    sampler = CorpusSampler(embedded_corpus)
-    keywords = config.filter_keywords
-
     paths = resolve_result_paths(config.results_dir)
+
+    if config.reset_chunk_classifications and paths.chunk_classifications_dir:
+        shutil.rmtree(paths.chunk_classifications_dir, ignore_errors=True)
+        print("Cleared cached chunk classifications.")
+    if config.reset_document_aggregates:
+        for target in (paths.aggregated_documents_dir, paths.document_aggregates):
+            if target is None:
+                continue
+            if target.is_dir():
+                shutil.rmtree(target, ignore_errors=True)
+            elif target.exists():
+                target.unlink(missing_ok=True)
+        print("Cleared cached document aggregates.")
+
 
     # ============================================================================
     # VARIABLE INITIALIZATION
@@ -502,16 +658,33 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     application_samples: List[Tuple[str, str]] = []
     classifier_predictions: List[Dict[str, object]] = []
     classifier_model: Optional[FrameClassifierModel] = None
+    chunk_classifications: List[Dict[str, object]] = []
     document_aggregates: List[DocumentFrameAggregate] = []
     frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
     frame_timeseries_records: List[Dict[str, object]] = []
     frame_area_chart_b64: Optional[str] = None
     global_frame_share: Dict[str, float] = {}
-    document_highlights: List[Dict[str, object]] = []
+    domain_counts: List[Tuple[str, int]] = []
+    domain_frame_summaries: List[Dict[str, object]] = []
 
     induction_samples: List[Tuple[str, str]] = []
     induction_reused = False
     assignments_reused = False
+    
+    # =============================================================================
+    # PREPARE EMBEDDED CORPUS
+    # =============================================================================
+    print(f"Loading embedded corpus from {corpus_path}...")
+    chunker = TextChunker(TextChunkerConfig(max_words=config.target_words))
+    embedder = SentenceTransformerEmbedder(lazy_load=True)
+    embedded_corpus = EmbeddedCorpus(
+        corpus_path=corpus_path,
+        workspace_path=config.workspace_root,
+        chunker=chunker,
+        embedder=embedder,
+    )
+    sampler = CorpusSampler(embedded_corpus)
+    keywords = config.filter_keywords
 
     # ============================================================================
     # CONFIGURE LLM CLIENTS
@@ -580,84 +753,155 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     # FRAME APPLICATION (OR RELOAD FROM CACHE)
     # ============================================================================
+    assignment_map: Dict[str, FrameAssignment] = {}
+    assignment_list: List[FrameAssignment] = []
+
+    if (
+        config.reload_application
+        and paths.assignments
+        and paths.assignments.exists()
+    ):
+        try:
+            cached_assignments = load_assignments(paths.assignments)
+            for cached in cached_assignments:
+                if cached.passage_id in assignment_map:
+                    continue
+                assignment_map[cached.passage_id] = cached
+                assignment_list.append(cached)
+            if assignment_list:
+                assignments_reused = True
+                print(f"Reloaded {len(assignment_list)} LLM frame assignments from cache.")
+        except Exception as exc:
+            print(f"⚠️ Failed to load cached assignments: {exc}")
+
     
-    if config.skip_application:
-        application_samples = induction_samples
-    else:
-        if (
-            config.reload_application
-            and induction_reused
-            and paths.assignments
-            and paths.assignments.exists()
-        ):
-            assignments = load_assignments(paths.assignments)
-            assignments_reused = True
-            application_samples = [(item.passage_id, item.passage_text) for item in assignments]
-            if config.application_sample_size > len(application_samples):
-                remaining = config.application_sample_size - len(application_samples)
-                exclude_ids = [pid for pid, _ in application_samples]
-                if remaining > 0:
-                    extra_samples = sampler.collect(
-                        SamplerConfig(
-                            sample_size=remaining,
-                            seed=config.seed + 1,
-                            keywords=keywords,
-                            exclude_passage_ids=exclude_ids,
-                        )
-                    )
-                    application_samples.extend(extra_samples)
-                    if extra_samples:
-                        print(
-                            f"Sampled {len(extra_samples)} additional passages for classifier evaluation display."
-                        )
-            print(f"Reloaded {len(assignments)} LLM frame assignments from cache.")
-        else:
-            exclude_ids = [pid for pid, _ in induction_samples] if induction_samples else []
-            print("Sampling passages for frame application...")
-            application_samples = sampler.collect(
+    target_application_count = max(0, config.application_sample_size)
+    existing_count = len(assignment_list)
+    additional_needed = max(0, target_application_count - existing_count)
+
+    if additional_needed > 0:
+        exclude_ids: List[str] = list(assignment_map.keys())
+        if induction_samples:
+            exclude_ids.extend(pid for pid, _ in induction_samples)
+        try:
+            new_samples = sampler.collect(
                 SamplerConfig(
-                    sample_size=config.application_sample_size,
+                    sample_size=additional_needed,
                     seed=config.seed + 1,
                     keywords=keywords,
                     exclude_passage_ids=exclude_ids or None,
                 )
             )
+        except ValueError as exc:
+            print(f"⚠️ Unable to gather {additional_needed} new passages for application: {exc}")
+            new_samples = []
+
+        if new_samples:
             applicator_client = OpenAIInterface(name="frame_application", config=applicator_config)
             applicator = LLMFrameApplicator(
                 llm_client=applicator_client,
                 batch_size=config.application_batch_size,
-                max_chars_per_passage=config.application_max_chars,
-                chunk_overlap_chars=int(config.application_max_chars * 0.1),
+                max_chars_per_passage=None,
+                chunk_overlap_chars=0,
             )
-            print(f"Applying frames to {len(application_samples)} passages...")
-            from tqdm import tqdm
-            
-            # Create a progress bar for frame application
-            with tqdm(total=len(application_samples), desc="Applying frames", unit="passages", 
-                     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
-                # We'll update the progress bar manually by processing in smaller batches
+            print(
+                f"Applying frames to {len(new_samples)} additional passages using {applicator_client.name}..."
+            )
+            with tqdm(
+                total=len(new_samples),
+                desc="Applying frames",
+                unit="passages",
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+            ) as pbar:
                 batch_size = applicator.batch_size
-                assignments = []
-                
-                for i in range(0, len(application_samples), batch_size):
-                    batch = application_samples[i:i + batch_size]
+                for i in range(0, len(new_samples), batch_size):
+                    batch = new_samples[i : i + batch_size]
                     batch_assignments = applicator.batch_assign(
                         schema,
                         batch,
                         top_k=config.application_top_k,
                     )
-                    assignments.extend(batch_assignments)
+                    for assignment in batch_assignments:
+                        if assignment.passage_id in assignment_map:
+                            continue
+                        assignment_map[assignment.passage_id] = assignment
+                        assignment_list.append(assignment)
                     pbar.update(len(batch))
-            print(f"Received {len(assignments)} assignments from LLM.")
+            print(
+                f"Received {len(assignment_list) - existing_count} new assignments; total cached assignments: {len(assignment_list)}."
+            )
             if paths.assignments:
-                save_assignments(paths.assignments, assignments)
+                save_assignments(paths.assignments, assignment_list)
+        else:
+            print(
+                f"⚠️ No new passages were sampled; continuing with {len(assignment_list)} cached assignments."
+            )
+
+    assignments = assignment_list
+    if target_application_count and len(assignment_list) > target_application_count:
+        application_samples = [
+            (item.passage_id, item.passage_text) for item in assignment_list[:target_application_count]
+        ]
+    else:
+        application_samples = [
+            (item.passage_id, item.passage_text) for item in assignment_list
+        ]
+
+    if target_application_count > 0 and not assignments and not application_samples:
+        # No cached assignments and no new sampling occurred; need to generate initial set.
+        application_samples = sampler.collect(
+            SamplerConfig(
+                sample_size=config.application_sample_size,
+                seed=config.seed + 1,
+                keywords=keywords,
+                exclude_passage_ids=None,
+            )
+        )
+        applicator_client = OpenAIInterface(name="frame_application", config=applicator_config)
+        applicator = LLMFrameApplicator(
+            llm_client=applicator_client,
+            batch_size=config.application_batch_size,
+            max_chars_per_passage=None,
+            chunk_overlap_chars=0,
+        )
+        print(f"Applying frames to {len(application_samples)} passages using {applicator_client.name}...")
+        with tqdm(
+            total=len(application_samples),
+            desc="Applying frames",
+            unit="passages",
+            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+        ) as pbar:
+            batch_size = applicator.batch_size
+            for i in range(0, len(application_samples), batch_size):
+                batch = application_samples[i : i + batch_size]
+                batch_assignments = applicator.batch_assign(
+                    schema,
+                    batch,
+                    top_k=config.application_top_k,
+                )
+                for assignment in batch_assignments:
+                    if assignment.passage_id in assignment_map:
+                        continue
+                    assignment_map[assignment.passage_id] = assignment
+                    assignment_list.append(assignment)
+                pbar.update(len(batch))
+        assignments = assignment_list
+        if paths.assignments:
+            save_assignments(paths.assignments, assignments)
+        print(f"Received {len(assignments)} assignments from LLM.")
+
+    # Ensure application_samples covers at least available assignments when none were set
+    if not application_samples and assignments:
+        application_samples = [
+            (item.passage_id, item.passage_text) for item in assignments
+        ]
 
     # ============================================================================
     # POST-PROCESS ASSIGNMENTS AND DISPLAY RESULTS
     # ============================================================================
     
     if assignments:
-        enrich_assignments_with_links(assignments, embedded_corpus)
+        enrich_assignments_with_metadata(assignments, embedded_corpus)
         if paths.assignments:
             save_assignments(paths.assignments, assignments)
         print("Assignments enriched with document metadata.")
@@ -665,10 +909,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     print_schema(schema)
 
     if assignments:
-        preview_assignments(assignments, limit=config.assignment_preview)
+        preview_assignments(assignments, limit=5)
 
     # ============================================================================
-    # LOAD CACHED RESULTS (CLASSIFIER, AGGREGATES, TIME SERIES)
+    # LOAD CLASSIFIER
     # ============================================================================
     
     if (
@@ -681,41 +925,27 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
         print(f"Reloaded {len(classifier_predictions)} classifier predictions from cache.")
 
-    if config.classifier.enabled and config.reload_classifier and classifier_model is None:
+    if (
+        config.classifier.enabled
+        and config.reload_classifier
+        and classifier_model is None
+        and paths.classifier_dir is not None
+    ):
         try:
-            classifier_model = FrameClassifierModel.load(config.classifier.output_dir)
-            print(f"Reloaded classifier model from {config.classifier.output_dir}.")
+            classifier_model = FrameClassifierModel.load(paths.classifier_dir)
+            print(f"Reloaded classifier model from {paths.classifier_dir}.")
         except FileNotFoundError:
             classifier_model = None
         except Exception as exc:  # pragma: no cover - informational only
-            print(f"⚠️ Failed to load classifier model from {config.classifier.output_dir}: {exc}")
+            print(f"⚠️ Failed to load classifier model from {paths.classifier_dir}: {exc}")
             classifier_model = None
-
-    # Load cached document aggregates if available
-    if config.reload_document_aggregates and paths.document_aggregates and paths.document_aggregates.exists():
-        try:
-            document_aggregates = load_document_aggregates(paths.document_aggregates)
-            print(f"Reloaded {len(document_aggregates)} document aggregates from cache.")
-        except Exception as exc:
-            print(f"⚠️ Failed to load document aggregates from cache: {exc}")
-            document_aggregates = []
-
-    # Load cached time series if available
-    if config.reload_time_series and paths.frame_timeseries and paths.frame_timeseries.exists():
-        try:
-            time_series_data = json.loads(paths.frame_timeseries.read_text(encoding="utf-8"))
-            frame_timeseries_records = time_series_data
-            # Convert back to DataFrame for processing
-            if time_series_data:
-                frame_timeseries_df = pd.DataFrame(time_series_data)
-                frame_timeseries_df['date'] = pd.to_datetime(frame_timeseries_df['date']).dt.date
-                print(f"Reloaded time series with {len(frame_timeseries_df)} records from cache.")
-            else:
-                frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-        except Exception as exc:
-            print(f"⚠️ Failed to load time series from cache: {exc}")
-            frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-            frame_timeseries_records = []
+    elif (
+        config.classifier.enabled
+        and config.reload_classifier
+        and classifier_model is None
+        and paths.classifier_dir is None
+    ):
+        print("⚠️ Results directory not provided; skipping classifier model reload.")
 
     # ============================================================================
     # TRAIN CLASSIFIER (IF NEEDED)
@@ -732,6 +962,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 samples=application_samples
                 if application_samples
                 else [(a.passage_id, a.passage_text) for a in assignments],
+                output_dir=paths.classifier_dir,
             )
             classifier_predictions = classifier_run.predictions
             classifier_model = classifier_run.model
@@ -741,7 +972,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 save_classifier_predictions(paths.classifier_predictions, classifier_predictions)
 
     # ============================================================================
-    # PREPARE DISPLAY ASSIGNMENTS AND CLASSIFY CORPUS
+    # PREPARE DISPLAY ASSIGNMENTS
     # ============================================================================
     
     display_assignments = list(assignments)
@@ -761,27 +992,156 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                     evidence_spans=[],
                 )
             )
+            
+    # ============================================================================
+    # CLASSIFY CORPUS DOCUMENTS AND PREPARE DOCUMENT AGGREGATES
+    # ============================================================================
 
-    if schema and classifier_model and not document_aggregates:
-        target_docs = config.classifier_corpus_sample_size or embedded_corpus.corpus.get_document_count()
-        print(f"Applying classifier across corpus sample (target {target_docs} documents)...")
-        inference_batch = max(1, config.classifier.inference_batch_size or config.classifier.batch_size)
-        document_aggregates = list(
-            classify_corpus_documents(
+    total_doc_ids = embedded_corpus.corpus.list_ids()
+    desired_doc_total = config.classifier_corpus_sample_size or len(total_doc_ids)
+    desired_doc_total = max(0, min(desired_doc_total, len(total_doc_ids)))
+
+    chunk_classification_map: Dict[str, Dict[str, object]] = {}
+
+    if (
+        config.reload_chunk_classifications
+        and paths.chunk_classifications_dir
+        and paths.chunk_classifications_dir.exists()
+    ):
+        cached_docs = load_chunk_classifications(paths.chunk_classifications_dir)
+        for payload in cached_docs:
+            doc_id = str(payload.get("doc_id", "")).strip()
+            if not doc_id or doc_id in chunk_classification_map:
+                continue
+            chunk_classification_map[doc_id] = payload
+        if chunk_classification_map:
+            print(
+                f"Reloaded chunk classifications for {len(chunk_classification_map)} documents from cache."
+            )
+
+    if (
+        schema
+        and classifier_model
+        and desired_doc_total > len(chunk_classification_map)
+    ):
+        remaining_needed = desired_doc_total - len(chunk_classification_map)
+        remaining_doc_ids = [doc_id for doc_id in total_doc_ids if doc_id not in chunk_classification_map]
+        if remaining_doc_ids and remaining_needed > 0:
+            rng = random.Random(config.seed)
+            rng.shuffle(remaining_doc_ids)
+            doc_ids_to_classify = remaining_doc_ids[:remaining_needed]
+            print(
+                f"Classifying {len(doc_ids_to_classify)} additional documents to reach target sample of {desired_doc_total}."
+            )
+            inference_batch = max(1, config.classifier.inference_batch_size or config.classifier.batch_size)
+            new_docs = classify_corpus_chunks(
                 model=classifier_model,
                 embedded_corpus=embedded_corpus,
                 batch_size=inference_batch,
-                sample_size=config.classifier_corpus_sample_size,
                 seed=config.seed,
+                output_dir=paths.chunk_classifications_dir,
+                doc_ids=doc_ids_to_classify,
+            )
+            for payload in new_docs:
+                doc_id = str(payload.get("doc_id", "")).strip()
+                if doc_id:
+                    chunk_classification_map.setdefault(doc_id, payload)
+        if desired_doc_total > len(chunk_classification_map):
+            print(
+                f"⚠️ Only {len(chunk_classification_map)} documents classified; target was {desired_doc_total}."
+            )
+
+    # Determine which classified documents to use this run (without discarding extras on disk).
+    ordered_docs = [doc_id for doc_id in total_doc_ids if doc_id in chunk_classification_map]
+    if len(ordered_docs) < len(chunk_classification_map):
+        # Include any cached docs that might no longer be in corpus ordering.
+        ordered_docs.extend(
+            doc_id for doc_id in chunk_classification_map.keys() if doc_id not in ordered_docs
+        )
+
+    chunk_classifications = []
+    for doc_id in ordered_docs:
+        if desired_doc_total and len(chunk_classifications) >= desired_doc_total:
+            break
+        chunk_classifications.append(chunk_classification_map[doc_id])
+
+    if not chunk_classifications and chunk_classification_map:
+        chunk_classifications = list(chunk_classification_map.values())
+    elif desired_doc_total and len(chunk_classifications) < len(chunk_classification_map):
+        print(
+            f"Using first {len(chunk_classifications)} classified documents from {len(chunk_classification_map)} available."
+        )
+
+    if chunk_classification_map:
+        print(
+            f"Prepared {len(chunk_classifications)} classified documents (cached total: {len(chunk_classification_map)})."
+        )
+
+    # Load cached document aggregates if available
+    aggregate_candidates: List[Path] = []
+    if paths.aggregated_documents_dir:
+        aggregate_candidates.append(paths.aggregated_documents_dir)
+    if paths.document_aggregates:
+        aggregate_candidates.append(paths.document_aggregates)
+
+    if config.reload_document_aggregates:
+        for candidate in aggregate_candidates:
+            if not candidate or not candidate.exists():
+                continue
+            try:
+                loaded = load_document_aggregates(candidate)
+                if loaded:
+                    document_aggregates = list(loaded)
+                    print(
+                        f"Reloaded {len(document_aggregates)} document aggregates from {candidate}."
+                    )
+                    break
+            except Exception as exc:
+                print(f"⚠️ Failed to load document aggregates from {candidate}: {exc}")
+
+    if schema and chunk_classifications and not document_aggregates:
+        document_aggregates = list(
+            aggregate_classified_documents(
+                documents=chunk_classifications,
+                schema=schema,
+                aggregator=None,
             )
         )
+        if paths.aggregated_documents_dir:
+            save_document_aggregates(paths.aggregated_documents_dir, document_aggregates)
         if paths.document_aggregates:
             save_document_aggregates(paths.document_aggregates, document_aggregates)
-    
+
+    if schema and document_aggregates:
+        frame_ids = [frame.frame_id for frame in schema.frames]
+        domain_counts, domain_frame_summaries = _compute_domain_statistics(
+            document_aggregates,
+            frame_ids,
+            top_n=20,
+        )
+
     # ============================================================================
     # BUILD TIME SERIES AND VISUALIZATIONS
     # ============================================================================
     
+    # Load cached time series if available
+    if config.reload_time_series and paths.frame_timeseries and paths.frame_timeseries.exists():
+        try:
+            time_series_data = json.loads(paths.frame_timeseries.read_text(encoding="utf-8"))
+            frame_timeseries_records = time_series_data
+            # Convert back to DataFrame for processing
+            if time_series_data:
+                frame_timeseries_df = pd.DataFrame(time_series_data)
+                frame_timeseries_df['date'] = pd.to_datetime(frame_timeseries_df['date']).dt.date
+                print(f"Reloaded time series with {len(frame_timeseries_df)} records from cache.")
+            else:
+                frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
+        except Exception as exc:
+            print(f"⚠️ Failed to load time series from cache: {exc}")
+            frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
+            frame_timeseries_records = []
+            
+            
     # Build time series if we have document aggregates but no cached time series
     if document_aggregates and frame_timeseries_df.empty:
         print("Building time series from document aggregates...")
@@ -808,7 +1168,6 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             if result_path:
                 frame_area_chart_b64 = image_to_base64(result_path)
         global_frame_share = compute_global_frame_share(document_aggregates)
-        document_highlights = _select_document_highlights(document_aggregates, schema)
         classified_docs = len(document_aggregates)
         sampled_suffix = (
             f" (sample of {config.classifier_corpus_sample_size})"
@@ -835,11 +1194,12 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             classifier_lookup=classifier_lookup,
             global_frame_share=global_frame_share,
             timeseries_records=frame_timeseries_records,
-            document_highlights=document_highlights,
             classified_documents=len(document_aggregates),
             classifier_sample_limit=config.classifier_corpus_sample_size,
             area_chart_b64=frame_area_chart_b64,
             include_classifier_plots=True,
+            domain_counts=domain_counts,
+            domain_frame_summaries=domain_frame_summaries,
         )
         print(f"\nHTML report written to {paths.html}")
 
@@ -852,31 +1212,29 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.reload_induction = True
         config.reload_application = True
         config.reload_classifier = True
+        config.reload_chunk_classifications = True
         config.reload_document_aggregates = True
         config.reload_time_series = True
+        config.reset_chunk_classifications = False
+        config.reset_document_aggregates = False
     if args.reload_induction:
         config.reload_induction = True
     if args.reload_application:
         config.reload_application = True
     if args.reload_classifier:
         config.reload_classifier = True
+    if hasattr(args, 'reload_chunk_classifications') and args.reload_chunk_classifications:
+        config.reload_chunk_classifications = True
     if hasattr(args, 'reload_document_aggregates') and args.reload_document_aggregates:
         config.reload_document_aggregates = True
     if hasattr(args, 'reload_time_series') and args.reload_time_series:
         config.reload_time_series = True
-    if args.skip_application:
-        config.skip_application = True
+    if hasattr(args, 'reset_chunk_classifications') and args.reset_chunk_classifications:
+        config.reset_chunk_classifications = True
+    if hasattr(args, 'reset_document_aggregates') and args.reset_document_aggregates:
+        config.reset_document_aggregates = True
     if args.train_classifier:
         config.classifier.enabled = True
-    if args.assignment_preview is not None:
-        config.assignment_preview = args.assignment_preview
-    if args.model:
-        config.llm_model = args.model
-        # For backward compatibility, set both models to the same value if only --model is specified
-        if not args.induction_model:
-            config.induction_model = args.model
-        if not args.application_model:
-            config.application_model = args.model
     if args.induction_model:
         config.induction_model = args.induction_model
     if args.application_model:
@@ -902,12 +1260,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reload-induction", action="store_true", help="Reuse cached frame schema")
     parser.add_argument("--reload-application", action="store_true", help="Reuse cached LLM frame assignments")
     parser.add_argument("--reload-classifier", action="store_true", help="Reuse cached classifier predictions/model")
+    parser.add_argument(
+        "--reload-chunk-classifications",
+        action="store_true",
+        help="Reuse cached per-document chunk classifications",
+    )
     parser.add_argument("--reload-document-aggregates", action="store_true", help="Reuse cached document aggregates")
     parser.add_argument("--reload-time-series", action="store_true", help="Reuse cached time series data")
+    parser.add_argument(
+        "--reset-chunk-classifications",
+        action="store_true",
+        help="Delete cached chunk classifications before running",
+    )
+    parser.add_argument(
+        "--reset-document-aggregates",
+        action="store_true",
+        help="Delete cached document aggregates before running",
+    )
     parser.add_argument("--skip-application", action="store_true", help="Skip the frame application step")
     parser.add_argument("--train-classifier", action="store_true", help="Force-enable classifier training")
-    parser.add_argument("--assignment-preview", type=int, help="Number of assignments to preview in stdout")
-    parser.add_argument("--model", type=str, help="Override the LLM model name at runtime (deprecated - use --induction-model and --application-model)")
     parser.add_argument("--induction-model", type=str, help="Override the induction model name at runtime")
     parser.add_argument("--application-model", type=str, help="Override the application model name at runtime")
     parser.add_argument("--induction-temperature", type=float, help="Override the induction temperature at runtime")

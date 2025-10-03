@@ -18,12 +18,8 @@ DEFAULT_LLM_MODEL = "gpt-4o-mini"
 DEFAULT_INDUCTION_MODEL = "gpt-4o"
 DEFAULT_APPLICATION_MODEL = "gpt-4o-mini"
 DEFAULT_TARGET_WORDS = 200
-DEFAULT_MAX_CHARS = 900
 DEFAULT_APPLICATION_BATCH = 8
 DEFAULT_APPLICATION_TOP_K = 3
-DEFAULT_APPLICATION_MAX_CHARS = 1200
-DEFAULT_ASSIGNMENT_PREVIEW = 5
-
 
 @dataclass
 class ClassifierSettings:
@@ -31,7 +27,6 @@ class ClassifierSettings:
 
     enabled: bool = False
     model_name: str = "microsoft/deberta-v3-base"
-    output_dir: Path = DEFAULT_WORKSPACE_ROOT / "frame_classifier_model"
     batch_size: int = 8
     inference_batch_size: int = 8
 
@@ -52,21 +47,20 @@ class NarrativeFramingConfig:
     seed: int = DEFAULT_SEED
     filter_keywords: Optional[List[str]] = field(default_factory=lambda: ["coal"])
     target_words: int = DEFAULT_TARGET_WORDS
-    max_chars: int = DEFAULT_MAX_CHARS
     induction_sample_size: int = DEFAULT_INDUCTION_SAMPLE
     application_sample_size: int = DEFAULT_APPLICATION_SAMPLE
     application_batch_size: int = DEFAULT_APPLICATION_BATCH
-    application_max_chars: int = DEFAULT_APPLICATION_MAX_CHARS
     application_top_k: int = DEFAULT_APPLICATION_TOP_K
-    skip_application: bool = False
     reload_results: bool = False
     reload_induction: bool = False
     reload_application: bool = False
     reload_classifier: bool = False
+    reload_chunk_classifications: bool = False
     reload_document_aggregates: bool = False
     reload_time_series: bool = False
+    reset_chunk_classifications: bool = False
+    reset_document_aggregates: bool = False
     results_dir: Optional[Path] = None
-    assignment_preview: int = DEFAULT_ASSIGNMENT_PREVIEW
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
     induction_guidance: Optional[str] = None
     classifier_corpus_sample_size: Optional[int] = None
@@ -97,8 +91,6 @@ def _load_classifier_settings(data: Dict[str, Any]) -> ClassifierSettings:
         settings.enabled = bool(data["enabled"])
     if "model_name" in data:
         settings.model_name = str(data["model_name"])
-    if "output_dir" in data:
-        settings.output_dir = Path(data["output_dir"])
     if "batch_size" in data:
         settings.batch_size = int(data["batch_size"])
     if "inference_batch_size" in data:
@@ -139,20 +131,14 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.filter_keywords = [str(item) for item in keywords]
     if "target_words" in data:
         config.target_words = int(data["target_words"])
-    if "max_chars" in data:
-        config.max_chars = int(data["max_chars"])
     if "induction_sample_size" in data:
         config.induction_sample_size = int(data["induction_sample_size"])
     if "application_sample_size" in data:
         config.application_sample_size = int(data["application_sample_size"])
     if "application_batch_size" in data:
         config.application_batch_size = int(data["application_batch_size"])
-    if "application_max_chars" in data:
-        config.application_max_chars = int(data["application_max_chars"])
     if "application_top_k" in data:
         config.application_top_k = int(data["application_top_k"])
-    if "skip_application" in data:
-        config.skip_application = bool(data["skip_application"])
     if "reload_results" in data:
         config.reload_results = bool(data["reload_results"])
     if "reload_induction" in data:
@@ -161,14 +147,18 @@ def load_config(path: Path) -> NarrativeFramingConfig:
         config.reload_application = bool(data["reload_application"])
     if "reload_classifier" in data:
         config.reload_classifier = bool(data["reload_classifier"])
+    if "reload_chunk_classifications" in data:
+        config.reload_chunk_classifications = bool(data["reload_chunk_classifications"])
     if "reload_document_aggregates" in data:
         config.reload_document_aggregates = bool(data["reload_document_aggregates"])
     if "reload_time_series" in data:
         config.reload_time_series = bool(data["reload_time_series"])
+    if "reset_chunk_classifications" in data:
+        config.reset_chunk_classifications = bool(data["reset_chunk_classifications"])
+    if "reset_document_aggregates" in data:
+        config.reset_document_aggregates = bool(data["reset_document_aggregates"])
     if "results_dir" in data:
         config.results_dir = _as_path(data["results_dir"])
-    if "assignment_preview" in data:
-        config.assignment_preview = int(data["assignment_preview"])
 
     if "classifier" in data:
         config.classifier = _load_classifier_settings(data["classifier"])
@@ -186,10 +176,16 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.reload_application = True
         if "reload_classifier" not in data:
             config.reload_classifier = True
+        if "reload_chunk_classifications" not in data:
+            config.reload_chunk_classifications = True
         if "reload_document_aggregates" not in data:
             config.reload_document_aggregates = True
         if "reload_time_series" not in data:
             config.reload_time_series = True
+        if "reset_chunk_classifications" not in data:
+            config.reset_chunk_classifications = False
+        if "reset_document_aggregates" not in data:
+            config.reset_document_aggregates = False
 
     config.normalize()
     return config

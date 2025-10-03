@@ -216,14 +216,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                     
                 # Extract published date
                 published_at = story.get('publish_date')
-                if published_at:
-                    # Convert MediaCloud timestamp to ISO format
-                    from datetime import datetime
-                    try:
-                        dt = datetime.fromtimestamp(published_at)
-                        published_at = dt.strftime('%Y-%m-%d')
-                    except (ValueError, TypeError):
-                        published_at = None
+                published_at = self._to_ymd(published_at)
                 
                 # Extract title
                 title = story.get('title', '').strip()
@@ -691,3 +684,19 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             print(f"❌ Traceback: {traceback.format_exc()}")
             print("Falling back to sequential processing...")
             return self._process_sequential(frontier, discovered_by_url, params, manifest, force_refresh)
+
+    def _to_ymd(sefl, val):
+                    """Convert a datetime/date/string to YYYY-MM-DD if possible, else return as is."""
+                    if val:
+                        try:
+                            if hasattr(val, "strftime"):
+                                return val.strftime('%Y-%m-%d')
+                            else:
+                                from datetime import datetime
+                                try:
+                                    return datetime.fromisoformat(str(val)).strftime('%Y-%m-%d')
+                                except Exception:
+                                    return val
+                        except Exception:
+                            return val
+                    return val

@@ -9,6 +9,7 @@ from inspect import Parameter, signature
 from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple
 
 from .types import FrameAssignment, FrameSchema
+from .identifiers import make_global_doc_id, split_passage_id
 
 
 class LLMFrameApplicator:
@@ -196,12 +197,12 @@ class LLMFrameApplicator:
             f"{schema_lines}\n\n"
             "TASK:\n"
             "Assign media frames to the following passages using ONLY the provided frame schema.\n"
-            "Apply these operational rules strictly:\n"
-            "1) MUST evidence rule: Assign a frame a non-zero probability ONLY if you can quote ≤3 spans from the passage that satisfy at least one of its positive triggers (lexical or semantic) OR clearly match its keywords/definition when triggers are absent in the schema.\n"
+            "Apply these operational rules carefully:\n"
+            "1) Evidence rule: Prefer to quote ≤3 spans that match a frame’s positive triggers or clearly align with its description/keywords, allowing synonyms/paraphrases.\n"
             "2) NEVER rule: If a passage contains an anti-trigger for a frame, that frame's probability MUST be 0.\n"
-            "3) Evidence spans: Provide verbatim quotes from the passage (≤3). Each non-zero frame must be supported by at least one quoted span relevant to that frame.\n"
+            "3) Soft assignment: Unless the passage is clearly out-of-scope or pure boilerplate, assign non-zero probabilities to the best-fit 1–3 frames and provide evidence for each.\n"
             f"4) Top-k: List up to {top_k} frames with the highest non-zero probabilities in 'top_frames'. Do not include frames with 0.\n"
-            "5) Probabilities must be in [0,1]. After applying rules, renormalize non-zero frames so they sum to 1 (round to 2 decimals). If no frame qualifies, set all to 0, leave 'top_frames' and 'evidence_spans' empty, and use rationale 'No applicable frame'.\n"
+            "5) Probabilities must be in [0,1]. After applying rules, renormalize non-zero frames so they sum to 1 (round to 2 decimals). If truly no frame qualifies (out-of-scope/boilerplate), set all to 0 and leave 'top_frames' empty.\n"
             "6) Scope: Use only the given passage text; do not infer external facts.\n\n"
             "OUTPUT FORMAT (JSON array): Each element is:\n"
             "{ \"passage_id\": str,\n"
@@ -220,7 +221,8 @@ class LLMFrameApplicator:
                     "You assign media frames to passages. "
                     "Respond with JSON only; do not include prose or code fences. "
                     "Use evidence from the passage text. "
-                    "Abstention is acceptable: if no frame fits, set all probabilities to 0."
+                    "Abstain only if the passage is clearly out-of-scope for the domain or pure boilerplate/navigation. "
+                    "Otherwise choose the best-fitting frames and distribute probabilities proportionally."
                 ),
             },
             {"role": "user", "content": user_prompt},
@@ -300,7 +302,13 @@ class LLMFrameApplicator:
                 evidence_spans = []
             evidence_clean = [str(span).strip() for span in evidence_spans if str(span).strip()]
 
-            metadata = {"doc_id": passage_id.split(":", 1)[0]}
+            corpus_name, local_doc_id, _ = split_passage_id(passage_id)
+            metadata = {
+                "doc_id": local_doc_id,
+                "global_doc_id": make_global_doc_id(corpus_name, local_doc_id) if corpus_name else local_doc_id,
+            }
+            if corpus_name:
+                metadata["corpus"] = corpus_name
             assignment = FrameAssignment(
                 passage_id=passage_id,
                 passage_text=batch_lookup[passage_id],

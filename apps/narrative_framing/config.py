@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
@@ -36,16 +36,22 @@ class NarrativeFramingConfig:
     """Typed configuration for the narrative framing workflow."""
 
     corpus: str = DEFAULT_CORPUS_NAME
+    corpora: Optional[List[str]] = None
     corpora_root: Path = DEFAULT_CORPORA_ROOT
     workspace_root: Path = DEFAULT_WORKSPACE_ROOT
     domain: str = "India coal media coverage"
     llm_model: str = DEFAULT_LLM_MODEL  # Deprecated: use induction_model and application_model
     induction_model: str = DEFAULT_INDUCTION_MODEL
     application_model: str = DEFAULT_APPLICATION_MODEL
+    induction_frame_target: str = "between 5 and 10"
     induction_temperature: Optional[float] = None  # None = use model default
     application_temperature: Optional[float] = None  # None = use model default
     seed: int = DEFAULT_SEED
     filter_keywords: Optional[List[str]] = field(default_factory=lambda: ["coal"])
+    # Content filtering (optional)
+    filter_exclude_regex: Optional[List[str]] = None
+    filter_exclude_min_hits: Optional[Dict[str, int]] = None  # e.g., {"share price": 3}
+    filter_trim_after_markers: Optional[List[str]] = None  # strings after which to trim tail
     target_words: int = DEFAULT_TARGET_WORDS
     induction_sample_size: int = DEFAULT_INDUCTION_SAMPLE
     application_sample_size: int = DEFAULT_APPLICATION_SAMPLE
@@ -64,6 +70,7 @@ class NarrativeFramingConfig:
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
     induction_guidance: Optional[str] = None
     classifier_corpus_sample_size: Optional[int] = None
+    sampling_policy: str = "equal"
 
     def normalize(self) -> None:
         """Normalize derived fields after loading from disk."""
@@ -73,8 +80,44 @@ class NarrativeFramingConfig:
         if self.induction_guidance is not None:
             stripped = self.induction_guidance.strip()
             self.induction_guidance = stripped if stripped else None
+        # Normalize filtering fields
+        if self.filter_exclude_regex is not None:
+            self.filter_exclude_regex = [str(p).strip() for p in self.filter_exclude_regex if str(p).strip()]
+            if not self.filter_exclude_regex:
+                self.filter_exclude_regex = None
+        if self.filter_exclude_min_hits is not None:
+            cleaned: Dict[str, int] = {}
+            for k, v in self.filter_exclude_min_hits.items():
+                key = str(k).strip()
+                try:
+                    val = int(v)
+                except Exception:
+                    continue
+                if key and val >= 1:
+                    cleaned[key] = val
+            self.filter_exclude_min_hits = cleaned or None
+        if self.filter_trim_after_markers is not None:
+            self.filter_trim_after_markers = [str(m).strip() for m in self.filter_trim_after_markers if str(m).strip()]
+            if not self.filter_trim_after_markers:
+                self.filter_trim_after_markers = None
         if self.classifier_corpus_sample_size is not None and self.classifier_corpus_sample_size <= 0:
             self.classifier_corpus_sample_size = None
+        if self.corpora is not None:
+            self.corpora = [str(item).strip() for item in self.corpora if str(item).strip()]
+            if not self.corpora:
+                self.corpora = None
+        self.sampling_policy = (self.sampling_policy or "equal").strip().lower()
+        if self.sampling_policy not in {"equal", "proportional"}:
+            raise ValueError(
+                f"Unsupported sampling_policy '{self.sampling_policy}'. Expected 'equal' or 'proportional'."
+            )
+
+    def iter_corpus_names(self) -> Iterable[str]:
+        if self.corpora:
+            for name in self.corpora:
+                yield name
+        else:
+            yield self.corpus
 
 
 def _as_path(value: Optional[Any]) -> Optional[Path]:
@@ -106,7 +149,13 @@ def load_config(path: Path) -> NarrativeFramingConfig:
 
     config = NarrativeFramingConfig()
     if "corpus" in data:
-        config.corpus = str(data["corpus"])
+        raw_corpus = data["corpus"]
+        if isinstance(raw_corpus, (list, tuple)):
+            config.corpora = [str(item) for item in raw_corpus]
+            if config.corpora:
+                config.corpus = config.corpora[0]
+        else:
+            config.corpus = str(raw_corpus)
     if "corpora_root" in data:
         config.corpora_root = Path(data["corpora_root"])
     if "workspace_root" in data:
@@ -117,6 +166,10 @@ def load_config(path: Path) -> NarrativeFramingConfig:
         config.induction_model = str(data["induction_model"])
     if "application_model" in data:
         config.application_model = str(data["application_model"])
+    if "induction_frame_target" in data:
+        # Accept int or string in YAML, store as string
+        raw = data["induction_frame_target"]
+        config.induction_frame_target = str(raw) if raw is not None else config.induction_frame_target
     if "induction_temperature" in data:
         config.induction_temperature = float(data["induction_temperature"]) if data["induction_temperature"] is not None else None
     if "application_temperature" in data:
@@ -129,6 +182,28 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.filter_keywords = None
         else:
             config.filter_keywords = [str(item) for item in keywords]
+    if "filter_exclude_regex" in data:
+        patterns = data["filter_exclude_regex"]
+        if patterns is None:
+            config.filter_exclude_regex = None
+        else:
+            config.filter_exclude_regex = [str(item) for item in patterns]
+    if "filter_exclude_min_hits" in data:
+        mapping = data["filter_exclude_min_hits"] or {}
+        if isinstance(mapping, dict):
+            parsed: Dict[str, int] = {}
+            for k, v in mapping.items():
+                try:
+                    parsed[str(k)] = int(v)
+                except Exception:
+                    continue
+            config.filter_exclude_min_hits = parsed
+    if "filter_trim_after_markers" in data:
+        markers = data["filter_trim_after_markers"]
+        if markers is None:
+            config.filter_trim_after_markers = None
+        else:
+            config.filter_trim_after_markers = [str(item) for item in markers]
     if "target_words" in data:
         config.target_words = int(data["target_words"])
     if "induction_sample_size" in data:
@@ -168,6 +243,8 @@ def load_config(path: Path) -> NarrativeFramingConfig:
     if "classifier_corpus_sample_size" in data:
         value = data["classifier_corpus_sample_size"]
         config.classifier_corpus_sample_size = int(value) if value is not None else None
+    if "sampling_policy" in data:
+        config.sampling_policy = str(data["sampling_policy"]).strip().lower()
 
     if config.reload_results:
         if "reload_induction" not in data:

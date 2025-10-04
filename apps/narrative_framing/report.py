@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import base64
 import html
+import json
+import textwrap
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import math
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -21,18 +26,19 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+from apps.narrative_framing.aggregation import DocumentFrameAggregate
 from efi_analyser.frames import FrameAssignment, FrameSchema
 
 _PALETTE = [
-    "#4F8EF7",
-    "#F78E4F",
-    "#6CCB5F",
-    "#C678DD",
-    "#F7C84F",
-    "#4FC7F7",
-    "#F76F8E",
-    "#8E9BF7",
-    "#4FF7B6",
+    "#1E3D58",
+    "#057D9F",
+    "#F18F01",
+    "#A23B72",
+    "#6C63FF",
+    "#3A7D44",
+    "#F45B69",
+    "#0E7C7B",
+    "#F2A541",
 ]
 
 
@@ -107,12 +113,13 @@ def _plot_precision_recall_bars(metrics: Dict[str, Dict[str, float]], frame_name
     recalls = [metrics[f]['recall'] for f in frames]
     colors = [color_map.get(f, '#4F8EF7') for f in frames]
     labels = [frame_names.get(f, f) for f in frames]
+    wrapped_labels = [textwrap.fill(label, 18) for label in labels]
     
     # Precision bars
     y_pos = np.arange(len(frames))
     bars1 = ax1.barh(y_pos, precisions, color=colors, alpha=0.8)
     ax1.set_yticks(y_pos)
-    ax1.set_yticklabels(labels, fontsize=10)
+    ax1.set_yticklabels(wrapped_labels, fontsize=10)
     ax1.set_xlabel('Precision', fontsize=12)
     ax1.set_title('Precision by Frame', fontsize=14, fontweight='bold')
     ax1.set_xlim(0, 1)
@@ -126,7 +133,7 @@ def _plot_precision_recall_bars(metrics: Dict[str, Dict[str, float]], frame_name
     # Recall bars
     bars2 = ax2.barh(y_pos, recalls, color=colors, alpha=0.8)
     ax2.set_yticks(y_pos)
-    ax2.set_yticklabels(labels, fontsize=10)
+    ax2.set_yticklabels(wrapped_labels, fontsize=10)
     ax2.set_xlabel('Recall', fontsize=12)
     ax2.set_title('Recall by Frame', fontsize=14, fontweight='bold')
     ax2.set_xlim(0, 1)
@@ -137,6 +144,37 @@ def _plot_precision_recall_bars(metrics: Dict[str, Dict[str, float]], frame_name
         ax2.text(val + 0.01, bar.get_y() + bar.get_height()/2, f'{val:.2f}', 
                 va='center', fontsize=9, fontweight='bold')
     
+    plt.tight_layout()
+    return _fig_to_base64(fig)
+
+
+def _plot_auc_bars(metrics: Dict[str, Dict[str, float]], frame_names: Dict[str, str], color_map: Dict[str, str]) -> str:
+    """Create a single bar chart highlighting AUC scores per frame."""
+    frames = list(metrics.keys())
+    auc_scores = [metrics[f]["auc"] for f in frames]
+    labels = [frame_names.get(f, f) for f in frames]
+    colors = [color_map.get(f, "#1E3D58") for f in frames]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.bar(range(len(frames)), auc_scores, color=colors, alpha=0.85)
+    ax.set_xticks(range(len(frames)))
+    ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=10)
+    ax.set_ylim(0, 1)
+    ax.set_ylabel("AUC", fontsize=12)
+    ax.set_title("AUC by Frame", fontsize=14, fontweight="bold")
+    ax.grid(axis="y", alpha=0.25)
+
+    for bar, value in zip(bars, auc_scores):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            value + 0.015,
+            f"{value:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+        )
+
     plt.tight_layout()
     return _fig_to_base64(fig)
 
@@ -398,21 +436,32 @@ def _fig_to_base64(fig) -> str:
     return image_base64
 
 
-def _generate_metrics_table_rows(metrics: Dict[str, Dict[str, float]], frame_names: Dict[str, str]) -> str:
+def _generate_metrics_table_rows(
+    metrics: Dict[str, Dict[str, float]],
+    frame_names: Dict[str, str],
+    *,
+    include_f1: bool = True,
+) -> str:
     """Generate HTML table rows for metrics display."""
     rows = []
     for frame_id, frame_metrics in metrics.items():
         frame_name = frame_names.get(frame_id, frame_id)
-        rows.append(
-            f"<tr>"
-            f"<td>{html.escape(frame_name)}</td>"
-            f"<td>{frame_metrics['precision']:.3f}</td>"
-            f"<td>{frame_metrics['recall']:.3f}</td>"
-            f"<td>{frame_metrics['f1']:.3f}</td>"
-            f"<td>{frame_metrics['auc']:.3f}</td>"
-            f"<td>{int(frame_metrics['support'])}</td>"
-            f"</tr>"
+        cells = [
+            "<tr>",
+            f"<td>{html.escape(frame_name)}</td>",
+            f"<td>{frame_metrics['precision']:.3f}</td>",
+            f"<td>{frame_metrics['recall']:.3f}</td>",
+        ]
+        if include_f1:
+            cells.append(f"<td>{frame_metrics['f1']:.3f}</td>")
+        cells.extend(
+            [
+                f"<td>{frame_metrics['auc']:.3f}</td>",
+                f"<td>{int(frame_metrics['support'])}</td>",
+                "</tr>",
+            ]
         )
+        rows.append("".join(cells))
     return "".join(rows)
 
 
@@ -426,17 +475,208 @@ def _render_probability_bars(
     prob_bars = []
     sorted_items = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)
     for frame_id, score in sorted_items[:5]:
-        frame_entry = frame_lookup.get(frame_id, {})
-        label = frame_entry.get("short", frame_id)
         width = max(2, int(score * 100))
         color = color_map.get(frame_id, "#4F8EF7")
         prob_bars.append(
             "<div class=\"bar\">"
             f"<div class=\"fill\" style=\"width:{width}%; background:{color};\"></div>"
-            f"<span>{html.escape(label)} ({score:.2f})</span>"
             "</div>"
         )
     return "".join(prob_bars) if prob_bars else "—"
+
+
+def _render_plotly_fragment(
+    div_id: str,
+    data: Sequence[Dict[str, object]],
+    layout: Dict[str, object],
+    *,
+    config: Optional[Dict[str, object]] = None,
+) -> str:
+    if not data:
+        return ""
+    config = config or {"displayModeBar": False, "responsive": True}
+    data_json = json.dumps(data, ensure_ascii=False)
+    layout_json = json.dumps(layout, ensure_ascii=False)
+    config_json = json.dumps(config, ensure_ascii=False)
+    return (
+        f'<div id="{div_id}" class="plotly-chart"></div>'
+        "<script>(function(){"
+        f"var data = {data_json};"
+        f"var layout = {layout_json};"
+        f"var config = {config_json};"
+        f"Plotly.newPlot('{div_id}', data, layout, config);"
+        "})();</script>"
+    )
+
+
+def _hex_to_rgba(hex_color: str, alpha: float) -> str:
+    value = hex_color.lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    try:
+        r = int(value[0:2], 16)
+        g = int(value[2:4], 16)
+        b = int(value[4:6], 16)
+    except ValueError:
+        r = g = b = 0
+    alpha = max(0.0, min(alpha, 1.0))
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def _render_plotly_timeseries(
+    records: Optional[Sequence[Dict[str, object]]],
+    frame_lookup: Dict[str, Dict[str, str]],
+    color_map: Dict[str, str],
+) -> str:
+    if not records:
+        return ""
+
+    series: Dict[str, List[Tuple[str, float]]] = {}
+    for item in records:
+        frame_id = str(item.get("frame_id"))
+        date_value = item.get("date")
+        if not frame_id or not date_value:
+            continue
+        share_value = item.get("share")
+        if share_value is None:
+            share_value = item.get("avg_score", 0.0)
+        try:
+            share = float(share_value)
+        except (TypeError, ValueError):
+            share = 0.0
+        series.setdefault(frame_id, []).append((str(date_value), share))
+
+    if not series:
+        return ""
+
+    traces: List[Dict[str, object]] = []
+    for frame_id, points in series.items():
+        points.sort(key=lambda entry: entry[0])
+        dates = [entry[0] for entry in points]
+        values = [entry[1] for entry in points]
+        if len(points) > 1:
+            df = pd.DataFrame({"date": dates, "share": values})
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.dropna(subset=["date"]).sort_values("date")
+            if df.empty:
+                continue
+            df["smooth"] = df["share"].rolling(window=30, min_periods=1).mean()
+            x_vals = df["date"].dt.strftime("%Y-%m-%d").tolist()
+            y_vals = df["smooth"].clip(0, 1).round(5).tolist()
+        else:
+            x_vals = dates
+            y_vals = [round(max(min(v, 1.0), 0.0), 5) for v in values]
+        label = frame_lookup.get(frame_id, {}).get("short") or frame_lookup.get(frame_id, {}).get("name") or frame_id
+        base_color = color_map.get(frame_id, "#1E3D58")
+        traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "name": label,
+                "x": x_vals,
+                "y": y_vals,
+                "stackgroup": "one",
+                "line": {"color": _hex_to_rgba(base_color, 0.05), "width": 0.0001},
+                "fillcolor": _hex_to_rgba(base_color, 0.6),
+                "hovertemplate": "%{x}<br>%{y:.2%}<extra>" + label + "</extra>",
+            }
+        )
+
+    layout = {
+        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
+        "yaxis": {"tickformat": ".0%", "title": "Share", "range": [0, 1]},
+        "xaxis": {"title": "Date"},
+        "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+        "hovermode": "x unified",
+        "height": 520,
+    }
+
+    return _render_plotly_fragment("time-series-chart", traces, layout)
+
+
+def _render_plotly_domain_counts(
+    domain_counts: Optional[Sequence[Tuple[str, int]]],
+) -> str:
+    if not domain_counts:
+        return ""
+    top_entries = domain_counts[:20]
+    if not top_entries:
+        return ""
+
+    domains = [name for name, _ in top_entries]
+    values = [int(count) for _, count in top_entries]
+
+    traces = [
+        {
+            "type": "bar",
+            "orientation": "h",
+            "y": domains[::-1],
+            "x": values[::-1],
+            "marker": {"color": "#057d9f"},
+            "hovertemplate": "%{y}<br>%{x} documents<extra></extra>",
+        }
+    ]
+
+    layout = {
+        "margin": {"l": 120, "r": 30, "t": 20, "b": 40},
+        "xaxis": {"title": "Documents"},
+        "yaxis": {"title": "Domain"},
+        "height": max(320, 32 * len(top_entries)),
+    }
+    return _render_plotly_fragment("domain-counts-chart", traces, layout)
+
+
+def _extract_domain_from_url(url: Optional[str]) -> str:
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    netloc = parsed.netloc or parsed.path
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    return netloc.lower()
+
+
+def _format_date_label(raw: Optional[str]) -> str:
+    if not raw:
+        return ""
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        return raw
+    return dt.strftime("%d %b %Y")
+
+
+def _collect_top_stories_by_frame(
+    document_aggregates: Optional[Sequence[DocumentFrameAggregate]],
+    *,
+    top_n: int = 3,
+) -> Dict[str, List[Dict[str, object]]]:
+    top_stories: Dict[str, List[Dict[str, object]]] = {}
+    if not document_aggregates:
+        return top_stories
+
+    for aggregate in document_aggregates:
+        for frame_id, score in aggregate.frame_scores.items():
+            value = float(score)
+            if value <= 0:
+                continue
+            stories = top_stories.setdefault(frame_id, [])
+            stories.append(
+                {
+                    "score": value,
+                    "title": aggregate.title or aggregate.doc_id,
+                    "url": aggregate.url or "",
+                    "published_at": aggregate.published_at or "",
+                    "doc_id": aggregate.doc_id,
+                    "domain": _extract_domain_from_url(aggregate.url),
+                }
+            )
+
+    for frame_id, stories in top_stories.items():
+        stories.sort(key=lambda item: item["score"], reverse=True)
+        top_stories[frame_id] = stories[: max(1, top_n)]
+
+    return top_stories
 
 
 def write_html_report(
@@ -453,6 +693,8 @@ def write_html_report(
     include_classifier_plots: bool = True,
     domain_counts: Optional[Sequence[Tuple[str, int]]] = None,
     domain_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
+    document_aggregates: Optional[Sequence[DocumentFrameAggregate]] = None,
+    corpus_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
 
@@ -472,152 +714,68 @@ def write_html_report(
         try:
             frame_ids = [frame.frame_id for frame in schema.frames]
             frame_names = {frame.frame_id: frame.name for frame in schema.frames}
-            
-            # Compute metrics
-            metrics = _compute_classifier_metrics(assignments, frame_ids, classifier_lookup=classifier_lookup)
-            
-            # Generate plots
+
+            metrics = _compute_classifier_metrics(
+                assignments,
+                frame_ids,
+                classifier_lookup=classifier_lookup,
+            )
             precision_recall_b64 = _plot_precision_recall_bars(metrics, frame_names, color_map)
-            confusion_matrix_b64 = _plot_confusion_matrix(assignments, frame_ids, frame_names, classifier_lookup=classifier_lookup)
-            roc_curves_b64 = _plot_roc_curves(assignments, frame_ids, frame_names, color_map, classifier_lookup=classifier_lookup)
-            performance_dashboard_b64 = _plot_performance_dashboard(metrics, frame_names, color_map)
-            
-            # Create HTML for classifier performance section
-            classifier_plots_html = f"""
-            <div class="classifier-performance">
-                <h3>Classifier Performance Analysis</h3>
-                
-                <div class="performance-grid">
-                    <div class="plot-container">
-                        <h4>Precision & Recall by Frame</h4>
-                        <img src="data:image/png;base64,{precision_recall_b64}" alt="Precision and Recall by Frame" style="width: 100%; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 6px;" />
-                    </div>
-                    
-                    <div class="plot-container">
-                        <h4>Performance Dashboard</h4>
-                        <img src="data:image/png;base64,{performance_dashboard_b64}" alt="Performance Dashboard" style="width: 100%; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 6px;" />
-                    </div>
-                    
-                    <div class="plot-container">
-                        <h4>Confusion Matrix</h4>
-                        <img src="data:image/png;base64,{confusion_matrix_b64}" alt="Confusion Matrix" style="width: 100%; max-width: 400px; border: 1px solid #e0e0e0; border-radius: 6px;" />
-                    </div>
-                    
-                    <div class="plot-container">
-                        <h4>ROC Curves by Frame</h4>
-                        <img src="data:image/png;base64,{roc_curves_b64}" alt="ROC Curves by Frame" style="width: 100%; max-width: 500px; border: 1px solid #e0e0e0; border-radius: 6px;" />
-                    </div>
-                </div>
-                
-                <div class="metrics-table">
-                    <h4>Detailed Metrics by Frame</h4>
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Frame</th>
-                                <th>Precision</th>
-                                <th>Recall</th>
-                                <th>F1 Score</th>
-                                <th>AUC</th>
-                                <th>Support</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {_generate_metrics_table_rows(metrics, frame_names)}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            """
-        except Exception as e:
-            classifier_plots_html = f"""
-            <div class="classifier-performance">
-                <h3>Classifier Performance Analysis</h3>
-                <p style="color: #d32f2f;">Error generating classifier performance plots: {html.escape(str(e))}</p>
-            </div>
-            """
 
-    legend_items = []
-    for frame in schema.frames:
-        color = color_map.get(frame.frame_id, "#4F8EF7")
-        short_label = frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
-        legend_items.append(
-            "<li>"
-            f"<span class=\"legend-swatch\" style=\"background:{color};\"></span>"
-            f"<strong>{html.escape(short_label)}</strong> — {html.escape(frame.name)}"
-            "</li>"
-        )
-
-    frame_share_rows = []
-    if global_frame_share:
-        ordered_share = sorted(global_frame_share.items(), key=lambda item: item[1], reverse=True)
-        for frame_id, value in ordered_share:
-            label = frame_lookup.get(frame_id, {}).get("name", frame_id)
-            frame_share_rows.append(
-                "<tr>"
-                f"<td>{html.escape(label)}</td>"
-                f"<td>{frame_id}</td>"
-                f"<td>{value:.2%}</td>"
-                "</tr>"
-            )
-
-    coverage_text = """No documents were classified."""
-    if classified_documents > 0:
-        coverage_text = f"Classifier applied to {classified_documents} documents."
-        if classifier_sample_limit:
-            coverage_text += f" Target sample: {classifier_sample_limit}."
-
-    domain_counts_chart_html = ""
-    domain_distribution_chart_html = ""
-    domain_counts_table_html = ""
-
-    if domain_counts:
-        domain_counts_chart_b64 = _plot_domain_counts_bar(domain_counts[:20])
-        if domain_counts_chart_b64:
-            domain_counts_chart_html = (
-                "<figure class=\"chart\">"
-                f"<img src=\"data:image/png;base64,{domain_counts_chart_b64}\" alt=\"Top domains by document count\" />"
-                "<figcaption>Top domains ranked by number of classified documents.</figcaption>"
-                "</figure>"
-            )
-        rows = []
-        for domain, count in domain_counts[:20]:
-            rows.append(
-                "<tr>"
-                f"<td>{html.escape(domain)}</td>"
-                f"<td>{count}</td>"
-                "</tr>"
-            )
-        if rows:
-            domain_counts_table_html = (
-                "<div class=\"domain-table\">"
+            classifier_plots_html = (
+                "<h3>Classifying Results</h3>"
+                "<div class=\"card chart-card\">"
+                "<h4>Precision &amp; Recall</h4>"
+                f"<img src=\"data:image/png;base64,{precision_recall_b64}\" alt=\"Precision and Recall by Frame\" />"
+                "</div>"
+                "<div class=\"card metrics-card\">"
+                "<h4>Frame-level metrics</h4>"
                 "<table class=\"summary-table\">"
-                "<thead><tr><th>Domain</th><th>Documents</th></tr></thead>"
-                f"<tbody>{''.join(rows)}</tbody>"
+                "<thead><tr><th>Frame</th><th>Precision</th><th>Recall</th><th>F1 Score</th><th>AUC</th><th>Support</th></tr></thead>"
+                f"<tbody>{_generate_metrics_table_rows(metrics, frame_names)}</tbody>"
                 "</table>"
                 "</div>"
             )
+        except Exception as exc:
+            classifier_plots_html = f"""
+            <h3>Classifying Results</h3>
+            <div class="card chart-card">
+                <p class="error-note">Error generating classifier performance plots: {html.escape(str(exc))}</p>
+            </div>
+            """
 
-    if domain_frame_summaries:
-        ordered_domain_frames = [entry for entry in domain_frame_summaries if entry.get("shares")]
-        if ordered_domain_frames:
-            domain_frame_chart_b64 = _plot_domain_frame_facets(ordered_domain_frames, frame_lookup, color_map)
-            if domain_frame_chart_b64:
-                domain_distribution_chart_html = (
-                    "<figure class=\"chart\">"
-                    f"<img src=\"data:image/png;base64,{domain_frame_chart_b64}\" alt=\"Frame distribution by domain\" />"
-                    "<figcaption>Frame score distribution for the top domains. Each subplot shows average frame scores across documents from that domain.</figcaption>"
-                    "</figure>"
-                )
+    frame_cards: List[str] = []
+    for frame in schema.frames:
+        color = color_map.get(frame.frame_id, "#1E3D58")
+        short_label = frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
+        share_badge = ""
+        if global_frame_share and frame.frame_id in global_frame_share:
+            share_value = max(0.0, float(global_frame_share[frame.frame_id]))
+            share_badge = f"<span class=\"share-badge\">{share_value * 100:.0f}%</span>"
+        card_parts = [
+            f"<article class=\"frame-card\" style=\"--accent-color:{color};\">",
+            share_badge,
+            f"<h3>{html.escape(short_label)}</h3>",
+            f"<p class=\"frame-card-title\">{html.escape(frame.name)}</p>",
+        ]
+        if frame.description:
+            card_parts.append(
+                f"<p class=\"frame-card-text\">{html.escape(frame.description)}</p>"
+            )
+        if frame.keywords:
+            card_parts.append(
+                f"<p class=\"frame-card-meta\"><strong>Keywords:</strong> {html.escape(', '.join(frame.keywords))}</p>"
+            )
+        if frame.examples:
+            card_parts.append(
+                f"<p class=\"frame-card-meta\"><strong>Examples:</strong> {html.escape('; '.join(frame.examples[:2]))}</p>"
+            )
+        card_parts.append("</article>")
+        frame_cards.append("".join(card_parts))
 
-    chart_html = ""
-    if area_chart_b64:
-        chart_html = (
-            "<figure class=\"chart\">"
-            f"<img src=\"data:image/png;base64,{area_chart_b64}\" alt=\"Frame importance over time\" />"
-            "<figcaption>Frame share over time (stacked area chart).</figcaption>"
-            "</figure>"
-        )
+    coverage_text = "No documents were classified."
+    if classified_documents > 0:
+        coverage_text = f"Classifier applied to {classified_documents} documents."
 
     timeseries_note = ""
     if timeseries_records:
@@ -625,61 +783,45 @@ def write_html_report(
         if date_values:
             start = min(date_values)
             end = max(date_values)
-            timeseries_note = f"Data covers {html.escape(start)} to {html.escape(end)}."
+            start_label = _format_date_label(start)
+            end_label = _format_date_label(end)
+            if start_label and end_label:
+                timeseries_note = f"{start_label} – {end_label}"
+            else:
+                timeseries_note = f"Data covers {html.escape(start)} to {html.escape(end)}."
 
-    document_summary_sections: List[str] = []
-    document_summary_sections.append(f"<p>{coverage_text}</p>")
-    if timeseries_note:
-        document_summary_sections.append(f"<p>{timeseries_note}</p>")
-    if frame_share_rows:
-        document_summary_sections.append(
-            "<div class=\"frame-share\">"
-            "<h3>Length-weighted frame distribution</h3>"
-            "<table class=\"summary-table\">"
-            "<thead><tr><th>Frame</th><th>ID</th><th>Share</th></tr></thead>"
-            f"<tbody>{''.join(frame_share_rows)}</tbody>"
-            "</table>"
-            "</div>"
+    timeseries_chart_html = _render_plotly_timeseries(timeseries_records, frame_lookup, color_map)
+    if not timeseries_chart_html and area_chart_b64:
+        timeseries_chart_html = (
+            "<figure class=\"chart\">"
+            f"<img src=\"data:image/png;base64,{area_chart_b64}\" alt=\"Frame share over time\" />"
+            "<figcaption>Frame share over time (stacked area chart).</figcaption>"
+            "</figure>"
         )
-    if domain_counts_chart_html or domain_counts_table_html or domain_distribution_chart_html:
-        domain_section_parts = [
-            "<div class=\"domain-stats\">",
-            "<h3>Source domain analysis</h3>",
-        ]
-        if domain_counts_chart_html:
-            domain_section_parts.append(domain_counts_chart_html)
-        if domain_counts_table_html:
-            domain_section_parts.append(domain_counts_table_html)
-        if domain_distribution_chart_html:
-            domain_section_parts.append(domain_distribution_chart_html)
-        domain_section_parts.append("</div>")
-        document_summary_sections.append("".join(domain_section_parts))
-    if chart_html:
-        document_summary_sections.append(chart_html)
-    
-    # Add classifier performance plots
-    if classifier_plots_html:
-        document_summary_sections.append(classifier_plots_html)
 
-    summary_html = "".join(document_summary_sections) if document_summary_sections else "<p>No classifier summary available.</p>"
+    domain_counts_chart_html = _render_plotly_domain_counts(domain_counts)
+    if not domain_counts_chart_html and domain_counts:
+        domain_counts_b64 = _plot_domain_counts_bar(domain_counts[:20])
+        if domain_counts_b64:
+            domain_counts_chart_html = (
+                "<figure class=\"chart\">"
+                f"<img src=\"data:image/png;base64,{domain_counts_b64}\" alt=\"Top domains by document count\" />"
+                "<figcaption>Top domains ranked by number of classified documents.</figcaption>"
+                "</figure>"
+            )
 
-    details_sections = []
-    for frame in schema.frames:
-        section_parts = [
-            "<section class=\"frame-detail\">",
-            f"<h3>{html.escape(frame.short_name or frame.frame_id)} — {html.escape(frame.name)}</h3>",
-            f"<p>{html.escape(frame.description)}</p>",
-        ]
-        if frame.keywords:
-            section_parts.append(
-                f"<p><strong>Keywords:</strong> {html.escape(', '.join(frame.keywords))}</p>"
-            )
-        if frame.examples:
-            section_parts.append(
-                f"<p><strong>Examples:</strong> {html.escape('; '.join(frame.examples[:2]))}</p>"
-            )
-        section_parts.append("</section>")
-        details_sections.append("".join(section_parts))
+    domain_frame_chart_html = ""
+    if domain_frame_summaries:
+        ordered_domain_frames = [entry for entry in domain_frame_summaries if entry.get("shares")]
+        if ordered_domain_frames:
+            domain_frame_b64 = _plot_domain_frame_facets(ordered_domain_frames, frame_lookup, color_map)
+            if domain_frame_b64:
+                domain_frame_chart_html = (
+                    "<figure class=\"chart\">"
+                    f"<img src=\"data:image/png;base64,{domain_frame_b64}\" alt=\"Frame distribution by domain\" />"
+                    "<figcaption>Frame score distribution for the top domains. Each subplot shows average frame scores across documents from that domain.</figcaption>"
+                    "</figure>"
+                )
 
     rows = []
     for assignment in assignments:
@@ -733,112 +875,599 @@ def write_html_report(
 
     table_html = "\n".join(rows) if rows else "<tr><td colspan=5>No assignments available</td></tr>"
 
+    frame_cards_html = (
+        f"<div class=\"frame-card-grid\">{''.join(frame_cards)}</div>"
+        if frame_cards
+        else "<p class=\"empty-note\">Schema does not define any frames.</p>"
+    )
+
+    frames_section_html = f"""
+        <section class=\"report-section\" id=\"frames\">
+            <header class=\"section-heading\">
+                <h2>Frames</h2>
+                <p>Schema definition and guidance.</p>
+            </header>
+            <div class=\"section-body frames-body\">
+                {frame_cards_html}
+            </div>
+        </section>
+    """
+
+    time_series_section_html = ""
+    if timeseries_note or timeseries_chart_html:
+        note_parts: List[str] = []
+        if timeseries_note:
+            note_parts.append(html.escape(timeseries_note))
+        note_parts.append("30-day rolling average of frame share.")
+        note_html = f"<p class=\"section-note\">{' • '.join(note_parts)}</p>"
+        chart_block = (
+            f"<div class=\"card chart-card\">{timeseries_chart_html}</div>"
+            if timeseries_chart_html
+            else "<div class=\"card chart-card\"><p class=\"empty-note\">Not enough data to show the time series.</p></div>"
+        )
+        time_series_section_html = f"""
+        <section class=\"report-section\" id=\"time-series\">
+            <header class=\"section-heading\">
+                <h2>Time Series</h2>
+                <p>Frame share momentum across the observation window.</p>
+            </header>
+            <div class=\"section-body\">
+                {note_html}
+                {chart_block}
+            </div>
+        </section>
+        """
+
+    domain_counts_card = ""
+    if domain_counts_chart_html:
+        domain_counts_card = (
+            "<div class=\"card chart-card\">"
+            "<h3>Top Media Sources</h3>"
+            f"{domain_counts_chart_html}"
+            "<p class=\"chart-note\">Classified document counts for the leading domains.</p>"
+            "</div>"
+        )
+
+    domain_distribution_card = ""
+    if domain_frame_chart_html:
+        domain_distribution_card = (
+            "<div class=\"card chart-card\">"
+            "<h3>Frame Mix by Source</h3>"
+            f"{domain_frame_chart_html}"
+            "<p class=\"chart-note\">Average frame shares across the top domains.</p>"
+            "</div>"
+        )
+
+    media_tiles = [tile for tile in [domain_counts_card, domain_distribution_card] if tile]
+    top_media_section_html = ""
+    if media_tiles:
+        top_media_section_html = f"""
+        <section class=\"report-section\" id=\"top-media\">
+            <header class=\"section-heading\">
+                <h2>Top Media &amp; Their Frames</h2>
+                <p>Publishing concentration and frame emphasis across leading outlets.</p>
+            </header>
+            <div class=\"section-body media-body\">
+                {''.join(media_tiles)}
+            </div>
+        </section>
+        """
+
+    top_stories_by_frame = _collect_top_stories_by_frame(document_aggregates)
+    story_cards: List[str] = []
+    for frame in schema.frames:
+        stories = top_stories_by_frame.get(frame.frame_id)
+        if not stories:
+            continue
+        color = color_map.get(frame.frame_id, "#1E3D58")
+        items: List[str] = []
+        for idx, story in enumerate(stories, start=1):
+            title_value = str(story.get("title") or f"Story {idx}")
+            title = html.escape(title_value)
+            url_value = str(story.get("url") or "").strip()
+            title_html = (
+                f"<a href=\"{html.escape(url_value)}\" target=\"_blank\" rel=\"noopener noreferrer\">{title}</a>"
+                if url_value
+                else title
+            )
+            meta_parts: List[str] = []
+            domain_label = str(story.get("domain") or "").strip()
+            if domain_label:
+                meta_parts.append(html.escape(domain_label))
+            date_label = _format_date_label(str(story.get("published_at") or ""))
+            if date_label:
+                meta_parts.append(html.escape(date_label))
+            meta_html = f"<div class=\"story-meta\">{' • '.join(meta_parts)}</div>" if meta_parts else ""
+            score_pct = f"{float(story.get('score', 0.0)) * 100:.0f}%"
+            items.append(
+                "<li>"
+                f"<div class=\"story-rank\">{idx}</div>"
+                "<div class=\"story-content\">"
+                f"<div class=\"story-title\">{title_html}</div>"
+                f"{meta_html}"
+                f"<div class=\"story-score\">{score_pct} frame weight</div>"
+                "</div>"
+                "</li>"
+            )
+        short_label = frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
+        story_cards.append(
+            "<article class=\"story-card\" style=\"--accent-color:" + color + ";\">"
+            f"<header><h3>{html.escape(short_label)}</h3><p>{html.escape(frame.name)}</p></header>"
+            f"<ol class=\"story-list\">{''.join(items)}</ol>"
+            "</article>"
+        )
+
+    top_stories_section_html = ""
+    if story_cards:
+        top_stories_section_html = f"""
+        <section class=\"report-section\" id=\"top-stories\">
+            <header class=\"section-heading\">
+                <h2>Top Stories per Frame</h2>
+                <p>Leading documents aligned to each frame based on length-weighted shares.</p>
+            </header>
+            <div class=\"section-body story-grid\">
+                {''.join(story_cards)}
+            </div>
+        </section>
+        """
+
+    applications_block = f"""
+    <div class=\"developer-block\">
+        <h3>Applications</h3>
+        <div class=\"card table-card\">
+            <div class=\"table-wrapper\">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Passage Text<div class=\"resizer\"></div></th>
+                            <th>LLM Probabilities<div class=\"resizer\"></div></th>
+                            <th>Classifier Probabilities<div class=\"resizer\"></div></th>
+                            <th>Rationale<div class=\"resizer\"></div></th>
+                            <th>Evidence<div class=\"resizer\"></div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {table_html}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    """
+
+    developer_components: List[str] = []
+    if classifier_plots_html:
+        developer_components.append(f"<div class=\"developer-block\">{classifier_plots_html}</div>")
+    developer_components.append(applications_block)
+
+    developer_section_html = ""
+    if developer_components:
+        developer_section_html = f"""
+        <section class=\"report-section developer\" id=\"developer\">
+            <header class=\"section-heading\">
+                <h2>Developer</h2>
+                <p>Diagnostics and passage-level review for future iteration.</p>
+            </header>
+            {''.join(developer_components)}
+        </section>
+        """
+
+    header_metrics = (
+        "<div class=\"header-metrics\">"
+        f"<div class=\"metric\"><span class=\"metric-value\">{len(schema.frames)}</span><span class=\"metric-label\">Frames</span></div>"
+        f"<div class=\"metric\"><span class=\"metric-value\">{classified_documents}</span><span class=\"metric-label\">Documents</span></div>"
+        f"<div class=\"metric\"><span class=\"metric-value\">{len(assignments)}</span><span class=\"metric-label\">Passages</span></div>"
+        "</div>"
+    )
+    timeline_html = f"<p class=\"timeline-note\">{html.escape(timeseries_note)}</p>" if timeseries_note else ""
+    header_html = f"""
+    <header class=\"report-header\">
+        <div class=\"heading-text\">
+            <span class=\"eyebrow\">Narrative Framing Report</span>
+            <h1>{html.escape(schema.domain)}</h1>
+            <p>{html.escape(coverage_text)}</p>
+            {timeline_html}
+        </div>
+        {header_metrics}
+    </header>
+    """
+
     html_content = f"""
 <!DOCTYPE html>
-<html lang="en">
+<html lang=\"en\">
 <head>
-  <meta charset="utf-8" />
-  <title>Frame Assignments Report</title>
+  <meta charset=\"utf-8\" />
+  <title>Narrative Framing Report - {html.escape(schema.domain)}</title>
+  <script src=\"https://cdn.plot.ly/plotly-2.27.0.min.js\"></script>
   <style>
-    html, body {{ height: 100%; }}
-    body {{ font-family: Arial, sans-serif; margin: 0; padding: 24px; box-sizing: border-box; overflow: auto; }}
-    h1 {{ margin-bottom: 12px; }}
-    h2 {{ margin: 0 0 8px 0; font-size: 1.1rem; }}
-    .summary {{ display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px; }}
-    .summary p {{ margin: 0; font-size: 0.95rem; }}
-    .legend {{ list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 12px; }}
-    .legend li {{ display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }}
-    .legend-swatch {{ width: 14px; height: 14px; border-radius: 2px; display: inline-block; }}
-    .details-grid {{ display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }}
-    .frame-detail {{ border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; background: #fafafa; }}
-    .frame-detail h3 {{ margin: 0 0 6px 0; font-size: 1rem; }}
-    .summary-table {{ border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 0.95rem; }}
-    .summary-table th, .summary-table td {{ border: 1px solid #ddd; padding: 6px 8px; text-align: left; }}
-    .summary-table thead th {{ background: #f5f5f5; position: static; }}
-    .chart {{ display: flex; flex-direction: column; gap: 6px; }}
-    .chart img {{ width: 100%; max-width: 720px; border: 1px solid #e0e0e0; border-radius: 6px; background: #fff; }}
-    .chart figcaption {{ font-size: 0.85rem; color: #555; }}
-    table {{ border-collapse: collapse; width: max(100%, 1200px); table-layout: auto; }}
-    thead th {{ position: sticky; top: 0; background: #f5f5f5; z-index: 2; min-width: 160px; }}
-    th, td {{ border: 1px solid #ddd; padding: 8px; vertical-align: top; }}
-    td.passage {{ white-space: pre-wrap; min-width: 280px; }}
-    .table-wrapper {{ overflow: visible; border: 1px solid #ccc; }}
-    .bar {{ position: relative; background: #f0f0f0; margin-bottom: 6px; height: 24px; border-radius: 4px; overflow: hidden; }}
-    .fill {{ position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.85; }}
-    .bar span {{ position: relative; z-index: 1; padding-left: 6px; line-height: 24px; font-size: 0.9rem; color: #1a1a1a; }}
-    .resizer {{ position: absolute; right: 0; top: 0; width: 6px; cursor: col-resize; user-select: none; height: 100%; }}
-    .link-icon {{ margin-right: 6px; text-decoration: none; font-size: 0.95rem; }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap');
+    :root {{
+      --ink-900: #0f172a;
+      --ink-800: #1e293b;
+      --ink-600: #334155;
+      --ink-500: #475569;
+      --ink-300: #94a3b8;
+      --slate-50: #f7f9fc;
+      --slate-100: #eef2f9;
+      --border: #d3dce7;
+      --accent-1: #1e3d58;
+      --accent-2: #057d9f;
+      --accent-3: #f18f01;
+      --accent-4: #6c63ff;
+      --success: #3a7d44;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      padding: 48px;
+      background: linear-gradient(140deg, var(--slate-50) 0%, #e4edf7 100%);
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      color: var(--ink-800);
+    }}
+    a {{ color: var(--accent-2); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    .report-page {{
+      max-width: 1320px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 28px 68px rgba(15, 23, 42, 0.12);
+      padding: 48px 64px 72px;
+    }}
+    .report-header {{
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+      padding: 36px 40px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent-1) 0%, #0e7c7b 55%, var(--accent-4) 100%);
+      color: #ffffff;
+      margin-bottom: 48px;
+    }}
+    .heading-text h1 {{
+      margin: 8px 0 12px;
+      font-size: 2.25rem;
+      letter-spacing: -0.015em;
+    }}
+    .heading-text p {{ margin: 6px 0 0 0; font-size: 1rem; }}
+    .eyebrow {{
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }}
+    .timeline-note {{
+      margin-top: 10px;
+      font-size: 0.95rem;
+      opacity: 0.85;
+    }}
+    .header-metrics {{
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }}
+    .metric {{ text-align: right; }}
+    .metric-value {{
+      display: block;
+      font-size: 1.9rem;
+      font-weight: 600;
+    }}
+    .metric-label {{
+      font-size: 0.85rem;
+      opacity: 0.85;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }}
+    .report-section {{ margin-bottom: 52px; }}
+    .report-section:last-of-type {{ margin-bottom: 0; }}
+    .section-heading h2 {{
+      margin: 0;
+      font-size: 1.7rem;
+      color: var(--ink-900);
+    }}
+    .section-heading p {{
+      margin: 6px 0 0 0;
+      color: var(--ink-500);
+      font-size: 1rem;
+    }}
+    .section-body {{ margin-top: 26px; }}
+    .section-note {{
+      margin: 0 0 18px 0;
+      font-size: 0.95rem;
+      color: var(--ink-500);
+    }}
+    .frames-body {{
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }}
+    .frame-card-grid {{
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }}
+    .card {{
+      background: linear-gradient(140deg, #ffffff 0%, #f8fbff 100%);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 22px 24px;
+      box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }}
+    .card h4 {{
+      margin: 0;
+      font-size: 1rem;
+      color: var(--ink-600);
+    }}
+    .frame-card {{
+      position: relative;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      padding: 26px 24px;
+      background: #ffffff;
+      box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1);
+      overflow: hidden;
+    }}
+    .frame-card .share-badge {{
+      position: absolute;
+      top: 16px;
+      right: 18px;
+      background: var(--accent-color, var(--accent-2));
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }}
+    .frame-card::before {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(30, 61, 88, 0.08), rgba(5, 125, 159, 0.06));
+      opacity: 0.8;
+      pointer-events: none;
+    }}
+    .frame-card::after {{
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: var(--accent-color, var(--accent-1));
+      opacity: 0.9;
+    }}
+    .frame-card h3 {{
+      position: relative;
+      margin: 0;
+      font-size: 1.15rem;
+      color: var(--accent-1);
+      font-weight: 600;
+    }}
+    .frame-card-title {{
+      position: relative;
+      margin: 6px 0 14px;
+      font-size: 0.95rem;
+      color: var(--ink-600);
+    }}
+    .frame-card-text {{
+      position: relative;
+      margin: 0 0 12px 0;
+      color: var(--ink-600);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }}
+    .frame-card-meta {{
+      position: relative;
+      margin: 0 0 8px 0;
+      font-size: 0.9rem;
+      color: var(--ink-500);
+    }}
+    .frame-card-meta strong {{ color: var(--ink-600); font-weight: 600; margin-right: 6px; }}
+    table {{
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: auto;
+      font-size: 0.92rem;
+    }}
+    thead th {{
+      position: sticky;
+      top: 0;
+      background: var(--slate-100);
+      z-index: 2;
+      text-align: left;
+      font-weight: 600;
+      color: var(--ink-600);
+      padding: 10px 12px;
+    }}
+    th, td {{
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 10px 12px;
+      vertical-align: top;
+    }}
+    td.passage {{ white-space: pre-wrap; min-width: 320px; }}
+    .summary-table th, .summary-table td {{ border-color: rgba(148, 163, 184, 0.4); }}
+    .chart-grid {{
+      display: grid;
+      gap: 22px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      margin-bottom: 24px;
+    }}
+    .chart {{
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }}
+    .chart img {{
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: #ffffff;
+    }}
+    .chart figcaption {{ font-size: 0.85rem; color: var(--ink-500); }}
+    .media-body {{
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }}
+    .chart-note {{
+      margin: 12px 0 0 0;
+      font-size: 0.9rem;
+      color: var(--ink-500);
+    }}
+    .plotly-chart {{
+      width: 100%;
+      min-height: 420px;
+      flex: 1;
+    }}
+    .story-grid {{
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }}
+    .story-card {{
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      padding: 22px 22px 18px;
+      background: #ffffff;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+      position: relative;
+    }}
+    .story-card::after {{
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 4px;
+      background: var(--accent-color, var(--accent-2));
+      border-radius: 10px 10px 0 0;
+    }}
+    .story-card header {{ margin-bottom: 14px; }}
+    .story-card h3 {{
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--accent-color, var(--accent-2));
+    }}
+    .story-card header p {{
+      margin: 4px 0 0 0;
+      color: var(--ink-500);
+      font-size: 0.9rem;
+    }}
+    .story-list {{
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }}
+    .story-list li {{
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 12px;
+      align-items: start;
+    }}
+    .story-rank {{
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--accent-color, var(--accent-2));
+      text-align: center;
+      padding-top: 2px;
+    }}
+    .story-title {{ font-weight: 600; color: var(--ink-800); font-size: 0.95rem; }}
+    .story-meta {{ font-size: 0.85rem; color: var(--ink-500); margin: 6px 0; }}
+    .story-score {{ font-size: 0.85rem; color: var(--accent-color, var(--accent-2)); font-weight: 600; }}
+    .developer-block {{ margin-top: 24px; }}
+    .developer-block:first-of-type {{ margin-top: 0; }}
+    .developer-block h3 {{
+      margin: 0 0 18px 0;
+      font-size: 1.25rem;
+      color: var(--ink-900);
+    }}
+    .metrics-table table {{ margin-top: 12px; }}
+    .table-card {{ padding: 0; overflow: hidden; }}
+    .table-wrapper {{ overflow: auto; }}
+    .bar {{
+      position: relative;
+      background: #f0f4f9;
+      margin-bottom: 6px;
+      height: 24px;
+      border-radius: 4px;
+      overflow: hidden;
+    }}
+    .fill {{
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      opacity: 0.9;
+    }}
+    .resizer {{
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 6px;
+      cursor: col-resize;
+      user-select: none;
+      height: 100%;
+    }}
+    .link-icon {{
+      margin-right: 6px;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }}
     .link-icon:hover {{ text-decoration: underline; }}
     .passage-text {{ white-space: pre-wrap; }}
-    .classifier-performance {{ margin-top: 24px; }}
-    .performance-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 16px 0; }}
-    .plot-container {{ text-align: center; }}
-    .plot-container h4 {{ margin: 0 0 12px 0; font-size: 1rem; color: #333; }}
-    .metrics-table {{ margin-top: 20px; }}
-    .metrics-table h4 {{ margin: 0 0 12px 0; font-size: 1rem; color: #333; }}
-    .domain-stats {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
-    .domain-table table {{ width: 100%; max-width: 520px; }}
-    .domain-table th, .domain-table td {{ text-align: left; }}
+    .empty-note {{ font-size: 0.95rem; color: var(--ink-500); }}
+    .error-note {{ color: #d32f2f; margin: 0; }}
+    @media (max-width: 860px) {{
+      body {{ padding: 24px; }}
+      .report-page {{ padding: 32px 24px 48px; }}
+      .report-header {{
+        flex-direction: column;
+        align-items: flex-start;
+      }}
+      .header-metrics {{
+        width: 100%;
+        justify-content: space-between;
+      }}
+    }}
   </style>
 </head>
 <body>
-  <h1>Frame Report: {html.escape(schema.domain)}</h1>
-  <div class="summary">
-    <section>
-      <h2>Classifier Summary</h2>
-      {summary_html}
-    </section>
-    <section>
-      <h2>Frame Legend</h2>
-      <ul class="legend">{''.join(legend_items)}</ul>
-    </section>
-    <section>
-      <h2>Frame Details</h2>
-      <div class="details-grid">{''.join(details_sections)}</div>
-    </section>
-  </div>
-  <div class="table-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>Passage Text<div class="resizer"></div></th>
-          <th>LLM Probabilities<div class="resizer"></div></th>
-          <th>Classifier Probabilities<div class="resizer"></div></th>
-          <th>Rationale<div class="resizer"></div></th>
-          <th>Evidence<div class="resizer"></div></th>
-        </tr>
-      </thead>
-      <tbody>
-        {table_html}
-      </tbody>
-    </table>
+  <div class=\"report-page\">
+    {header_html}
+    {frames_section_html}
+    {time_series_section_html}
+    {top_media_section_html}
+    {top_stories_section_html}
+    {developer_section_html}
   </div>
   <script>
     (function() {{
-      const table = document.querySelector('table');
+      const table = document.querySelector('.table-wrapper table');
       if (!table) return;
       const setColumnWidth = (index, width) => {{
         const cells = table.querySelectorAll(`tr > *:nth-child(${{index + 1}})`);
         cells.forEach((cell) => {{ cell.style.width = width + 'px'; }});
       }};
-
       table.querySelectorAll('thead th').forEach((th, index) => {{
         const resizer = th.querySelector('.resizer');
         if (!resizer) return;
         let startX = 0;
         let startWidth = 0;
-
         const onMouseMove = (event) => {{
           const delta = event.pageX - startX;
-          const newWidth = Math.max(140, startWidth + delta);
+          const newWidth = Math.max(160, startWidth + delta);
           setColumnWidth(index, newWidth);
         }};
-
         const onMouseUp = () => {{
           document.removeEventListener('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
         }};
-
         resizer.addEventListener('mousedown', (event) => {{
           startX = event.pageX;
           startWidth = th.offsetWidth;

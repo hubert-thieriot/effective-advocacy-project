@@ -17,6 +17,7 @@ class FrameInducer:
     SYSTEM_PROMPT: str = (
         "Discover distinct, non-overlapping media frames (lenses/angles) for the given domain. "
         "Deliverables per frame: a crisp definition; positive triggers (explicit phrases/keywords and semantic cues); anti-triggers (words/contexts that should not fire this frame); near-misses (confusable content with rationale why it's not this frame); decision rules (boolean logic, e.g., MUST/SHOULD/NEVER conditions); hard evidence cues (verbatim text patterns); soft cues (semantic signals); regex seeds; 3 positive examples and 3 counter-examples from the passages; and a scoring rubric (0–3 scale) you'd apply to a passage. "
+        "Expand keywords with common synonyms and near-variants. Ensure triggers include both lexical cues (quoted phrases) and semantic cues (paraphrasable conditions). Provide anti-triggers that disambiguate closely related frames to minimize overlap. "
         "Avoid sentiment or policy prescriptions. Prefer generalizable, domain-portable language. Frames must be mutually exclusive on triggers (if two share triggers, split or refine). When narratives oppose (e.g., jobs vs. health harms), split them. "
         "Output valid JSON only, matching the provided schema. No prose."
     )
@@ -107,6 +108,7 @@ class FrameInducer:
 
         user_prompt = (
             f"DOMAIN: {self.domain}\n"
+            f"{frame_target_line}"
             f"Goal: Induce a compact, mutually-exclusive frame set for this domain and derive operational detection rules.\n\n"
             f"Constraints:\n"
             "- Start from the guidance seed frames if provided, but refine/split/merge as needed for non-overlap.\n"
@@ -182,9 +184,11 @@ class FrameInducer:
         schema_instruction = self._schema_instruction()
 
         guidance_line = f"GUIDANCE: {self.frame_guidance}\n" if self.frame_guidance else ""
+        frame_target_line = f"Frame target: {self._frame_target_text}\n" if self._frame_target_text else ""
 
         user_prompt = (
             f"DOMAIN: {self.domain}\n"
+            f"{frame_target_line}"
             f"Goal: Induce a compact, mutually-exclusive frame set for this domain and derive operational detection rules.\n\n"
             f"Constraints:\n"
             "- Start from the guidance seed frames if provided, but refine/split/merge as needed for non-overlap.\n"

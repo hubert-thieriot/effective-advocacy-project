@@ -9,7 +9,7 @@ from .pipeline import (
     InductionConfig,
     SplitConfig,
 )
-from .sampler import CorpusSampler, SamplerConfig
+from .sampler import CompositeCorpusSampler, CorpusSampler, SamplerConfig
 from .trainer import FrameClassifierTrainer
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "FrameClassifierPipeline",
     "InductionConfig",
     "SplitConfig",
+    "CompositeCorpusSampler",
     "CorpusSampler",
     "SamplerConfig",
     "FrameClassifierTrainer",

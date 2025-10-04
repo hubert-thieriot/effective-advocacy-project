@@ -8,12 +8,22 @@ domain: "India coal media coverage"
 # Model configurations - use more powerful model for induction, lighter for application
 induction_model: gpt-5-nano  # More powerful model for frame induction
 application_model: gpt-5-nano  # Lighter model for frame application
+# Target number of frames to induce (string or integer). Examples: "between 6 and 10", 8
+induction_frame_target: "between 6 and 10"
 # Temperature settings (optional - will use model defaults if not specified)
 # induction_temperature: 0.0  # Override for induction (will be adjusted to 1.0 for gpt-5-nano)
 # application_temperature: 0.0  # Override for application (will be adjusted to 1.0 for gpt-5-nano)
 seed: 42
 filter_keywords:
   - coal
+# Optional content filtering to exclude boilerplate/ticker pages or trim nav tails
+# filter_trim_after_markers:
+#   - End of Article
+#   - FOLLOW US ON SOCIAL MEDIA
+# filter_exclude_min_hits:
+#   share price: 3
+# filter_exclude_regex:
+#   - '(?i)(STOCKS & SCREENERS|Top Calculators|Stock Screener)'
 target_words: 200
 induction_sample_size: 100
 application_sample_size: 1200

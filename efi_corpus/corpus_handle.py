@@ -212,7 +212,15 @@ class CorpusHandle(Corpus):
 
     def get_document_count(self) -> int:
         """Get total number of documents in corpus"""
-        return len(self.list_ids())
+        if self._index_cache is not None:
+            return len(self._index_cache)
+
+        count = 0
+        with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    count += 1
+        return count
 
     def get_corpus_info(self) -> Dict[str, Any]:
         """Get basic information about the corpus"""

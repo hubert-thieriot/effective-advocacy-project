@@ -9,7 +9,7 @@ import random
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -31,7 +31,7 @@ from efi_analyser.chunkers.sentence_chunker import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
 from efi_analyser.frames import Frame, FrameAssignment, FrameInducer, FrameSchema, LLMFrameApplicator
 from efi_analyser.frames.classifier import (
-    CorpusSampler,
+    CompositeCorpusSampler,
     FrameClassifierSpec,
     FrameClassifierTrainer,
     FrameLabelSet,
@@ -40,6 +40,12 @@ from efi_analyser.frames.classifier import (
 from efi_analyser.frames.classifier.model import FrameClassifierModel
 from efi_analyser.scorers.openai_interface import OpenAIConfig, OpenAIInterface
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
+from efi_analyser.frames.identifiers import (
+    make_global_doc_id,
+    make_global_passage_id,
+    split_global_doc_id,
+    split_passage_id,
+)
 
 try:  # Prefer spaCy-based chunker when available.
     from efi_analyser.chunkers import TextChunker, TextChunkerConfig  # type: ignore
@@ -220,6 +226,25 @@ def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
     return aggregates
 
 
+def _get_embedded_corpus(
+    corpora: Mapping[str, EmbeddedCorpus],
+    corpus_name: Optional[str],
+) -> EmbeddedCorpus:
+    if corpus_name and corpus_name in corpora:
+        return corpora[corpus_name]
+    if len(corpora) == 1:
+        return next(iter(corpora.values()))
+    raise KeyError(f"Corpus '{corpus_name}' not found among {list(corpora.keys())}")
+
+
+def _list_global_doc_ids(corpora: Mapping[str, EmbeddedCorpus]) -> List[str]:
+    doc_ids: List[str] = []
+    for corpus_name, embedded in corpora.items():
+        for local_doc_id in embedded.corpus.list_ids():
+            doc_ids.append(make_global_doc_id(corpus_name if len(corpora) > 1 else None, local_doc_id))
+    return doc_ids
+
+
 def save_chunk_classification(directory: Path, payload: Dict[str, object]) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     doc_id = str(payload.get("doc_id"))
@@ -235,13 +260,14 @@ def load_chunk_classifications(directory: Path, doc_ids: Optional[Iterable[str]]
     doc_id_filter = set(doc_ids) if doc_ids is not None else None
     payloads: List[Dict[str, object]] = []
     for child in sorted(directory.glob("*.json")):
-        doc_id = child.stem
-        if doc_id_filter and doc_id not in doc_id_filter:
-            continue
         try:
-            payloads.append(json.loads(child.read_text(encoding="utf-8")))
+            payload = json.loads(child.read_text(encoding="utf-8"))
         except Exception:
             continue
+        doc_id = str(payload.get("doc_id", child.stem)).strip()
+        if doc_id_filter and doc_id not in doc_id_filter:
+            continue
+        payloads.append(payload)
     return payloads
 
 
@@ -352,17 +378,23 @@ def load_frame_timeseries(path: Path) -> pd.DataFrame:
 
 def enrich_assignments_with_metadata(
     assignments: Sequence[FrameAssignment],
-    embedded_corpus: EmbeddedCorpus,
+    corpora: Mapping[str, EmbeddedCorpus],
 ) -> None:
     url_cache: Dict[str, Dict[str, str]] = {}
     for assignment in assignments:
-        doc_id = assignment.metadata.get("doc_id") or assignment.passage_id.split(":", 1)[0]
-        assignment.metadata["doc_id"] = doc_id
+        corpus_name, local_doc_id, _ = split_passage_id(assignment.passage_id)
+        global_doc_id = make_global_doc_id(corpus_name if len(corpora) > 1 else None, local_doc_id)
+        assignment.metadata["doc_id"] = local_doc_id
+        assignment.metadata["global_doc_id"] = global_doc_id
+        if corpus_name:
+            assignment.metadata["corpus"] = corpus_name
 
-        if doc_id not in url_cache:
-            index_entry = embedded_corpus.corpus.get_index_entry(doc_id) or {}
-            meta = embedded_corpus.corpus.get_metadata(doc_id)
-            fetch_info = embedded_corpus.corpus.get_fetch_info(doc_id)
+        cache_key = global_doc_id if len(corpora) > 1 else local_doc_id
+        if cache_key not in url_cache:
+            embedded_corpus = _get_embedded_corpus(corpora, corpus_name)
+            index_entry = embedded_corpus.corpus.get_index_entry(local_doc_id) or {}
+            meta = embedded_corpus.corpus.get_metadata(local_doc_id)
+            fetch_info = embedded_corpus.corpus.get_fetch_info(local_doc_id)
             merged_meta: Dict[str, str] = {}
             for source in (index_entry, meta, fetch_info):
                 if not isinstance(source, dict):
@@ -371,17 +403,16 @@ def enrich_assignments_with_metadata(
                     if key not in merged_meta and isinstance(value, str):
                         merged_meta[key] = value
 
-            doc_folder_path = embedded_corpus.corpus.layout.doc_dir(doc_id)
-            # Convert to absolute path for proper file:// URLs
+            doc_folder_path = embedded_corpus.corpus.layout.doc_dir(local_doc_id)
             doc_folder_path_abs = doc_folder_path.resolve() if doc_folder_path.exists() else doc_folder_path
-            url_cache[doc_id] = {
+            url_cache[cache_key] = {
                 "url": merged_meta.get("url", ""),
                 "title": merged_meta.get("title", ""),
                 "published_at": merged_meta.get("published_at", ""),
                 "doc_folder_path": str(doc_folder_path_abs),
             }
 
-        cache_entry = url_cache[doc_id]
+        cache_entry = url_cache[cache_key]
         if cache_entry.get("url"):
             assignment.metadata["url"] = cache_entry["url"]
         if cache_entry.get("title") and not assignment.metadata.get("title"):
@@ -492,7 +523,7 @@ def train_and_apply_classifier(
 
 def classify_corpus_chunks(
     model: FrameClassifierModel,
-    embedded_corpus: EmbeddedCorpus,
+    corpora: Mapping[str, EmbeddedCorpus],
     batch_size: int,
     sample_size: Optional[int] = None,
     seed: Optional[int] = None,
@@ -502,7 +533,7 @@ def classify_corpus_chunks(
     if doc_ids is not None:
         doc_id_list = list(doc_ids)
     else:
-        doc_id_list = embedded_corpus.corpus.list_ids()
+        doc_id_list = _list_global_doc_ids(corpora)
     if not doc_id_list:
         return []
 
@@ -528,24 +559,31 @@ def classify_corpus_chunks(
     )
 
     for doc_id in iterator:
-        doc = embedded_corpus.corpus.get_document(doc_id)
+        corpus_name, local_doc_id = split_global_doc_id(doc_id)
+        embedded_corpus = _get_embedded_corpus(corpora, corpus_name)
+
+        doc = embedded_corpus.corpus.get_document(local_doc_id)
         if doc is None:
             continue
 
         published_at = doc.published_at
         if not published_at:
-            metadata = embedded_corpus.corpus.get_metadata(doc_id)
+            metadata = embedded_corpus.corpus.get_metadata(local_doc_id)
             if metadata and isinstance(metadata, dict):
                 published_at = metadata.get("published_at")
 
-        chunks = embedded_corpus.get_chunks(doc_id, materialize_if_necessary=True) or []
+        chunks = embedded_corpus.get_chunks(local_doc_id, materialize_if_necessary=True) or []
         texts: List[str] = []
         chunk_text_pairs: List[Tuple[str, str]] = []
         for chunk in chunks:
             text = (chunk.text or "").strip()
             if not text:
                 continue
-            chunk_id = f"{doc_id}:chunk{int(chunk.chunk_id):03d}"
+            local_passage_id = f"{local_doc_id}:chunk{int(chunk.chunk_id):03d}"
+            chunk_id = make_global_passage_id(
+                corpus_name if len(corpora) > 1 else None,
+                local_passage_id,
+            )
             texts.append(text)
             chunk_text_pairs.append((chunk_id, text))
 
@@ -567,6 +605,8 @@ def classify_corpus_chunks(
 
         payload = {
             "doc_id": doc_id,
+            "corpus": corpus_name,
+            "local_doc_id": local_doc_id,
             "title": doc.title,
             "url": doc.url,
             "published_at": published_at,
@@ -629,9 +669,15 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     # INITIALIZATION AND SETUP
     # ============================================================================
-    corpus_path = config.corpora_root / config.corpus
-    if not corpus_path.exists():
-        raise FileNotFoundError(f"Corpus not found at {corpus_path}")
+    corpus_names = list(config.iter_corpus_names())
+    if not corpus_names:
+        raise ValueError("At least one corpus must be configured.")
+
+    missing_corpora = [name for name in corpus_names if not (config.corpora_root / name).exists()]
+    if missing_corpora:
+        raise FileNotFoundError(
+            f"Corpus paths not found: {', '.join(str(config.corpora_root / name) for name in missing_corpora)}"
+        )
     config.workspace_root.mkdir(parents=True, exist_ok=True)
     paths = resolve_result_paths(config.results_dir)
 
@@ -666,6 +712,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     global_frame_share: Dict[str, float] = {}
     domain_counts: List[Tuple[str, int]] = []
     domain_frame_summaries: List[Dict[str, object]] = []
+    corpus_frame_summaries: List[Dict[str, object]] = []
 
     induction_samples: List[Tuple[str, str]] = []
     induction_reused = False
@@ -674,16 +721,39 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # =============================================================================
     # PREPARE EMBEDDED CORPUS
     # =============================================================================
-    print(f"Loading embedded corpus from {corpus_path}...")
-    chunker = TextChunker(TextChunkerConfig(max_words=config.target_words))
+    if len(corpus_names) == 1:
+        singular_path = config.corpora_root / corpus_names[0]
+        print(f"Loading embedded corpus from {singular_path}...")
+    else:
+        joined = ", ".join(corpus_names)
+        print(f"Loading embedded corpora: {joined}")
+
+    if TextChunker is not None:
+        try:
+            chunker = TextChunker(TextChunkerConfig(max_words=config.target_words))
+        except Exception as exc:
+            print(
+                "⚠️ Falling back to sentence chunker because TextChunker initialization failed:",
+                exc,
+            )
+            chunker = SentenceChunker()
+    else:
+        if _TEXT_CHUNKER_ERROR is not None:
+            print(
+                "⚠️ Falling back to sentence chunker because spaCy TextChunker is unavailable:",
+                _TEXT_CHUNKER_ERROR,
+            )
+        chunker = SentenceChunker()
     embedder = SentenceTransformerEmbedder(lazy_load=True)
-    embedded_corpus = EmbeddedCorpus(
-        corpus_path=corpus_path,
-        workspace_path=config.workspace_root,
-        chunker=chunker,
-        embedder=embedder,
-    )
-    sampler = CorpusSampler(embedded_corpus)
+    corpora_map: Dict[str, EmbeddedCorpus] = {}
+    for name in corpus_names:
+        corpora_map[name] = EmbeddedCorpus(
+            corpus_path=config.corpora_root / name,
+            workspace_path=config.workspace_root,
+            chunker=chunker,
+            embedder=embedder,
+        )
+    sampler = CompositeCorpusSampler(corpora_map, policy=config.sampling_policy)
     keywords = config.filter_keywords
 
     # ============================================================================
@@ -726,6 +796,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 sample_size=config.induction_sample_size,
                 seed=config.seed,
                 keywords=keywords,
+                exclude_regex=config.filter_exclude_regex,
+                exclude_min_hits=config.filter_exclude_min_hits,
+                trim_after_markers=config.filter_trim_after_markers,
             )
         )
         print(f"Collected {len(induction_samples)} passages for induction.")
@@ -734,7 +807,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         inducer = FrameInducer(
             llm_client=inducer_client,
             domain=config.domain,
-            frame_target="between 5 and 10",
+            frame_target=config.induction_frame_target,
             max_passages_per_call=max(20, min(config.induction_sample_size, 80)),
             max_total_passages=config.induction_sample_size * 2,
             frame_guidance=config.induction_guidance,
@@ -790,6 +863,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                     seed=config.seed + 1,
                     keywords=keywords,
                     exclude_passage_ids=exclude_ids or None,
+                    exclude_regex=config.filter_exclude_regex,
+                    exclude_min_hits=config.filter_exclude_min_hits,
+                    trim_after_markers=config.filter_trim_after_markers,
                 )
             )
         except ValueError as exc:
@@ -901,7 +977,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     
     if assignments:
-        enrich_assignments_with_metadata(assignments, embedded_corpus)
+        enrich_assignments_with_metadata(assignments, corpora_map)
         if paths.assignments:
             save_assignments(paths.assignments, assignments)
         print("Assignments enriched with document metadata.")
@@ -997,7 +1073,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # CLASSIFY CORPUS DOCUMENTS AND PREPARE DOCUMENT AGGREGATES
     # ============================================================================
 
-    total_doc_ids = embedded_corpus.corpus.list_ids()
+    total_doc_ids = _list_global_doc_ids(corpora_map)
     desired_doc_total = config.classifier_corpus_sample_size or len(total_doc_ids)
     desired_doc_total = max(0, min(desired_doc_total, len(total_doc_ids)))
 
@@ -1036,7 +1112,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             inference_batch = max(1, config.classifier.inference_batch_size or config.classifier.batch_size)
             new_docs = classify_corpus_chunks(
                 model=classifier_model,
-                embedded_corpus=embedded_corpus,
+                corpora=corpora_map,
                 batch_size=inference_batch,
                 seed=config.seed,
                 output_dir=paths.chunk_classifications_dir,
@@ -1120,6 +1196,54 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             top_n=20,
         )
 
+        # Compute per-corpus frame shares when unions of corpora are used
+        if len(corpora_map) > 1:
+            # Build lookup from global doc_id -> corpus name
+            doc_to_corpus: Dict[str, str] = {}
+            for payload in chunk_classification_map.values():
+                gid = str(payload.get("doc_id", "")).strip()
+                cname = str(payload.get("corpus", "")).strip()
+                if gid and cname:
+                    doc_to_corpus[gid] = cname
+
+            corpus_state: Dict[str, Dict[str, object]] = {}
+            for aggregate in document_aggregates:
+                gid = aggregate.doc_id
+                corpus_name, _local = split_global_doc_id(gid)
+                corpus = corpus_name or doc_to_corpus.get(gid)
+                if not corpus:
+                    continue
+                state = corpus_state.setdefault(
+                    corpus,
+                    {
+                        "count": 0,
+                        "weight": 0.0,
+                        "frame_sums": {frame_id: 0.0 for frame_id in frame_ids},
+                    },
+                )
+                state["count"] = int(state["count"]) + 1
+                weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
+                state["weight"] = float(state["weight"]) + weight
+                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+                for frame_id in frame_ids:
+                    frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
+
+            corpus_frame_summaries = []
+            for corpus, state in sorted(corpus_state.items()):
+                weight = float(state["weight"])  # type: ignore[arg-type]
+                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+                if weight <= 0:
+                    shares = {frame_id: 0.0 for frame_id in frame_ids}
+                else:
+                    shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids}
+                corpus_frame_summaries.append(
+                    {
+                        "corpus": corpus,
+                        "count": int(state["count"]),
+                        "shares": shares,
+                    }
+                )
+
     # ============================================================================
     # BUILD TIME SERIES AND VISUALIZATIONS
     # ============================================================================
@@ -1200,6 +1324,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             include_classifier_plots=True,
             domain_counts=domain_counts,
             domain_frame_summaries=domain_frame_summaries,
+            document_aggregates=document_aggregates,
+            corpus_frame_summaries=corpus_frame_summaries,
         )
         print(f"\nHTML report written to {paths.html}")
 

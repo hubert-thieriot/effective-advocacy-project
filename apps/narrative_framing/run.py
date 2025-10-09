@@ -95,6 +95,48 @@ def resolve_result_paths(results_dir: Optional[Path]) -> ResultPaths:
     )
 
 
+# --------------------------- Prompt helpers ---------------------------------
+def _read_text_or_fail(path: Path) -> str:
+    if not path.exists():
+        raise FileNotFoundError(f"Prompt template not found: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def _resolve_default_prompt_paths() -> Dict[str, Path]:
+    base = Path("prompts")
+    paths = {
+        "induction_system": base / "induction" / "system.jinja",
+        "induction_user": base / "induction" / "user.jinja",
+        "application_system": base / "application" / "system.jinja",
+        "application_user": base / "application" / "user.jinja",
+    }
+    for key, p in paths.items():
+        if not p.exists():
+            raise FileNotFoundError(f"Missing default prompt template '{key}': {p}")
+    return paths
+
+
+def _save_resolved_messages(directory: Path, name_prefix: str, messages_list: List[List[Dict[str, str]]]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for idx, messages in enumerate(messages_list, start=1):
+        for m in messages:
+            role = str(m.get("role", "unknown")).lower()
+            content = str(m.get("content", ""))
+            out = directory / f"{name_prefix}_{idx:03d}_{role}.txt"
+            out.write_text(content, encoding="utf-8")
+
+
+def _copy_templates_to_results(paths_map: Dict[str, Path], out_dir: Path) -> None:
+    dst_ind = out_dir / "prompts" / "induction" / "templates"
+    dst_app = out_dir / "prompts" / "application" / "templates"
+    dst_ind.mkdir(parents=True, exist_ok=True)
+    dst_app.mkdir(parents=True, exist_ok=True)
+    (dst_ind / "system.jinja").write_text(_read_text_or_fail(paths_map["induction_system"]), encoding="utf-8")
+    (dst_ind / "user.jinja").write_text(_read_text_or_fail(paths_map["induction_user"]), encoding="utf-8")
+    (dst_app / "system.jinja").write_text(_read_text_or_fail(paths_map["application_system"]), encoding="utf-8")
+    (dst_app / "user.jinja").write_text(_read_text_or_fail(paths_map["application_user"]), encoding="utf-8")
+
+
 def save_schema(path: Path, schema: FrameSchema) -> None:
     payload = {
         "domain": schema.domain,
@@ -125,8 +167,8 @@ def load_schema(path: Path) -> FrameSchema:
             examples=item.get("examples", []),
             short_name=str(
                 item.get("short_name")
-                or (item.get("name", "").split()[0] if item.get("name") else item.get("frame_id", ""))
-            )[:12],
+                or (item.get("name", "") if item.get("name") else item.get("frame_id", ""))
+            ).strip(),
         )
         for item in payload.get("frames", [])
     ]
@@ -529,6 +571,8 @@ def classify_corpus_chunks(
     seed: Optional[int] = None,
     output_dir: Optional[Path] = None,
     doc_ids: Optional[Sequence[str]] = None,
+    *,
+    require_keywords: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, object]]:
     if doc_ids is not None:
         doc_id_list = list(doc_ids)
@@ -550,6 +594,12 @@ def classify_corpus_chunks(
         output_dir.mkdir(parents=True, exist_ok=True)
 
     classified_documents: List[Dict[str, object]] = []
+
+    # Normalize keyword filter for doc-level inclusion
+    normalized_keywords: Optional[List[str]] = None
+    if require_keywords:
+        normalized = [str(k).strip().lower() for k in require_keywords if str(k).strip()]
+        normalized_keywords = normalized or None
 
     iterator = tqdm(
         doc_id_list,
@@ -590,6 +640,13 @@ def classify_corpus_chunks(
         if not texts:
             continue
 
+        # Apply optional keyword gate: skip classification if none of the chunks
+        # contain any of the required keywords (case-insensitive substring).
+        if normalized_keywords is not None:
+            lowered_texts = [t.lower() for t in texts]
+            if not any(any(kw in t for kw in normalized_keywords) for t in lowered_texts):
+                continue
+
         probabilities = model.predict_proba_batch(texts, batch_size=batch_size)
         chunk_records: List[Dict[str, object]] = []
         for (chunk_id, passage_text), probs in zip(chunk_text_pairs, probabilities):
@@ -626,6 +683,8 @@ def aggregate_classified_documents(
     documents: Sequence[Dict[str, object]],
     schema: FrameSchema,
     aggregator: Optional[FrameAggregationStrategy] = None,
+    *,
+    require_keywords: Optional[Sequence[str]] = None,
 ) -> Sequence[DocumentFrameAggregate]:
     if not documents:
         return []
@@ -633,11 +692,32 @@ def aggregate_classified_documents(
     frame_ids = [frame.frame_id for frame in schema.frames]
     active_aggregator = aggregator or LengthWeightedFrameAggregator(frame_ids)
 
+    # Normalize keyword filter once (lowercased substring match)
+    normalized_keywords: Optional[List[str]] = None
+    if require_keywords:
+        normalized = [str(k).strip().lower() for k in require_keywords if str(k).strip()]
+        normalized_keywords = normalized or None
+
     for doc_record in documents:
         doc_id = str(doc_record.get("doc_id"))
         chunks = doc_record.get("chunks", [])
         if not doc_id or not isinstance(chunks, Sequence):
             continue
+
+        # Apply optional keyword filter at the document level: require at least
+        # one chunk to contain any of the configured keywords.
+        if normalized_keywords is not None:
+            has_keyword = False
+            for chunk in chunks:
+                if not isinstance(chunk, dict):
+                    continue
+                text = str(chunk.get("text", "")).lower()
+                if any(kw in text for kw in normalized_keywords):
+                    has_keyword = True
+                    break
+            if not has_keyword:
+                # Skip this document entirely if no chunk contains a keyword
+                continue
         published_at = doc_record.get("published_at")
         title = doc_record.get("title")
         url = doc_record.get("url")
@@ -775,7 +855,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         model=config.application_model,
         temperature=application_temp,
         timeout=600.0,
-        ignore_cache=True,
+        ignore_cache=False,
         verbose=True,  # Enable warnings for temperature overrides
     )
 
@@ -783,6 +863,15 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # FRAME INDUCTION (OR RELOAD FROM CACHE)
     # ============================================================================
     
+    # Resolve and validate default prompt templates; copy raw templates into results
+    prompt_paths = _resolve_default_prompt_paths()
+    _copy_templates_to_results(prompt_paths, config.results_dir or Path("results/narrative_framing"))
+
+    ind_sys_t = _read_text_or_fail(prompt_paths["induction_system"])
+    ind_usr_t = _read_text_or_fail(prompt_paths["induction_user"])
+    app_sys_t = _read_text_or_fail(prompt_paths["application_system"])
+    app_usr_t = _read_text_or_fail(prompt_paths["application_user"])
+
     if config.reload_induction and paths.schema and paths.schema.exists():
         schema = load_schema(paths.schema)
         induction_reused = True
@@ -811,6 +900,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             max_passages_per_call=max(20, min(config.induction_sample_size, 80)),
             max_total_passages=config.induction_sample_size * 2,
             frame_guidance=config.induction_guidance,
+            system_template=ind_sys_t,
+            user_template=ind_usr_t,
         )
         schema = inducer.induce(induction_passages)
         if not schema.schema_id:
@@ -819,6 +910,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
 
         if paths.schema:
             save_schema(paths.schema, schema)
+        # Save resolved induction prompts (all calls) under results/prompts/induction/resolved
+        if getattr(inducer, "emitted_messages", None):
+            resolved_dir = (config.results_dir or Path("results")) / "prompts" / "induction" / "resolved"
+            _save_resolved_messages(resolved_dir, "induction_call", inducer.emitted_messages)
 
     if schema is None:
         raise RuntimeError("Frame schema is required to proceed. Ensure induction completes successfully.")
@@ -879,6 +974,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 batch_size=config.application_batch_size,
                 max_chars_per_passage=None,
                 chunk_overlap_chars=0,
+                system_template=app_sys_t,
+                user_template=app_usr_t,
             )
             print(
                 f"Applying frames to {len(new_samples)} additional passages using {applicator_client.name}..."
@@ -908,6 +1005,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             )
             if paths.assignments:
                 save_assignments(paths.assignments, assignment_list)
+            # Save resolved application prompts used across batches
+            if getattr(applicator, "emitted_messages", None):
+                resolved_dir = (config.results_dir or Path("results")) / "prompts" / "application" / "resolved"
+                _save_resolved_messages(resolved_dir, "application_batch", applicator.emitted_messages)
         else:
             print(
                 f"⚠️ No new passages were sampled; continuing with {len(assignment_list)} cached assignments."
@@ -939,6 +1040,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             batch_size=config.application_batch_size,
             max_chars_per_passage=None,
             chunk_overlap_chars=0,
+            system_template=app_sys_t,
+            user_template=app_usr_t,
         )
         print(f"Applying frames to {len(application_samples)} passages using {applicator_client.name}...")
         with tqdm(
@@ -965,6 +1068,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         if paths.assignments:
             save_assignments(paths.assignments, assignments)
         print(f"Received {len(assignments)} assignments from LLM.")
+        if getattr(applicator, "emitted_messages", None):
+            resolved_dir = (config.results_dir or Path("results")) / "prompts" / "application" / "resolved"
+            _save_resolved_messages(resolved_dir, "application_batch", applicator.emitted_messages)
 
     # Ensure application_samples covers at least available assignments when none were set
     if not application_samples and assignments:
@@ -1117,6 +1223,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 seed=config.seed,
                 output_dir=paths.chunk_classifications_dir,
                 doc_ids=doc_ids_to_classify,
+                require_keywords=config.filter_keywords,
             )
             for payload in new_docs:
                 doc_id = str(payload.get("doc_id", "")).strip()
@@ -1181,6 +1288,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 documents=chunk_classifications,
                 schema=schema,
                 aggregator=None,
+                require_keywords=config.filter_keywords,
             )
         )
         if paths.aggregated_documents_dir:
@@ -1321,7 +1429,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             classified_documents=len(document_aggregates),
             classifier_sample_limit=config.classifier_corpus_sample_size,
             area_chart_b64=frame_area_chart_b64,
-            include_classifier_plots=True,
+            include_classifier_plots=True if classifier_predictions else False,
             domain_counts=domain_counts,
             domain_frame_summaries=domain_frame_summaries,
             document_aggregates=document_aggregates,

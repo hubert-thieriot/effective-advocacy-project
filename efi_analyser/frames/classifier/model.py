@@ -123,7 +123,7 @@ class FrameClassifierModel:
         frames = []
         for item in schema_payload.get("frames", []):
             short_raw = item.get("short_name") or (
-                item.get("name", "").split()[0] if item.get("name") else item.get("frame_id", "")
+                item.get("name", "") if item.get("name") else item.get("frame_id", "")
             )
             frames.append(
                 Frame(
@@ -132,7 +132,7 @@ class FrameClassifierModel:
                     description=item.get("description", ""),
                     keywords=item.get("keywords", []),
                     examples=item.get("examples", []),
-                    short_name=str(short_raw)[:12],
+                    short_name=str(short_raw).strip(),
                 )
             )
 

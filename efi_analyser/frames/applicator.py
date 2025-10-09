@@ -6,7 +6,12 @@ import copy
 import hashlib
 import json
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional
+
+try:
+    from jinja2 import Template  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    Template = None  # type: ignore
 
 from .types import FrameAssignment, FrameSchema
 from .identifiers import make_global_doc_id, split_passage_id
@@ -26,6 +31,8 @@ class LLMFrameApplicator:
         cache: MutableMapping[str, FrameAssignment] | None = None,
         max_chars_per_passage: int | None = 1200,
         chunk_overlap_chars: int = 120,
+        system_template: Optional[str] = None,
+        user_template: Optional[str] = None,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("Frame applicator batch_size must be positive.")
@@ -47,6 +54,13 @@ class LLMFrameApplicator:
         self._cache: MutableMapping[str, FrameAssignment] = cache if cache is not None else {}
         self._llm_spec_key = self._compute_model_spec_key()
         self._infer_supports_timeout = self._llm_accepts_timeout()
+        # Optional Jinja templates for system/user prompts
+        self._system_template = system_template
+        self._user_template = user_template
+        # Expose last built messages (last batch) for provenance
+        self.last_built_messages: Optional[List[Dict[str, str]]] = None
+        # Collect all batch messages for this run
+        self.emitted_messages: List[List[Dict[str, str]]] = []
 
     # ------------------------------------------------------------------ public
     def batch_assign(
@@ -79,6 +93,8 @@ class LLMFrameApplicator:
         if pending:
             for batch in self._chunk(pending, self.batch_size):
                 messages = self._build_messages(schema, batch, top_k)
+                self.last_built_messages = list(messages)
+                self.emitted_messages.append(list(messages))
                 infer_kwargs: Dict[str, Any] = {}
                 if self.infer_timeout is not None and self._infer_supports_timeout:
                     infer_kwargs["timeout"] = self.infer_timeout
@@ -189,47 +205,45 @@ class LLMFrameApplicator:
 
         schema_lines = "\n".join(frame_lines)
         batch_lines = "\n".join(passage_lines)
-        
-        user_prompt = (
-            f"SCHEMA ID: {schema.schema_id or '(unspecified)'}\n"
-            f"DOMAIN: {schema.domain}\n"
-            "Frame definitions (each entry lists frame_id, name, description, keywords, triggers, examples):\n"
-            f"{schema_lines}\n\n"
-            "TASK:\n"
-            "Assign media frames to the following passages using ONLY the provided frame schema.\n"
-            "Apply these operational rules carefully:\n"
-            "1) Evidence rule: Prefer to quote ≤3 spans that match a frame’s positive triggers or clearly align with its description/keywords, allowing synonyms/paraphrases.\n"
-            "2) NEVER rule: If a passage contains an anti-trigger for a frame, that frame's probability MUST be 0.\n"
-            "3) Soft assignment: Unless the passage is clearly out-of-scope or pure boilerplate, assign non-zero probabilities to the best-fit 1–3 frames and provide evidence for each.\n"
-            f"4) Top-k: List up to {top_k} frames with the highest non-zero probabilities in 'top_frames'. Do not include frames with 0.\n"
-            "5) Probabilities must be in [0,1]. After applying rules, renormalize non-zero frames so they sum to 1 (round to 2 decimals). If truly no frame qualifies (out-of-scope/boilerplate), set all to 0 and leave 'top_frames' empty.\n"
-            "6) Scope: Use only the given passage text; do not infer external facts.\n\n"
-            "OUTPUT FORMAT (JSON array): Each element is:\n"
-            "{ \"passage_id\": str,\n"
-            "  \"probs\": {frame_id: probability},\n"
-            "  \"top_frames\": [frame_id],\n"
-            "  \"rationale\": str (≤60 words explaining the assignment),\n"
-            "  \"evidence_spans\": [quoted_span, ...] }\n\n"
-            "PASSAGES:\n"
-            f"{batch_lines}"
-        )
-        
-        messages = [
+
+        # Require Jinja templates; do not fallback to built-in strings
+        if Template is None:
+            raise RuntimeError("Jinja2 is required for template-based prompts but is not installed.")
+        if not (self._system_template and self._user_template):
+            raise RuntimeError("Application prompts must be provided via templates (system + user).")
+
+        ctx_schema_frames = [
             {
-                "role": "system",
-                "content": (
-                    "You assign media frames to passages. "
-                    "Respond with JSON only; do not include prose or code fences. "
-                    "Use evidence from the passage text. "
-                    "Abstain only if the passage is clearly out-of-scope for the domain or pure boilerplate/navigation. "
-                    "Otherwise choose the best-fitting frames and distribute probabilities proportionally."
-                ),
-            },
-            {"role": "user", "content": user_prompt},
+                "frame_id": f.frame_id,
+                "name": f.name,
+                "short_name": f.short_name,
+                "description": f.description,
+                "keywords": list(f.keywords),
+                "examples": list(f.examples),
+            }
+            for f in schema.frames
         ]
-
-
-        return messages
+        ctx_passages = [
+            {"passage_id": pid, "text": text}
+            for (pid, text, _key) in batch
+        ]
+        ctx = {
+            "schema": {
+                "schema_id": schema.schema_id,
+                "domain": schema.domain,
+                "frames": ctx_schema_frames,
+            },
+            "frames_text": schema_lines,
+            "passages": ctx_passages,
+            "passages_text": batch_lines,
+            "top_k": top_k,
+        }
+        sys_content = Template(self._system_template).render(**ctx)
+        usr_content = Template(self._user_template).render(**ctx)
+        return [
+            {"role": "system", "content": sys_content},
+            {"role": "user", "content": usr_content},
+        ]
 
     def _parse_batch_response(
         self,

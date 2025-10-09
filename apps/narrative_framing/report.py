@@ -179,6 +179,130 @@ def _plot_auc_bars(metrics: Dict[str, Dict[str, float]], frame_names: Dict[str, 
     return _fig_to_base64(fig)
 
 
+def _render_plotly_llm_coverage(
+    assignments: Sequence[FrameAssignment],
+    frames: Sequence[dict],
+    color_map: Dict[str, str],
+) -> str:
+    if not assignments or not frames:
+        return ""
+    # Count occurrences per frame_id across LLM assignments (based on top_frames)
+    counts: Dict[str, int] = {str(f["frame_id"]): 0 for f in frames}
+    for a in assignments:
+        for fid in a.top_frames:
+            if fid in counts:
+                counts[fid] += 1
+    # Sort by count desc
+    ordered = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    frame_ids = [fid for fid, _ in ordered]
+    values = [int(v) for _, v in ordered]
+    labels = []
+    for fid in frame_ids:
+        meta = next((f for f in frames if str(f["frame_id"]) == fid), None)
+        label = (meta.get("short") or meta.get("name") or fid) if meta else fid
+        labels.append(label)
+    colors = [color_map.get(fid, "#057d9f") for fid in frame_ids]
+
+    traces = [
+        {
+            "type": "bar",
+            "x": labels,
+            "y": values,
+            "marker": {"color": colors},
+            "hovertemplate": "%{x}<br>%{y} passages<extra></extra>",
+        }
+    ]
+    layout = {
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 80},
+        "xaxis": {"title": "Frame", "tickangle": -30},
+        "yaxis": {"title": "Passages (LLM top_k)"},
+        "height": 420,
+    }
+    return _render_plotly_fragment("llm-coverage-chart", traces, layout)
+
+
+def _render_plotly_llm_binned_distribution(
+    assignments: Sequence[FrameAssignment],
+    frames: Sequence[dict],
+    *,
+    bins: Optional[Sequence[float]] = None,
+) -> str:
+    """Render a stacked bar chart of LLM probabilities binned per frame.
+
+    - X axis: frames (short label)
+    - Y axis: count of passages in each probability bin for that frame
+    - Stacks: probability bins (e.g., 0–0.2, 0.2–0.4, ...)
+    """
+    if not assignments or not frames:
+        return ""
+    import math
+
+    frame_ids = [str(f["frame_id"]) for f in frames]
+    labels = [str((f.get("short") or f.get("name") or f["frame_id"])) for f in frames]
+
+    # Default bins: [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    if bins is None:
+        bins = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0000001]
+    # Build bin labels
+    bin_labels = []
+    for i in range(len(bins) - 1):
+        lo, hi = bins[i], bins[i + 1]
+        lo_s = f"{lo:.1f}".rstrip("0").rstrip(".")
+        hi_s = f"{min(hi, 1.0):.1f}".rstrip("0").rstrip(".")
+        bin_labels.append(f"{lo_s}–{hi_s}")
+
+    # Initialize counts: dict[bin_index][frame_index] -> count
+    counts = [[0 for _ in frame_ids] for _ in range(len(bins) - 1)]
+
+    # Iterate assignments and tally
+    for a in assignments:
+        probs = a.probabilities or {}
+        for fx, fid in enumerate(frame_ids):
+            p = float(probs.get(fid, 0.0))
+            # Find bin index
+            bi = None
+            for i in range(len(bins) - 1):
+                if bins[i] <= p < bins[i + 1] or (math.isclose(p, 1.0) and i == len(bins) - 2):
+                    bi = i
+                    break
+            if bi is not None:
+                counts[bi][fx] += 1
+
+    # Choose a fixed set of colors per bin
+    bin_colors = [
+        "#e2e8f0",  # light
+        "#cbd5e1",
+        "#94a3b8",
+        "#64748b",
+        "#334155",  # dark
+    ]
+    while len(bin_colors) < len(counts):
+        bin_colors.append("#4b5563")
+
+    traces: List[Dict[str, object]] = []
+    for bi, label in enumerate(bin_labels):
+        traces.append(
+            {
+                "type": "bar",
+                "name": label,
+                "x": labels,
+                "y": counts[bi],
+                "marker": {"color": bin_colors[bi % len(bin_colors)]},
+                "hovertemplate": "%{x}<br>Bin: " + label + "<br>%{y} passages<extra></extra>",
+            }
+        )
+
+    layout = {
+        "barmode": "stack",
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 80},
+        "xaxis": {"title": "Frame", "tickangle": -30},
+        "yaxis": {"title": "Passages (by probability bin)"},
+        "height": 480,
+        "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+    }
+    return _render_plotly_fragment("llm-binned-chart", traces, layout)
+
+
 def _plot_confusion_matrix(
     assignments: Sequence[FrameAssignment],
     frame_ids: List[str],
@@ -474,12 +598,14 @@ def _render_probability_bars(
         return "—"
     prob_bars = []
     sorted_items = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)
-    for frame_id, score in sorted_items[:5]:
+    for frame_id, score in sorted_items:
         width = max(2, int(score * 100))
         color = color_map.get(frame_id, "#4F8EF7")
+        label = frame_lookup.get(frame_id, {}).get("short", frame_id)
         prob_bars.append(
             "<div class=\"bar\">"
             f"<div class=\"fill\" style=\"width:{width}%; background:{color};\"></div>"
+            f"<span class=\"bar-label\">{html.escape(label)} ({score:.0%})</span>"
             "</div>"
         )
     return "".join(prob_bars) if prob_bars else "—"
@@ -594,6 +720,75 @@ def _render_plotly_timeseries(
     return _render_plotly_fragment("time-series-chart", traces, layout)
 
 
+def _render_plotly_timeseries_lines(
+    records: Optional[Sequence[Dict[str, object]]],
+    frame_lookup: Dict[str, Dict[str, str]],
+    color_map: Dict[str, str],
+) -> str:
+    if not records:
+        return ""
+
+    series: Dict[str, List[Tuple[str, float]]] = {}
+    for item in records:
+        frame_id = str(item.get("frame_id"))
+        date_value = item.get("date")
+        if not frame_id or not date_value:
+            continue
+        share_value = item.get("share")
+        if share_value is None:
+            share_value = item.get("avg_score", 0.0)
+        try:
+            share = float(share_value)
+        except (TypeError, ValueError):
+            share = 0.0
+        series.setdefault(frame_id, []).append((str(date_value), share))
+
+    if not series:
+        return ""
+
+    traces: List[Dict[str, object]] = []
+    for frame_id, points in series.items():
+        points.sort(key=lambda entry: entry[0])
+        dates = [entry[0] for entry in points]
+        values = [entry[1] for entry in points]
+        if len(points) > 1:
+            df = pd.DataFrame({"date": dates, "share": values})
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.dropna(subset=["date"]).sort_values("date")
+            if df.empty:
+                continue
+            df["smooth"] = df["share"].rolling(window=30, min_periods=1).mean()
+            x_vals = df["date"].dt.strftime("%Y-%m-%d").tolist()
+            y_vals = df["smooth"].clip(0, 1).round(5).tolist()
+        else:
+            x_vals = dates
+            y_vals = [round(max(min(v, 1.0), 0.0), 5) for v in values]
+
+        label = frame_lookup.get(frame_id, {}).get("short") or frame_lookup.get(frame_id, {}).get("name") or frame_id
+        color = color_map.get(frame_id, "#1E3D58")
+        traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "name": label,
+                "x": x_vals,
+                "y": y_vals,
+                "line": {"color": color, "width": 2},
+                "hovertemplate": "%{x}<br>%{y:.2%}<extra>" + label + "</extra>",
+            }
+        )
+
+    layout = {
+        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
+        "yaxis": {"tickformat": ".0%", "title": "Share", "range": [0, 1]},
+        "xaxis": {"title": "Date"},
+        "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+        "hovermode": "x unified",
+        "height": 520,
+    }
+
+    return _render_plotly_fragment("time-series-lines-chart", traces, layout)
+
 def _render_plotly_domain_counts(
     domain_counts: Optional[Sequence[Tuple[str, int]]],
 ) -> str:
@@ -695,6 +890,7 @@ def write_html_report(
     domain_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
     document_aggregates: Optional[Sequence[DocumentFrameAggregate]] = None,
     corpus_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
+    metrics_threshold: float = 0.3,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
 
@@ -718,6 +914,7 @@ def write_html_report(
             metrics = _compute_classifier_metrics(
                 assignments,
                 frame_ids,
+                threshold=metrics_threshold,
                 classifier_lookup=classifier_lookup,
             )
             precision_recall_b64 = _plot_precision_recall_bars(metrics, frame_names, color_map)
@@ -727,13 +924,6 @@ def write_html_report(
                 "<div class=\"card chart-card\">"
                 "<h4>Precision &amp; Recall</h4>"
                 f"<img src=\"data:image/png;base64,{precision_recall_b64}\" alt=\"Precision and Recall by Frame\" />"
-                "</div>"
-                "<div class=\"card metrics-card\">"
-                "<h4>Frame-level metrics</h4>"
-                "<table class=\"summary-table\">"
-                "<thead><tr><th>Frame</th><th>Precision</th><th>Recall</th><th>F1 Score</th><th>AUC</th><th>Support</th></tr></thead>"
-                f"<tbody>{_generate_metrics_table_rows(metrics, frame_names)}</tbody>"
-                "</table>"
                 "</div>"
             )
         except Exception as exc:
@@ -791,6 +981,7 @@ def write_html_report(
                 timeseries_note = f"Data covers {html.escape(start)} to {html.escape(end)}."
 
     timeseries_chart_html = _render_plotly_timeseries(timeseries_records, frame_lookup, color_map)
+    timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
     if not timeseries_chart_html and area_chart_b64:
         timeseries_chart_html = (
             "<figure class=\"chart\">"
@@ -893,6 +1084,44 @@ def write_html_report(
         </section>
     """
 
+    # LLM application charts
+    llm_coverage_section_html = ""
+    llm_binned_section_html = ""
+    if assignments:
+        frames_as_dicts = [
+            {"frame_id": f.frame_id, "name": f.name, "short": f.short_name}
+            for f in schema.frames
+        ]
+        llm_cov_html = _render_plotly_llm_coverage(assignments, frames_as_dicts, color_map)
+        if llm_cov_html:
+            llm_coverage_section_html = f"""
+        <section class=\"report-section\" id=\"llm-coverage\">
+            <header class=\"section-heading\">
+                <h2>LLM Frame Coverage</h2>
+                <p>Passages per frame based on LLM assignments (top_k).</p>
+            </header>
+            <div class=\"section-body\">
+                {llm_cov_html}
+                <p class=\"chart-note\">Each bar counts sampled passages where the frame appears in LLM top_k.</p>
+            </div>
+        </section>
+        """
+
+        llm_binned_html = _render_plotly_llm_binned_distribution(assignments, frames_as_dicts)
+        if llm_binned_html:
+            llm_binned_section_html = f"""
+        <section class=\"report-section\" id=\"llm-bins\">
+            <header class=\"section-heading\">
+                <h2>LLM Probability Distribution</h2>
+                <p>Distribution of LLM probabilities per frame (stacked bins).</p>
+            </header>
+            <div class=\"section-body\">
+                {llm_binned_html}
+                <p class=\"chart-note\">Frames on X axis; stacks represent probability bins (0–0.2, 0.2–0.4, …).</p>
+            </div>
+        </section>
+        """
+
     time_series_section_html = ""
     if timeseries_note or timeseries_chart_html:
         note_parts: List[str] = []
@@ -900,9 +1129,14 @@ def write_html_report(
             note_parts.append(html.escape(timeseries_note))
         note_parts.append("30-day rolling average of frame share.")
         note_html = f"<p class=\"section-note\">{' • '.join(note_parts)}</p>"
+        chart_inner = ""
+        if timeseries_chart_html:
+            chart_inner += timeseries_chart_html
+        if timeseries_lines_html:
+            chart_inner += timeseries_lines_html
         chart_block = (
-            f"<div class=\"card chart-card\">{timeseries_chart_html}</div>"
-            if timeseries_chart_html
+            f"<div class=\"card chart-card\">{chart_inner}</div>"
+            if chart_inner
             else "<div class=\"card chart-card\"><p class=\"empty-note\">Not enough data to show the time series.</p></div>"
         )
         time_series_section_html = f"""
@@ -1288,7 +1522,7 @@ def write_html_report(
       padding: 10px 12px;
       vertical-align: top;
     }}
-    td.passage {{ white-space: pre-wrap; min-width: 320px; }}
+    td.passage {{ white-space: pre-wrap; min-width: 280px; width: 30%; max-width: 640px; word-break: break-word; }}
     .summary-table th, .summary-table td {{ border-color: rgba(148, 163, 184, 0.4); }}
     .chart-grid {{
       display: grid;
@@ -1405,6 +1639,15 @@ def write_html_report(
       bottom: 0;
       opacity: 0.9;
     }}
+    .bar-label {{
+      position: relative;
+      z-index: 1;
+      padding-left: 6px;
+      line-height: 24px;
+      font-size: 0.88rem;
+      color: var(--ink-800);
+      font-weight: 600;
+    }}
     .resizer {{
       position: absolute;
       right: 0;
@@ -1441,6 +1684,8 @@ def write_html_report(
   <div class=\"report-page\">
     {header_html}
     {frames_section_html}
+    {llm_coverage_section_html}
+    {llm_binned_section_html}
     {time_series_section_html}
     {top_media_section_html}
     {top_stories_section_html}

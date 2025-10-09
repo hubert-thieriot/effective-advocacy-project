@@ -10,7 +10,7 @@ parameters:
     - id: 34412118
       name: India - National
   date_from: 2020-01-01
-  date_to: 2024-12-31
+  date_to: 2025-10-04
   rate_limit:
     requests_per_minute: 30
     min_interval: 20.0

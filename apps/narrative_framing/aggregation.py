@@ -142,6 +142,9 @@ def build_weighted_time_series(
         if not normalized:
             continue
         day_value = date(normalized.year, normalized.month, normalized.day)
+        # Skip future-dated documents to avoid distorting time series
+        if day_value > date.today():
+            continue
         weight = float(aggregate.total_weight)
         for frame_id, score in aggregate.frame_scores.items():
             records.append(

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import json
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, Sequence
+from typing import Any, Dict, Iterable, List, Sequence, Optional
+
+try:
+    from jinja2 import Template  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    Template = None  # type: ignore
 
 from .types import Frame, FrameSchema
 
@@ -19,6 +24,7 @@ class FrameInducer:
         "Deliverables per frame: a crisp definition; positive triggers (explicit phrases/keywords and semantic cues); anti-triggers (words/contexts that should not fire this frame); near-misses (confusable content with rationale why it's not this frame); decision rules (boolean logic, e.g., MUST/SHOULD/NEVER conditions); hard evidence cues (verbatim text patterns); soft cues (semantic signals); regex seeds; 3 positive examples and 3 counter-examples from the passages; and a scoring rubric (0–3 scale) you'd apply to a passage. "
         "Expand keywords with common synonyms and near-variants. Ensure triggers include both lexical cues (quoted phrases) and semantic cues (paraphrasable conditions). Provide anti-triggers that disambiguate closely related frames to minimize overlap. "
         "Avoid sentiment or policy prescriptions. Prefer generalizable, domain-portable language. Frames must be mutually exclusive on triggers (if two share triggers, split or refine). When narratives oppose (e.g., jobs vs. health harms), split them. "
+        "For each frame, provide a short_name that is a human-friendly 1–3 word label (≤20 characters), using full words and no mid-word truncation. "
         "Output valid JSON only, matching the provided schema. No prose."
     )
 
@@ -33,6 +39,8 @@ class FrameInducer:
         max_passages_per_call: int | None = None,
         max_total_passages: int | None = None,
         frame_guidance: str | None = None,
+        system_template: Optional[str] = None,
+        user_template: Optional[str] = None,
     ) -> None:
         """Initialize the inducer with an LLM client and target domain."""
         self.llm_client = llm_client
@@ -62,6 +70,12 @@ class FrameInducer:
             raise ValueError("max_total_passages must be >= max_passages_per_call.")
         self.max_total_passages = max_total_passages
         self.frame_guidance = frame_guidance.strip() if frame_guidance else ""
+        # Optional Jinja templates for system/user prompts
+        self._system_template = system_template
+        self._user_template = user_template
+        # Expose last-built messages for provenance/debugging
+        self.last_built_messages: Optional[List[Dict[str, str]]] = None
+        self.emitted_messages: List[List[Dict[str, str]]] = []
 
     def induce(self, passages: Iterable[str]) -> FrameSchema:
         """Produce a frame schema for the configured domain and passages."""
@@ -99,38 +113,33 @@ class FrameInducer:
         return unique
 
     def _build_messages(self, passages: Sequence[str]) -> List[dict[str, str]]:
+        # Require Jinja templates; do not fallback to built-in strings
+        if Template is None:
+            raise RuntimeError("Jinja2 is required for template-based prompts but is not installed.")
+        if not (self._system_template and self._user_template):
+            raise RuntimeError("Induction prompts must be provided via templates (system + user).")
+
         passage_lines = [f"{idx + 1}. {text}" for idx, text in enumerate(passages)]
         passages_joined = "\n".join(passage_lines)
-        frame_target_line = ""
-        if self._frame_target_text:
-            frame_target_line = f"Frame target: {self._frame_target_text}\n"
-        schema_instruction = self._schema_instruction()
-
-        user_prompt = (
-            f"DOMAIN: {self.domain}\n"
-            f"{frame_target_line}"
-            f"Goal: Induce a compact, mutually-exclusive frame set for this domain and derive operational detection rules.\n\n"
-            f"Constraints:\n"
-            "- Start from the guidance seed frames if provided, but refine/split/merge as needed for non-overlap.\n"
-            "- Triggers must include both lexical (quoted phrases) and semantic cues (paraphrasable conditions).\n"
-            "- Anti-triggers must explicitly name *false positives* (e.g., \"capacity addition\" is NOT \"overcapacity\").\n"
-            "- Decision rules must include at least one MUST, at most three SHOULD, and at least two NEVER conditions per frame.\n"
-            "- Regex seeds should be robust but conservative (lower FP > higher FN).\n"
-            "- Examples/counter-examples MUST be exact quotes from the provided passages when possible; if not available, construct minimal plausible snippets.\n\n"
-            + (f"Seed frames (optional):\n{self.frame_guidance}\n\n" if self.frame_guidance else "")
-            + f"Passages (≤ {self.max_passages_per_call}, sampled & deduped):\n"
-            f"{passages_joined}\n\n"
-            f"Return JSON only using this schema. Make sure it is valid JSON:\n"
-            f"{schema_instruction}"
-        )
-
+        ctx = {
+            "domain": self.domain,
+            "frame_target": self._frame_target_text,
+            "frame_guidance": self.frame_guidance,
+            "passages": list(passages),
+            "passages_joined": passages_joined,
+            "max_passages_per_call": self.max_passages_per_call,
+        }
+        sys_content = Template(self._system_template).render(**ctx)
+        usr_content = Template(self._user_template).render(**ctx)
         return [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
+            {"role": "system", "content": sys_content},
+            {"role": "user", "content": usr_content},
         ]
 
     def _induce_single(self, passages: Sequence[str]) -> FrameSchema:
         messages = self._build_messages(passages)
+        self.last_built_messages = list(messages)
+        self.emitted_messages.append(list(messages))
         infer_kwargs: dict[str, Any] = {}
         if self.infer_timeout is not None and self._infer_supports_timeout:
             infer_kwargs["timeout"] = self.infer_timeout
@@ -152,6 +161,8 @@ class FrameInducer:
             return partial_schemas[0]
 
         messages = self._build_merge_messages(all_passages, partial_schemas)
+        self.last_built_messages = list(messages)
+        self.emitted_messages.append(list(messages))
         infer_kwargs: dict[str, Any] = {}
         if self.infer_timeout is not None and self._infer_supports_timeout:
             infer_kwargs["timeout"] = self.infer_timeout
@@ -286,12 +297,12 @@ class FrameInducer:
             if not frame_id or not name:
                 continue
 
-            resolved_short = (
+            base_short = (
                 str(short_name).strip()
                 if short_name
-                else str(name).split()[0] if str(name).split() else str(frame_id)
+                else (str(name).strip() if str(name).strip() else str(frame_id))
             )
-            resolved_short = resolved_short[:12]
+            resolved_short = base_short
 
             frames.append(
                 Frame(

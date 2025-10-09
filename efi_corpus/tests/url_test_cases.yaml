@@ -48,3 +48,44 @@ test_cases:
       - "trains"
     expected_min_length: 800
     site: "ndtv.com"
+    
+  # NDTV Profit business articles
+  ndtv_profit_tata_steel_coal:
+    url: "https://www.ndtvprofit.com/business/ukraine-conflict-tata-steel-seeks-alternative-to-russian-coal-2819370"
+    description: "NDTV Profit business article about Tata Steel seeking alternative coal sources"
+    required_text:
+      - "Tata Steel Limited is looking at alternative markets for coal imports"
+      - "Russia-Ukraine conflict"
+      - "coal imports"
+      - "pulverised coal injection"
+      - "supply vacuum"
+    expected_min_length: 1000
+    site: "ndtvprofit.com"
+    
+  # Economic Times coal industry articles
+  economic_times_ccl_coal_delays:
+    url: "https://economictimes.indiatimes.com/industry/indl-goods/svs/metals-mining/delay-in-forest-environment-nods-halts-operations-in-ccl-projects/articleshow/86968693.cms"
+    description: "Economic Times article about CCL coal project delays due to environmental clearances"
+    required_text:
+      - "Ironically the Central government has asked state-owned CIL"
+    required_not_in_text:
+      - "Suzlon Energy Share Price"
+    expected_min_length: 1000
+    site: "economictimes.indiatimes.com"
+    
+  # Economic Times power grid articles
+  economic_times_power_grid_demand:
+    url: "https://economictimes.indiatimes.com/small-biz/productline/power-generation/grid-managers-seamlessly-handles-32gw-fall-and-rise-in-demand-within-20-minutes-on-sunday/articleshow/75005568.cms"
+    description: "Economic Times article about power grid managers handling 32GW demand fluctuation"
+    required_text:
+      - "Engineers at electricity load despatch centres managed a total power demand dip of almost 32 GW"
+      - "Power demand fell as citizens responded to Prime Minister, Narendra Modi's call"
+      - "RK Singh, tweeted"
+      - "national power grid"
+    required_not_in_text:
+      - "Share Price"
+      - "Most Searched Stocks"
+      - "Top Calculators"
+      - "Subscribe to The Economic Times Prime"
+    expected_min_length: 1000
+    site: "economictimes.indiatimes.com"

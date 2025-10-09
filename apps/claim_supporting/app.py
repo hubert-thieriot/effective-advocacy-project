@@ -8,9 +8,9 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from ..types import ClaimSupportingConfig, ClaimSupportingResults, ReportConfig
-from ..pipeline.claim_supporting import ClaimSupportingPipeline
-from ..report_generator.claim_supporting import ClaimSupportingReportGenerator
+from efi_analyser.types import ClaimSupportingConfig, ClaimSupportingResults, ReportConfig
+from efi_analyser.pipeline.claim_supporting import ClaimSupportingPipeline
+from efi_analyser.report_generator.claim_supporting import ClaimSupportingReportGenerator
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ parameters:
     - id: 34412118
       name: India - National
   date_from: 2020-01-01
-  date_to: 2024-12-31
+  date_to: 2025-10-04
   rate_limit:
     requests_per_minute: 30
     min_interval: 20.0
@@ -22,15 +22,17 @@ parameters:
   # Force refresh cache to get fresh data (set to false for production)
   force_refresh_cache: false
   # Limit for testing (remove for production)
-  limit: 10
+  # limit: 10
   domain_blacklist:
     - "livemint.com"
-    - "latest.inkhabar.com"  # Already failing in your corpus build
+    - "latest.inkhabar.com"
+    - "cms.abclive.in"  # Already failing in your corpus build
+    - "economictimes.indiatimes.com/markets/stocks/stock-watch"
+    - "thehindubusinessline.com/markets/"
 
 extra_meta:
   country_iso3: IND
   comment: National coal and thermal power corpus for India
   topic: coal
-  max_stories: 1000
 
 

@@ -177,6 +177,7 @@ class TestContentFetchingAndExtraction:
             description = test_case['description']
             expected_min_length = test_case.get('expected_min_length', 1000)
             site = test_case.get('site', 'unknown')
+            forbidden_texts = test_case.get('required_not_in_text', [])
             
             try:
                 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
@@ -205,7 +206,16 @@ class TestContentFetchingAndExtraction:
                 if missing_texts:
                     pytest.fail(f"Missing required text from {url}: {missing_texts}")
                 
-                print(f"✅ {site}: {len(text)} chars, all required text found")
+                # Verify forbidden text is NOT present
+                found_forbidden_texts = []
+                for forbidden_text in forbidden_texts:
+                    if forbidden_text in text:
+                        found_forbidden_texts.append(forbidden_text)
+                
+                if found_forbidden_texts:
+                    pytest.fail(f"Found forbidden text in {url}: {found_forbidden_texts}")
+                
+                print(f"✅ {site}: {len(text)} chars, all required text found, no forbidden text found")
                 
             except Exception as e:
                 pytest.fail(f"Failed to process {url}: {e}")

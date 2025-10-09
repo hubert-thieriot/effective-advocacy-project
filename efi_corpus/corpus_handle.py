@@ -49,6 +49,7 @@ class CorpusHandle(Corpus):
         self.corpus_path = Path(corpus_path)
         self.read_only = read_only
         self.store_raw_files = store_raw_files
+        self._index_cache: Optional[Dict[str, Any]] = None
         
         # Initialize layout (no workspace needed for basic corpus operations)
         self.layout = CorpusLayout(self.corpus_path)
@@ -99,6 +100,30 @@ class CorpusHandle(Corpus):
                     except json.JSONDecodeError:
                         continue
         return doc_ids
+
+    def get_index_entry(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Return the JSON index entry for a document without loading its text."""
+
+        cache = self._index_cache
+        if cache is None:
+            cache = {}
+            with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    entry_id = entry.get('id')
+                    if entry_id:
+                        cache[entry_id] = entry
+            self._index_cache = cache
+
+        entry = cache.get(doc_id)
+        if entry is None:
+            return None
+        return dict(entry)
 
     def get_text(self, doc_id: str) -> str:
         """Get document text by ID"""
@@ -187,7 +212,15 @@ class CorpusHandle(Corpus):
 
     def get_document_count(self) -> int:
         """Get total number of documents in corpus"""
-        return len(self.list_ids())
+        if self._index_cache is not None:
+            return len(self._index_cache)
+
+        count = 0
+        with open(self.layout.index_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    count += 1
+        return count
 
     def get_corpus_info(self) -> Dict[str, Any]:
         """Get basic information about the corpus"""

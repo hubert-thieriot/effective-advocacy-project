@@ -30,7 +30,7 @@ def main():
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=Path("corpora/mediacloud_india_coal"),
+        # default=Path("corpora/mediacloud_india_coal"),
         help="Path to corpus directory (default: corpora/mediacloud_india_coal)"
     )
     parser.add_argument(
@@ -47,6 +47,7 @@ def main():
     parser.add_argument(
         "--build-all",
         action="store_true",
+        default=True,
         help="Build all available corpora instead of just one"
     )
     
@@ -85,7 +86,7 @@ def main():
         return 0
     
     # Validate paths
-    if not args.corpus.exists():
+    if args.corpus is not None and not args.corpus.exists():
         print(f"Error: Corpus path does not exist: {args.corpus}")
         print("Use --list-corpora to see available corpora")
         return 1
@@ -162,9 +163,9 @@ def build_single_corpus(corpus_path: Path, workspace_path: Path, max_documents: 
             print(f"  Processing only the first {max_documents} documents")
             embedded_corpus.build_all(max_documents=max_documents)
         else:
-            # embedded_corpus.build_all()
+            embedded_corpus.build_all()
             # embedded_corpus.build_embeddings()
-            embedded_corpus.build_index()
+            # embedded_corpus.build_index()
             
         print(f"  ✓ Successfully built corpus: {corpus_path.name}")
         return True

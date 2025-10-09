@@ -28,22 +28,34 @@ def run_single_config(config_path: Path) -> Dict[str, Any]:
     print(f"Running single config: {config_path.name}")
     print(f"Config: {config_path}")
     print("-" * 40)
+    print("💡 Press Ctrl+C to interrupt this config")
     
-    start_time = time.time()
-    summary = run_config(config_path)
-    end_time = time.time()
-    
-    duration = end_time - start_time
-    print(f"✅ Completed successfully in {duration:.1f}s")
-    print(f"Summary: {summary}")
-    
-    return {
-        "config": config_path.name,
-        "status": "success",
-        "summary": summary,
-        "duration": duration,
-        "retries": 0
-    }
+    try:
+        start_time = time.time()
+        summary = run_config(config_path)
+        end_time = time.time()
+        
+        duration = end_time - start_time
+        print(f"✅ Completed successfully in {duration:.1f}s")
+        print(f"Summary: {summary}")
+        
+        return {
+            "config": config_path.name,
+            "status": "success",
+            "summary": summary,
+            "duration": duration,
+            "retries": 0
+        }
+        
+    except KeyboardInterrupt:
+        print(f"\n⏹️  Interrupted by user while processing {config_path.name}")
+        return {
+            "config": config_path.name,
+            "status": "skipped",
+            "error": "Interrupted by user",
+            "duration": 0,
+            "retries": 0
+        }
 
 
 def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int = 60, max_retries: int = 2):
@@ -76,6 +88,7 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
         print(f"\n[{i}/{len(configs)}] Running: {config_file.name}")
         print(f"Config: {config_file}")
         print("-" * 40)
+        print("💡 Press Ctrl+C to skip this config and move to the next one")
         
         try:
             start_time = time.time()
@@ -93,6 +106,17 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
             print(f"✅ Completed successfully in {result['duration']:.1f}s")
             print(f"Summary: {summary}")
             
+        except KeyboardInterrupt:
+            print(f"\n⏹️  Interrupted by user while processing {config_file.name}")
+            print("Skipping to next config...")
+            result = {
+                "config": config_file.name,
+                "status": "skipped",
+                "error": "Interrupted by user",
+                "duration": 0,
+                "retries": 0
+            }
+            
         except Exception as e:
             print(f"❌ Failed: {e}")
             result = {
@@ -109,7 +133,10 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
         # Add delay between runs (except for the last one)
         if i < len(configs):
             print(f"\nWaiting {delay_seconds}s before next config...")
-            time.sleep(delay_seconds)
+            try:
+                time.sleep(delay_seconds)
+            except KeyboardInterrupt:
+                print(f"\n⏹️  Interrupted during delay, moving to next config immediately...")
     
     # Retry failed configs
     if failed_configs and max_retries > 0:
@@ -126,6 +153,7 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
             
             for config_file, result in failed_configs:
                 print(f"\n🔄 Retrying: {config_file.name} (attempt {retry_attempt})")
+                print("💡 Press Ctrl+C to skip this retry and move to the next one")
                 
                 try:
                     start_time = time.time()
@@ -141,6 +169,13 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
                     print(f"✅ Retry successful in {result['duration']:.1f}s")
                     print(f"Summary: {summary}")
                     
+                except KeyboardInterrupt:
+                    print(f"\n⏹️  Interrupted by user while retrying {config_file.name}")
+                    print("Skipping this retry...")
+                    result["status"] = "skipped"
+                    result["error"] = "Interrupted by user during retry"
+                    result["retries"] = retry_attempt
+                    
                 except Exception as e:
                     print(f"❌ Retry failed: {e}")
                     result["error"] = str(e)
@@ -148,7 +183,10 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
                     still_failed.append((config_file, result))
                 
                 # Small delay between retries
-                time.sleep(10)
+                try:
+                    time.sleep(10)
+                except KeyboardInterrupt:
+                    print(f"\n⏹️  Interrupted during retry delay, moving to next retry immediately...")
             
             failed_configs = still_failed
             
@@ -165,16 +203,24 @@ def run_all_configs(config_dir: str = "configs/air_quality", delay_seconds: int 
     
     successful = [r for r in results if r["status"] == "success"]
     failed = [r for r in results if r["status"] == "failed"]
+    skipped = [r for r in results if r["status"] == "skipped"]
     
     print(f"Total configs: {len(configs)}")
     print(f"Successful: {len(successful)}")
     print(f"Failed: {len(failed)}")
+    print(f"Skipped: {len(skipped)}")
     
     if successful:
         print(f"\nSuccessful runs:")
         for r in successful:
             retry_info = f" (retried {r['retries']}x)" if r['retries'] > 0 else ""
             print(f"  ✅ {r['config']} ({r['duration']:.1f}s){retry_info}")
+    
+    if skipped:
+        print(f"\nSkipped runs:")
+        for r in skipped:
+            retry_info = f" (retried {r['retries']}x)" if r['retries'] > 0 else ""
+            print(f"  ⏭️  {r['config']}: {r['error']}{retry_info}")
     
     if failed:
         print(f"\nFailed runs:")
@@ -193,7 +239,9 @@ def main():
     parser.add_argument("--config-dir", default="configs/air_quality", 
                        help="Directory containing config files (default: configs/air_quality)")
     parser.add_argument("--config-file", 
-                       help="Single config file to run (overrides --config-dir)")
+                       help="Single config file to run (overrides --config-dir)",
+                       default="configs/mediacloud/mediacloud_india_coal.yaml"
+                       )
     parser.add_argument("--delay", type=int, default=60,
                        help="Delay between config runs in seconds (default: 60)")
     parser.add_argument("--max-retries", type=int, default=2,

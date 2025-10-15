@@ -14,6 +14,10 @@ from urllib.parse import urlparse
 
 import pandas as pd
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Load environment variables from .env if present (for WANDB_*, etc.)
+load_dotenv()
 
 from apps.narrative_framing.aggregation import (
     DocumentFrameAggregate,
@@ -507,6 +511,8 @@ def train_and_apply_classifier(
     assignments: Sequence[FrameAssignment],
     samples: Sequence[Tuple[str, str]],
     output_dir: Optional[Path],
+    *,
+    run_name: Optional[str] = None,
 ) -> ClassifierRun:
     if not settings.enabled:
         return ClassifierRun(predictions=[], model=None)
@@ -519,15 +525,45 @@ def train_and_apply_classifier(
         print("⚠️ Label set is empty; skipping classifier training.")
         return ClassifierRun(predictions=[], model=None)
 
-    spec_kwargs = {"model_name": settings.model_name}
+    spec_kwargs = {
+        "model_name": settings.model_name,
+        "batch_size": settings.batch_size,
+        "num_train_epochs": settings.num_train_epochs,
+        "learning_rate": settings.learning_rate,
+        "weight_decay": settings.weight_decay,
+        "warmup_ratio": settings.warmup_ratio,
+        "max_length": settings.max_length,
+        "report_to": settings.report_to,
+        "logging_dir": settings.logging_dir,
+        "eval_threshold": settings.eval_threshold,
+        "eval_top_k": settings.eval_top_k,
+        "eval_steps": settings.eval_steps,
+    }
+    if run_name:
+        spec_kwargs["run_name"] = run_name
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
         spec_kwargs["output_dir"] = str(output_dir)
     else:
         print("⚠️ Results directory not configured; classifier artifacts will use the trainer default output path.")
     trainer = FrameClassifierTrainer(FrameClassifierSpec(**spec_kwargs))
-    print(f"→ Training classifier model: {settings.model_name}")
-    model = trainer.train(label_set)
+    # Create a small dev split so we can track per-epoch metrics.
+    # Ensure at least 1 dev example when possible.
+    n_total = len(label_set.passages)
+    base_train_ratio = 0.9
+    base_dev_ratio = 0.1
+    if n_total >= 2 and int(n_total * base_dev_ratio) == 0:
+        dev_ratio = 1.0 / n_total
+        train_ratio = max(0.0, 1.0 - dev_ratio)
+    else:
+        train_ratio = base_train_ratio
+        dev_ratio = base_dev_ratio
+    train_set, dev_set, _ = label_set.split(train_ratio=train_ratio, dev_ratio=dev_ratio, seed=13)
+    print(
+        f"→ Training classifier model: {settings.model_name} (epochs={settings.num_train_epochs}, lr={settings.learning_rate})\n"
+        f"  Using {len(train_set.passages)} train / {len(dev_set.passages)} dev passages for evaluation"
+    )
+    model = trainer.train(train_set, eval_set=dev_set)
     print("→ Classifier training complete.")
 
     texts = [text for _, text in samples]
@@ -1014,12 +1050,22 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 f"⚠️ No new passages were sampled; continuing with {len(assignment_list)} cached assignments."
             )
 
-    assignments = assignment_list
+    # Limit to requested application_sample_size when cache contains more
     if target_application_count and len(assignment_list) > target_application_count:
+        # Use a deterministic shuffle so repeated runs with the same seed are reproducible
+        print(
+            f"Limiting cached assignments from {len(assignment_list)} to a shuffled subset of {target_application_count} for this run."
+        )
+        rng = random.Random(config.seed + 97)
+        indices = list(range(len(assignment_list)))
+        rng.shuffle(indices)
+        picked = set(indices[:target_application_count])
+        assignments = [assignment_list[i] for i in indices[:target_application_count]]
         application_samples = [
-            (item.passage_id, item.passage_text) for item in assignment_list[:target_application_count]
+            (assignment_list[i].passage_id, assignment_list[i].passage_text) for i in indices[:target_application_count]
         ]
     else:
+        assignments = assignment_list
         application_samples = [
             (item.passage_id, item.passage_text) for item in assignment_list
         ]
@@ -1081,12 +1127,12 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     # POST-PROCESS ASSIGNMENTS AND DISPLAY RESULTS
     # ============================================================================
-    
-    if assignments:
-        enrich_assignments_with_metadata(assignments, corpora_map)
+    # Always persist the full cached set with metadata (not the run-limited slice)
+    if assignment_list:
+        enrich_assignments_with_metadata(assignment_list, corpora_map)
         if paths.assignments:
-            save_assignments(paths.assignments, assignments)
-        print("Assignments enriched with document metadata.")
+            save_assignments(paths.assignments, assignment_list)
+        print("Assignments enriched with document metadata and saved to cache (full set).")
 
     print_schema(schema)
 
@@ -1137,6 +1183,12 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         need_training = not classifier_predictions or classifier_model is None
         if need_training:
             print("Training classifier on LLM-labeled passages...")
+            # Build a readable run name that starts with the corpus name(s)
+            if len(corpus_names) == 1:
+                _run_name = f"{corpus_names[0]}-frame-cls"
+            else:
+                _run_name = f"{'+' .join(corpus_names)}-frame-cls"
+
             classifier_run = train_and_apply_classifier(
                 settings=config.classifier,
                 schema=schema,
@@ -1145,6 +1197,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 if application_samples
                 else [(a.passage_id, a.passage_text) for a in assignments],
                 output_dir=paths.classifier_dir,
+                run_name=_run_name,
             )
             classifier_predictions = classifier_run.predictions
             classifier_model = classifier_run.model

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
@@ -33,6 +33,14 @@ class FrameClassifierSpec:
     seed: int = 13
     output_dir: str = "frame_classifier_runs"
     freeze_base_model: bool = False
+    # Logging/reporting
+    report_to: list[str] = field(default_factory=list)
+    logging_dir: str | None = None
+    run_name: str | None = None
+    # Evaluation options
+    eval_threshold: float = 0.5
+    eval_top_k: int | None = None
+    eval_steps: int | None = None
 
 
 class FrameClassifierModel:
@@ -143,7 +151,7 @@ class FrameClassifierModel:
         )
         label_order = payload["label_order"]
         spec = FrameClassifierSpec(**payload.get("spec", {}))
-        model = AutoModelForSequenceClassification.from_pretrained(output_dir)
+        model = AutoModelForSequenceClassification.from_pretrained(output_dir, use_safetensors=True)
         tokenizer = AutoTokenizer.from_pretrained(output_dir)
         return cls(schema=schema, label_order=label_order, model=model, tokenizer=tokenizer, spec=spec)
 

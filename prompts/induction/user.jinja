@@ -1,0 +1,33 @@
+DOMAIN: {{ domain }}
+Goal: Induce a compact, non-overlapping set of frames that covers these passages well (typically 6–9). Choose the number that best balances coverage and distinctness.
+
+Constraints
+- Keep descriptions short (≤ 2 sentences).
+- Provide 5–8 lexical_cues (quoted triggers) and 2–4 semantic_cues per frame.
+- Provide 1–2 short examples when possible.
+- Use boundary_notes (1–2) to explain differences vs. close frames.
+- Do not include decision rules, regex, or long anti-trigger lists.
+
+{% if frame_guidance %}Guidance (optional):
+{{ frame_guidance }}
+
+{% endif %}Passages (≤ {{ max_passages_per_call }}, sampled & deduped):
+{{ passages_joined }}
+
+Return JSON only (schema must be valid):
+{
+  "domain": "{{ domain }}",
+  "frames": [
+    {
+      "frame_id": "...",
+      "short_name": "...",
+      "name": "...",
+      "description": "...",
+      "lexical_cues": ["...", "..."],
+      "semantic_cues": ["...", "..."],
+      "examples": ["..."],
+      "boundary_notes": ["..."]
+    }
+  ],
+  "notes": ""
+}

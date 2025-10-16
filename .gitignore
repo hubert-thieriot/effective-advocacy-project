@@ -9,6 +9,13 @@ models/
 tmp/
 workspace/
 
+# Development
+scripts/
+wandb/
+configs/
+.cursor
+.vscode
+prompts/
 
 
 # Byte-compiled / optimized / DLL files

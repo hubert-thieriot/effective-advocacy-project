@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
-DEFAULT_CORPUS_NAME = "mediacloud_india_coal"
 DEFAULT_CORPORA_ROOT = Path("corpora")
 DEFAULT_WORKSPACE_ROOT = Path("workspace")
 DEFAULT_INDUCTION_SAMPLE = 100
@@ -29,13 +28,27 @@ class ClassifierSettings:
     model_name: str = "microsoft/deberta-v3-base"
     batch_size: int = 8
     inference_batch_size: int = 8
+    
+    # Training parameters
+    num_train_epochs: float = 3.0
+    learning_rate: float = 5e-5
+    weight_decay: float = 0.01
+    warmup_ratio: float = 0.1
+    max_length: int = 384
+    # Logging/reporting
+    report_to: List[str] = field(default_factory=list)  # e.g., ["tensorboard", "wandb"]
+    logging_dir: Optional[str] = None
+    # Evaluation options
+    eval_threshold: float = 0.5
+    eval_top_k: Optional[int] = None
+    eval_steps: Optional[int] = None
 
 
 @dataclass
 class NarrativeFramingConfig:
     """Typed configuration for the narrative framing workflow."""
 
-    corpus: str = DEFAULT_CORPUS_NAME
+    corpus: str = None
     corpora: Optional[List[str]] = None
     corpora_root: Path = DEFAULT_CORPORA_ROOT
     workspace_root: Path = DEFAULT_WORKSPACE_ROOT
@@ -47,7 +60,7 @@ class NarrativeFramingConfig:
     induction_temperature: Optional[float] = None  # None = use model default
     application_temperature: Optional[float] = None  # None = use model default
     seed: int = DEFAULT_SEED
-    filter_keywords: Optional[List[str]] = field(default_factory=lambda: ["coal"])
+    filter_keywords: Optional[List[str]] = field(default_factory=lambda: [])
     # Content filtering (optional)
     filter_exclude_regex: Optional[List[str]] = None
     filter_exclude_min_hits: Optional[Dict[str, int]] = None  # e.g., {"share price": 3}
@@ -138,6 +151,41 @@ def _load_classifier_settings(data: Dict[str, Any]) -> ClassifierSettings:
         settings.batch_size = int(data["batch_size"])
     if "inference_batch_size" in data:
         settings.inference_batch_size = int(data["inference_batch_size"])
+    # Training parameters
+    if "num_train_epochs" in data:
+        settings.num_train_epochs = float(data["num_train_epochs"])
+    if "learning_rate" in data:
+        settings.learning_rate = float(data["learning_rate"])
+    if "weight_decay" in data:
+        settings.weight_decay = float(data["weight_decay"])
+    if "warmup_ratio" in data:
+        settings.warmup_ratio = float(data["warmup_ratio"])
+    if "max_length" in data:
+        settings.max_length = int(data["max_length"])
+    # Logging/reporting
+    if "report_to" in data:
+        raw = data["report_to"]
+        if isinstance(raw, (list, tuple)):
+            settings.report_to = [str(x).strip() for x in raw if str(x).strip()]
+        elif isinstance(raw, str) and raw.strip():
+            settings.report_to = [s.strip() for s in raw.split(",") if s.strip()]
+    if "logging_dir" in data:
+        settings.logging_dir = str(data["logging_dir"]) if data["logging_dir"] else None
+    # Evaluation options
+    if "eval_threshold" in data:
+        settings.eval_threshold = float(data["eval_threshold"]) if data["eval_threshold"] is not None else settings.eval_threshold
+    if "eval_top_k" in data:
+        val = data["eval_top_k"]
+        try:
+            parsed = int(val) if val is not None else None
+        except Exception:
+            parsed = None
+        settings.eval_top_k = parsed if (parsed is None or parsed > 0) else None
+    if "eval_steps" in data:
+        try:
+            settings.eval_steps = int(data["eval_steps"]) if data["eval_steps"] is not None else None
+        except Exception:
+            settings.eval_steps = None
     return settings
 
 

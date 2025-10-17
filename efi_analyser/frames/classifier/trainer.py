@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Callable, Dict, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Any, List
 
 import numpy as np
 
@@ -13,10 +13,17 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
+    TrainerCallback,
 )
 
 from efi_analyser.frames.classifier.dataset import FrameLabelSet
 from efi_analyser.frames.classifier.model import FrameClassifierModel, FrameClassifierSpec
+from efi_analyser.frames.classifier.reporting import (
+    build_default_compute_metrics,
+    PeriodicEvaluatorCallback,
+    EpochEndEvaluateCallback,
+    PerFrameMetricsCallback,
+)
 
 
 class _HFDataset(torch.utils.data.Dataset):  # type: ignore[name-defined]
@@ -60,6 +67,7 @@ class FrameClassifierTrainer:
             num_labels=num_labels,
             problem_type="multi_label_classification",
             ignore_mismatched_sizes=True,
+            use_safetensors=True,  # Use safetensors to avoid torch version requirements
         )
         if self.spec.freeze_base_model:
             for name, param in model.named_parameters():
@@ -83,6 +91,15 @@ class FrameClassifierTrainer:
 
         model = self._build_model(num_labels=label_set.num_frames)
 
+        # If no compute_metrics provided, use the shared implementation from reporting.py
+        # that supports threshold- and top-k-based multi-label metrics.
+        if compute_metrics is None and eval_dataset is not None:
+            compute_metrics = build_default_compute_metrics(
+                label_order=list(label_set.label_order),
+                eval_threshold=getattr(self.spec, "eval_threshold", 0.5),
+                eval_top_k=getattr(self.spec, "eval_top_k", None),
+            )
+
         training_kwargs = dict(
             output_dir=self.spec.output_dir,
             num_train_epochs=self.spec.num_train_epochs,
@@ -95,23 +112,45 @@ class FrameClassifierTrainer:
             fp16=self.spec.fp16,
             seed=self.spec.seed,
             logging_steps=10,
-            report_to=[],
+            report_to=list(getattr(self.spec, "report_to", []) or []),
         )
+        # Optional run name (used by WandB/TensorBoard integrations)
+        if getattr(self.spec, "run_name", None):
+            training_kwargs["run_name"] = self.spec.run_name  # type: ignore[index]
+        # Optional explicit logging directory
+        if getattr(self.spec, "logging_dir", None):
+            training_kwargs["logging_dir"] = self.spec.logging_dir  # type: ignore[index]
         if eval_dataset is not None:
-            training_kwargs["evaluation_strategy"] = "epoch"
+            # Prefer steps-based eval when eval_steps is configured, otherwise at each epoch
+            eval_steps_val = getattr(self.spec, "eval_steps", None)
+            if isinstance(eval_steps_val, int) and eval_steps_val > 0:
+                training_kwargs["evaluation_strategy"] = "steps"
+                training_kwargs["eval_steps"] = int(eval_steps_val)
+            else:
+                training_kwargs["evaluation_strategy"] = "epoch"
         else:
             training_kwargs["evaluation_strategy"] = "no"
         training_kwargs["save_strategy"] = "no"
         training_kwargs["load_best_model_at_end"] = False
 
+        # Build TrainingArguments with compatibility for older transformers versions
         try:
             training_args = TrainingArguments(**training_kwargs)
-        except TypeError:  # pragma: no cover - older transformers compatibility
-            training_kwargs.pop("evaluation_strategy", None)
-            training_kwargs.pop("save_strategy", None)
+        except TypeError:
+            # Fallback for older versions: drop newer keys and try legacy flag
+            fallback_kwargs = dict(training_kwargs)
+            # Remove keys older versions might not recognize
+            for k in ("evaluation_strategy", "eval_steps", "save_strategy", "report_to", "load_best_model_at_end"):
+                fallback_kwargs.pop(k, None)
+            # Some very old versions used 'evaluate_during_training'
             if eval_dataset is not None:
-                training_kwargs["evaluate_during_training"] = True
-            training_args = TrainingArguments(**training_kwargs)
+                fallback_kwargs["evaluate_during_training"] = True
+            try:
+                training_args = TrainingArguments(**fallback_kwargs)
+            except TypeError:
+                # Final attempt: remove legacy flag if also unsupported
+                fallback_kwargs.pop("evaluate_during_training", None)
+                training_args = TrainingArguments(**fallback_kwargs)
 
         trainer = Trainer(
             model=model,
@@ -120,7 +159,54 @@ class FrameClassifierTrainer:
             eval_dataset=eval_dataset,
             compute_metrics=compute_metrics,
         )
+        # Attach periodic eval callback for mid-epoch evaluation if requested
+        if eval_dataset is not None and getattr(self.spec, "eval_steps", None):
+            try:
+                steps = int(self.spec.eval_steps) if self.spec.eval_steps else 0
+            except Exception:
+                steps = 0
+            if steps > 0:
+                print(f"[FrameTrainer] Adding periodic evaluation every {steps} steps")
+                try:
+                    trainer.add_callback(PeriodicEvaluatorCallback(steps))
+                except Exception:
+                    pass
+        # Ensure eval at each epoch end when using epoch-level evaluation
+        if eval_dataset is not None and not getattr(self.spec, "eval_steps", None):
+            try:
+                print("[FrameTrainer] Enabling evaluation at end of each epoch via callback")
+                trainer.add_callback(EpochEndEvaluateCallback())
+            except Exception:
+                pass
+        # Attach callback to export per-epoch metrics and charts when we have eval
+        if eval_dataset is not None and compute_metrics is not None:
+            try:
+                id_to_name_cb: Dict[str, str] = {}
+                for frame in label_set.schema.frames:
+                    id_to_name_cb[frame.frame_id] = (frame.short_name or frame.name or frame.frame_id).strip()
+                trainer.add_callback(
+                    PerFrameMetricsCallback(
+                        out_dir=self.spec.output_dir,
+                        label_ids=label_set.label_order,
+                        id_to_name=id_to_name_cb,
+                    )
+                )
+            except Exception:
+                # Non-fatal: if logging callback fails, keep training working.
+                pass
+        print(
+            "[FrameTrainer] Starting training with settings: "
+            f"epochs={self.spec.num_train_epochs}, batch={self.spec.batch_size}, lr={self.spec.learning_rate}, "
+            f"eval={'enabled' if eval_dataset is not None else 'disabled'}, eval_steps={getattr(self.spec, 'eval_steps', None)}"
+        )
         trainer.train()
+        # Ensure at least one evaluation runs to emit metrics/charts in environments
+        # where per-epoch evaluation isn't triggered by TrainingArguments compatibility.
+        if eval_dataset is not None:
+            try:
+                trainer.evaluate()
+            except Exception:
+                pass
 
         return FrameClassifierModel(
             schema=label_set.schema,

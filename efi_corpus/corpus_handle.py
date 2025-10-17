@@ -157,23 +157,7 @@ class CorpusHandle(Corpus):
 
     def get_document(self, doc_id: str) -> Optional[Document]:
         """Get a complete document by ID"""
-        try:
-            # Get metadata from index
-            doc_meta = None
-            with open(self.layout.index_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            index_entry = json.loads(line)
-                            if index_entry.get('id') == doc_id:
-                                doc_meta = index_entry
-                                break
-                        except json.JSONDecodeError:
-                            continue
-            
-            if not doc_meta:
-                return None
-            
+        try: 
             # Get text and additional metadata
             text = self.get_text(doc_id)
             meta = self.get_metadata(doc_id)
@@ -184,11 +168,11 @@ class CorpusHandle(Corpus):
             
             return Document(
                 doc_id=doc_id,
-                url=doc_meta.get('url', ''),
-                title=doc_meta.get('title'),
+                url=meta.get('uri', ''),
+                title=meta.get('title'),
                 text=text,
-                published_at=doc_meta.get('published_at'),
-                language=doc_meta.get('language'),
+                published_at=meta.get('published_at'),
+                language=meta.get('language'),
                 meta=full_meta
             )
             

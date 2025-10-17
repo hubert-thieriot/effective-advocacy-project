@@ -789,6 +789,74 @@ def _render_plotly_timeseries_lines(
 
     return _render_plotly_fragment("time-series-lines-chart", traces, layout)
 
+
+def _render_plotly_timeseries_abs_lines(
+    records: Optional[Sequence[Dict[str, object]]],
+    frame_lookup: Dict[str, Dict[str, str]],
+    color_map: Dict[str, str],
+) -> str:
+    """Line chart using absolute (average) frame scores per day, smoothed 30-day."""
+    if not records:
+        return ""
+
+    series: Dict[str, List[Tuple[str, float]]] = {}
+    for item in records:
+        frame_id = str(item.get("frame_id"))
+        date_value = item.get("date")
+        if not frame_id or not date_value:
+            continue
+        try:
+            value = float(item.get("avg_score", 0.0))
+        except (TypeError, ValueError):
+            value = 0.0
+        series.setdefault(frame_id, []).append((str(date_value), value))
+
+    if not series:
+        return ""
+
+    traces: List[Dict[str, object]] = []
+    for frame_id, points in series.items():
+        points.sort(key=lambda entry: entry[0])
+        dates = [entry[0] for entry in points]
+        values = [entry[1] for entry in points]
+        if len(points) > 1:
+            df = pd.DataFrame({"date": dates, "value": values})
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.dropna(subset=["date"]).sort_values("date")
+            if df.empty:
+                continue
+            df["smooth"] = df["value"].rolling(window=30, min_periods=1).mean()
+            x_vals = df["date"].dt.strftime("%Y-%m-%d").tolist()
+            y_vals = df["smooth"].clip(0, 1).round(4).tolist()
+        else:
+            x_vals = dates
+            y_vals = [round(max(min(v, 1.0), 0.0), 4) for v in values]
+
+        label = frame_lookup.get(frame_id, {}).get("short") or frame_lookup.get(frame_id, {}).get("name") or frame_id
+        color = color_map.get(frame_id, "#1E3D58")
+        traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "name": label,
+                "x": x_vals,
+                "y": y_vals,
+                "line": {"color": color, "width": 2},
+                "hovertemplate": "%{x}<br>%{y:.3f}<extra>" + label + "</extra>",
+            }
+        )
+
+    layout = {
+        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
+        "yaxis": {"title": "Average Score", "range": [0, 1]},
+        "xaxis": {"title": "Date"},
+        "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+        "hovermode": "x unified",
+        "height": 520,
+    }
+
+    return _render_plotly_fragment("time-series-abs-lines-chart", traces, layout)
+
 def _render_plotly_domain_counts(
     domain_counts: Optional[Sequence[Tuple[str, int]]],
 ) -> str:
@@ -982,6 +1050,7 @@ def write_html_report(
 
     timeseries_chart_html = _render_plotly_timeseries(timeseries_records, frame_lookup, color_map)
     timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
+    timeseries_abs_lines_html = _render_plotly_timeseries_abs_lines(timeseries_records, frame_lookup, color_map)
     if not timeseries_chart_html and area_chart_b64:
         timeseries_chart_html = (
             "<figure class=\"chart\">"
@@ -1134,6 +1203,8 @@ def write_html_report(
             chart_inner += timeseries_chart_html
         if timeseries_lines_html:
             chart_inner += timeseries_lines_html
+        if timeseries_abs_lines_html:
+            chart_inner += timeseries_abs_lines_html
         chart_block = (
             f"<div class=\"card chart-card\">{chart_inner}</div>"
             if chart_inner

@@ -1,0 +1,18 @@
+# Example configuration for the actors_claims extraction app
+
+corpus_dir: corpora/mediacloud_india_coal
+results_dir: results/actors_claims/india_coal
+limit: 500
+random_sample: true
+seed: 42
+language: en
+overwrite: false
+save_jsonl: true
+save_csv: true
+filter_keywords:
+  - coal
+
+extractor:
+  stack: hf         # one of: simple | spacy | hf
+  hf_model: dslim/bert-base-NER
+  # device: 0      # set to 0 for GPU, -1 for CPU, omit for auto

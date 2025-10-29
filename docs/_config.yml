@@ -3,4 +3,8 @@ description: Narrative framing analyses for media coverage
 theme: minima
 markdown: kramdown
 permalink: pretty
-
+url: "https://hubert-thieriot.github.io"
+baseurl: "/efi-corpus"
+header_pages:
+  - index.md
+  - posts/narrative_framing.md

@@ -2,8 +2,6 @@
 layout: default
 title: Narrative Framing for Media Analysis
 ---
-
-{% raw %}
 # Narrative Framing for Media Analysis — Air Pollution, Energy Transition, Animal Welfare
 
 > TL;DR: We identify a small set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps you see how issues are discussed, spot trends and shifts, and surface outlets/journalists to prioritize—useful for informing advocacy and gauging impact (e.g., air pollution, renewables, animal welfare).
@@ -41,11 +39,11 @@ Run: 2020–2025 Indonesian media on Jakarta air pollution; config at `configs/n
 
 - Stacked area of frame share over time (30‑day running average, Plotly render):
 
-![Frame share over time](../assets/indonesia_airpollution_causes_20251028/plots/time_series_area.png)
+![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/time_series_area.png)
 
 - Frame set (short names): Transport, Industrial, Power Plant, Biomass Burning, Household, Waste Burning, Construction/Dust, Natural Factors.
 - Quick read: Transport dominates; Natural Factors emerges in seasonal spikes (e.g., stagnant air, lack of rain).
-- Interactive details: open the HTML report at `../reports/indonesia_airpollution_causes_20251028/frame_report.html`.
+- Interactive details: open the HTML report at `{{ site.baseurl }}/reports/indonesia_airpollution_causes_20251028/frame_report.html`.
 
 ### United Kingdom — Renewable energy
 
@@ -82,6 +80,3 @@ Finally, we move from chunk‑level predictions to article‑level profiles and 
 - Induction + application (LLM): OpenAI GPT‑4 class models configured per run (e.g., `gpt-4.1` for induction; `gpt-4.1-mini` for application). See run config: `configs/narrative_framing/*`.
 - Classifier: Hugging Face transformers sequence classifier (BERT‑family encoder) trained for multi‑label classification with sigmoid outputs. Model is configurable; e.g., Indonesian runs use `indobenchmark/indobert-base-p1`.
 - Embeddings (when needed): Sentence‑Transformers encoders (e.g., `all-MiniLM-L6-v2`) via `efi_analyser/embedders/sentence_transformer_embedder.py`.
-
-{% endraw %}
-

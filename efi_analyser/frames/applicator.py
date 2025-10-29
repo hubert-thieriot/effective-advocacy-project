@@ -83,7 +83,7 @@ class LLMFrameApplicator:
             cache_key = self._cache_key(schema_hash, text)
             cached_assignment = self._cache.get(cache_key)
             if cached_assignment is not None:
-                cached[passage_id] = self._clone_assignment(cached_assignment)
+                cached[passage_id] = self._clone_assignment(cached_assignment, new_passage_id=passage_id)
             else:
                 pending.append((passage_id, text, cache_key))
 
@@ -263,8 +263,12 @@ class LLMFrameApplicator:
         except json.JSONDecodeError as exc:
             raise ValueError(f"Frame applicator returned invalid JSON: {exc}") from exc
 
-        if not isinstance(payload, list):
-            raise ValueError("Frame applicator expected a JSON array response.")
+        # Handle both list and dict payloads
+        if isinstance(payload, dict):
+            # Single dict response - wrap it in a list
+            payload = [payload]
+        elif not isinstance(payload, list):
+            raise ValueError("Frame applicator expected a JSON array or object response.")
 
         batch_lookup = {passage_id: text for passage_id, text, _ in batch}
         frame_ids = {frame.frame_id for frame in schema.frames}
@@ -427,13 +431,26 @@ class LLMFrameApplicator:
                 return True
         return any(param.name == "timeout" for param in params)
 
-    def _clone_assignment(self, assignment: FrameAssignment) -> FrameAssignment:
+    def _clone_assignment(self, assignment: FrameAssignment, new_passage_id: str | None = None) -> FrameAssignment:
+        passage_id_to_use = new_passage_id if new_passage_id is not None else assignment.passage_id
+        
+        # Update metadata if we have a new passage_id
+        metadata = copy.deepcopy(assignment.metadata)
+        if new_passage_id is not None:
+            corpus_name, local_doc_id, _ = split_passage_id(new_passage_id)
+            metadata["doc_id"] = local_doc_id
+            metadata["global_doc_id"] = make_global_doc_id(corpus_name, local_doc_id) if corpus_name else local_doc_id
+            if corpus_name:
+                metadata["corpus"] = corpus_name
+            elif "corpus" in metadata:
+                del metadata["corpus"]
+        
         return FrameAssignment(
-            passage_id=assignment.passage_id,
+            passage_id=passage_id_to_use,
             passage_text=assignment.passage_text,
             probabilities=dict(assignment.probabilities),
             top_frames=list(assignment.top_frames),
             rationale=assignment.rationale,
             evidence_spans=list(assignment.evidence_spans),
-            metadata=copy.deepcopy(assignment.metadata),
+            metadata=metadata,
         )

@@ -18,6 +18,13 @@ filter_keywords:
   - coal
 # Optional content filtering to exclude boilerplate/ticker pages or trim nav tails
 # filter_trim_after_markers:
+
+# Report configuration
+report:
+  title: "Air Pollution Causes in Indonesian Media"  # Optional: custom report title
+  subtitle: "Analysis of media framing around air pollution sources"  # Optional: custom subtitle
+  note: "This analysis covers {n_articles} articles from Indonesian media sources"  # Optional: custom note with {n_articles} placeholder
+  hide_empty_passages: false  # Hide passages with no frame assignments
 #   - End of Article
 #   - FOLLOW US ON SOCIAL MEDIA
 # filter_exclude_min_hits:
@@ -35,8 +42,6 @@ reload_classifier: true
 reload_chunk_classifications: true
 reload_document_aggregates: false
 reload_time_series: false
-reset_chunk_classifications: false
-reset_document_aggregates: false
 results_dir: results/narrative_framing
 induction_guidance: |
   Start by inducing a set of distinct, non-overlapping frames relevant to this domain. 

@@ -501,8 +501,9 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 merged_extra = {**(params.extra or {}), **per_item_extra}
 
                 # Fallbacks from discovery when parser lacks metadata
+                # Prioritize MediaCloud's data, fall back to parsed HTML
                 title = parsed.get("title") or (discovered_item.title if discovered_item else None)
-                published_at = parsed.get("published_at") or (discovered_item.published_at if discovered_item else None)
+                published_at = (discovered_item.published_at if discovered_item else None) or parsed.get("published_at")
                 language = parsed.get("language") or (discovered_item.language if discovered_item else None)
                 authors = parsed.get("authors", []) or ((discovered_item.authors or []) if discovered_item else [])
 

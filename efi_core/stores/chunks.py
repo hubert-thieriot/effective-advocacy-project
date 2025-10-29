@@ -1,9 +1,12 @@
 import json
+import logging
 from pathlib import Path
 from typing import List, Protocol, Optional
 
 from efi_core.types import ChunkerSpec
 from efi_core.protocols import Chunker
+
+logger = logging.getLogger(__name__)
 
 
 class ChunkStorageLayout(Protocol):
@@ -33,10 +36,20 @@ class ChunkStore:
             return None
             
         chunks: List[str] = []
-        for line in path.read_text(encoding="utf-8").splitlines():
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_num, line in enumerate(lines, start=1):
             if not line.strip():
                 continue
-            chunks.append(json.loads(line)["text"])
+            try:
+                chunk_data = json.loads(line)
+                chunks.append(chunk_data["text"])
+            except json.JSONDecodeError as e:
+                logger.warning(
+                    f"Failed to parse JSON on line {line_num} of {path}: {e}. "
+                    f"Line preview: {line[:100] if len(line) > 100 else line}..."
+                )
+                # Skip corrupted lines
+                continue
         return chunks
 
     def materialize(self, item_id: str, text: str, chunker: ChunkerSpec, chunker_impl: Chunker) -> List[str]:
@@ -55,11 +68,29 @@ class ChunkStore:
         path = self.layout.chunks_path(item_id, chunker)
         if path.exists():
             chunks: List[str] = []
-            for line in path.read_text(encoding="utf-8").splitlines():
+            lines = path.read_text(encoding="utf-8").splitlines()
+            has_corruption = False
+            for line_num, line in enumerate(lines, start=1):
                 if not line.strip():
                     continue
-                chunks.append(json.loads(line)["text"])
-            return chunks
+                try:
+                    chunk_data = json.loads(line)
+                    chunks.append(chunk_data["text"])
+                except json.JSONDecodeError as e:
+                    logger.warning(
+                        f"Corrupted JSON detected on line {line_num} of {path}: {e}. "
+                        f"Will re-chunk the document. Line preview: {line[:100] if len(line) > 100 else line}..."
+                    )
+                    has_corruption = True
+                    break
+            
+            # If no corruption was detected, return the chunks
+            if not has_corruption:
+                return chunks
+            
+            # Corruption detected - delete the corrupted file and re-chunk
+            logger.info(f"Deleting corrupted chunks file {path} and re-chunking")
+            path.unlink()
         
         path.parent.mkdir(parents=True, exist_ok=True)
         chunks = chunker_impl.chunk(text)

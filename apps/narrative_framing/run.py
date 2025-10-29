@@ -8,6 +8,7 @@ import json
 import random
 import shutil
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -22,7 +23,8 @@ load_dotenv()
 from apps.narrative_framing.aggregation import (
     DocumentFrameAggregate,
     FrameAggregationStrategy,
-    LengthWeightedFrameAggregator,
+    WeightedFrameAggregator,
+    OccurrenceFrameAggregator,
     build_weighted_time_series,
     compute_global_frame_share,
     time_series_to_records,
@@ -30,6 +32,11 @@ from apps.narrative_framing.aggregation import (
 from apps.narrative_framing.config import ClassifierSettings, NarrativeFramingConfig, load_config
 from apps.narrative_framing.plots import image_to_base64, render_frame_area_chart
 from apps.narrative_framing.report import write_html_report
+from apps.narrative_framing.filtering import (
+    make_filter_spec,
+    filter_text as nf_filter_text,
+    filter_chunks as nf_filter_chunks,
+)
 
 from efi_analyser.chunkers.sentence_chunker import SentenceChunker
 from efi_analyser.embedders import SentenceTransformerEmbedder
@@ -66,9 +73,11 @@ class ResultPaths:
     assignments: Optional[Path] = None
     classifier_predictions: Optional[Path] = None
     classifier_dir: Optional[Path] = None
-    document_aggregates: Optional[Path] = None
+    # Aggregates folder with strategy-specific files
+    aggregates_dir: Optional[Path] = None
+    weighted_aggregates_file: Optional[Path] = None
+    occurrence_aggregates_file: Optional[Path] = None
     chunk_classifications_dir: Optional[Path] = None
-    aggregated_documents_dir: Optional[Path] = None
     frame_timeseries: Optional[Path] = None
     frame_area_chart: Optional[Path] = None
     html: Optional[Path] = None
@@ -85,18 +94,42 @@ def resolve_result_paths(results_dir: Optional[Path]) -> ResultPaths:
         return ResultPaths()
     results_dir.mkdir(parents=True, exist_ok=True)
     classifier_dir = results_dir / "classifier"
+    aggregates_dir = results_dir / "aggregates"
+    aggregates_dir.mkdir(parents=True, exist_ok=True)
     return ResultPaths(
         schema=results_dir / "frame_schema.json",
         assignments=results_dir / "frame_assignments.json",
         classifier_predictions=results_dir / "frame_classifier_predictions.json",
         classifier_dir=classifier_dir,
-        document_aggregates=results_dir / "frame_document_aggregates.json",
+        aggregates_dir=aggregates_dir,
+        weighted_aggregates_file=aggregates_dir / "weighted.json",
+        occurrence_aggregates_file=aggregates_dir / "occurrence.json",
         chunk_classifications_dir=results_dir / "classified_chunks",
-        aggregated_documents_dir=results_dir / "aggregated_documents",
         frame_timeseries=results_dir / "frame_timeseries.json",
         frame_area_chart=results_dir / "frame_area_chart.png",
         html=results_dir / "frame_report.html",
     )
+
+
+def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path]) -> None:
+    """Copy exported Plotly PNGs and the HTML report into docs/ for GitHub Pages.
+
+    - PNGs are expected in results/plots/<run_name>/plots
+    - HTML report copied to docs/reports/<run_name>/frame_report.html
+    """
+    try:
+        plots_src = Path("results/plots") / run_dir_name / "plots"
+        plots_dst = Path("docs/assets") / run_dir_name / "plots"
+        report_dst = Path("docs/reports") / run_dir_name
+        if plots_src.exists():
+            plots_dst.mkdir(parents=True, exist_ok=True)
+            for png in sorted(plots_src.glob("*.png")):
+                shutil.copy2(png, plots_dst / png.name)
+        if results_html and results_html.exists():
+            report_dst.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(results_html, report_dst / "frame_report.html")
+    except Exception as exc:
+        print(f"⚠️ Failed to publish to docs: {exc}")
 
 
 # --------------------------- Prompt helpers ---------------------------------
@@ -227,36 +260,20 @@ def load_classifier_predictions(path: Path) -> List[Dict[str, object]]:
 
 
 def save_document_aggregates(path: Path, aggregates: Sequence[DocumentFrameAggregate]) -> None:
-    # Two ways to save document aggregates:
-    # 1. A single JSON file
-    # 2. A directory of JSON files
-    if path.suffix:
-        payload = [aggregate.to_dict() for aggregate in aggregates]
-        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-        return
-
-    path.mkdir(parents=True, exist_ok=True)
-    for aggregate in aggregates:
-        doc_path = path / f"{aggregate.doc_id}.json"
-        doc_path.write_text(json.dumps(aggregate.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    """Save document aggregates to a single JSON file."""
+    payload = [aggregate.to_dict() for aggregate in aggregates]
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
+    """Load document aggregates from a single JSON file."""
+    if not path.exists():
+        return []
+    
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    records: Iterable[Dict[str, object]] = payload
+    
     aggregates: List[DocumentFrameAggregate] = []
-
-    if path.suffix:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        records: Iterable[Dict[str, object]] = payload
-    else:
-        if not path.exists():
-            return []
-        records = []
-        for child in sorted(path.glob("*.json")):
-            try:
-                records.append(json.loads(child.read_text(encoding="utf-8")))
-            except Exception:
-                continue
-
     for item in records:
         aggregates.append(
             DocumentFrameAggregate(
@@ -317,6 +334,131 @@ def load_chunk_classifications(directory: Path, doc_ids: Optional[Iterable[str]]
     return payloads
 
 
+def cleanup_cached_chunks_by_regex(
+    directory: Path, 
+    exclude_regexes: Sequence[str],
+    dry_run: bool = False
+) -> Tuple[int, List[str]]:
+    """
+    Remove cached chunk classification files that match any of the exclude regex patterns.
+    
+    Args:
+        directory: Path to the classified_chunks directory
+        exclude_regexes: List of regex patterns to match against chunk text
+        dry_run: If True, only report what would be deleted without actually deleting
+        
+    Returns:
+        Tuple of (number_of_files_removed, list_of_removed_doc_ids)
+    """
+    if not directory.exists():
+        return 0, []
+    
+    import re
+    
+    # Compile regex patterns
+    compiled_patterns = []
+    for pattern in exclude_regexes:
+        try:
+            compiled_patterns.append(re.compile(pattern))
+        except re.error as e:
+            print(f"Warning: Invalid regex pattern '{pattern}': {e}")
+            continue
+    
+    if not compiled_patterns:
+        return 0, []
+    
+    removed_count = 0
+    removed_doc_ids = []
+    
+    for child in sorted(directory.glob("*.json")):
+        try:
+            payload = json.loads(child.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+            
+        doc_id = str(payload.get("doc_id", child.stem)).strip()
+        
+        # Check if any chunk text matches any exclude pattern
+        should_remove = False
+        chunks = payload.get("chunks", [])
+        
+        for chunk in chunks:
+            chunk_text = str(chunk.get("text", "")).strip()
+            if not chunk_text:
+                continue
+                
+            for pattern in compiled_patterns:
+                if pattern.search(chunk_text):
+                    should_remove = True
+                    break
+            if should_remove:
+                break
+        
+        if should_remove:
+            removed_doc_ids.append(doc_id)
+            if not dry_run:
+                child.unlink(missing_ok=True)
+            removed_count += 1
+    
+    return removed_count, removed_doc_ids
+
+
+def cleanup_cached_chunks_by_keywords(
+    directory: Path, 
+    required_keywords: Sequence[str],
+    dry_run: bool = False
+) -> Tuple[int, List[str]]:
+    """
+    Remove cached chunk classification files that don't contain any of the required keywords.
+    
+    Args:
+        directory: Path to the classified_chunks directory
+        required_keywords: List of keywords that must be present (OR logic)
+        dry_run: If True, only report what would be deleted without actually deleting
+        
+    Returns:
+        Tuple of (number_of_files_removed, list_of_removed_doc_ids)
+    """
+    if not directory.exists():
+        return 0, []
+    
+    # Normalize keywords (lowercase)
+    normalized_keywords = [str(k).strip().lower() for k in required_keywords if str(k).strip()]
+    if not normalized_keywords:
+        return 0, []
+    
+    removed_count = 0
+    removed_doc_ids = []
+    
+    for child in sorted(directory.glob("*.json")):
+        try:
+            payload = json.loads(child.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+            
+        doc_id = str(payload.get("doc_id", child.stem)).strip()
+        chunks = payload.get("chunks", [])
+        
+        # Check if any chunk contains any of the required keywords
+        has_keyword = False
+        for chunk in chunks:
+            if not isinstance(chunk, dict):
+                continue
+            text = str(chunk.get("text", "")).lower()
+            if any(kw in text for kw in normalized_keywords):
+                has_keyword = True
+                break
+        
+        # Remove if no keywords found (opposite of the filtering logic)
+        if not has_keyword:
+            removed_doc_ids.append(doc_id)
+            if not dry_run:
+                child.unlink(missing_ok=True)
+            removed_count += 1
+    
+    return removed_count, removed_doc_ids
+
+
 def write_chunk_classifications(directory: Path, documents: Sequence[Dict[str, object]]) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     keep_doc_ids: set[str] = set()
@@ -335,6 +477,7 @@ def write_chunk_classifications(directory: Path, documents: Sequence[Dict[str, o
 
 
 def _extract_domain(url: Optional[str]) -> Optional[str]:
+    """Extract base domain from URL, ignoring subdomains."""
     if not url:
         return None
     parsed = urlparse(url)
@@ -344,6 +487,17 @@ def _extract_domain(url: Optional[str]) -> Optional[str]:
     domain = netloc.lower()
     if domain.startswith("www."):
         domain = domain[4:]
+    
+    # Extract base domain (ignore subdomains)
+    # e.g., kota.tribunnews.com -> tribunnews.com
+    parts = domain.split('.')
+    if len(parts) >= 2:
+        # Handle common two-part TLDs like .co.uk, .co.id, .com.au
+        if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
+            return '.'.join(parts[-3:])
+        else:
+            return '.'.join(parts[-2:])
+    
     return domain or None
 
 
@@ -566,6 +720,19 @@ def train_and_apply_classifier(
     model = trainer.train(train_set, eval_set=dev_set)
     print("→ Classifier training complete.")
 
+    # Optional: cross-validation to assess overfitting/generalization
+    if getattr(settings, "cv_folds", None) and int(settings.cv_folds) >= 2:
+        try:
+            k = int(settings.cv_folds)
+        except Exception:
+            k = 0
+        if k >= 2:
+            print(f"→ Running {k}-fold cross-validation for classifier overfitting check…")
+            try:
+                trainer.cross_validate(label_set, k_folds=k, seed=settings.seed)
+            except Exception as e:
+                print(f"⚠️ Cross-validation failed: {e}")
+
     texts = [text for _, text in samples]
     if not texts:
         print("⚠️ No passages available for classifier inference; skipping predictions.")
@@ -609,6 +776,9 @@ def classify_corpus_chunks(
     doc_ids: Optional[Sequence[str]] = None,
     *,
     require_keywords: Optional[Sequence[str]] = None,
+    exclude_regex: Optional[Sequence[str]] = None,
+    exclude_min_hits: Optional[Dict[str, int]] = None,
+    trim_after_markers: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, object]]:
     if doc_ids is not None:
         doc_id_list = list(doc_ids)
@@ -631,11 +801,13 @@ def classify_corpus_chunks(
 
     classified_documents: List[Dict[str, object]] = []
 
-    # Normalize keyword filter for doc-level inclusion
-    normalized_keywords: Optional[List[str]] = None
-    if require_keywords:
-        normalized = [str(k).strip().lower() for k in require_keywords if str(k).strip()]
-        normalized_keywords = normalized or None
+    # Unified filtering spec
+    spec = make_filter_spec(
+        exclude_regex=exclude_regex,
+        exclude_min_hits=exclude_min_hits,
+        trim_after_markers=trim_after_markers,
+        keywords=require_keywords,
+    )
 
     iterator = tqdm(
         doc_id_list,
@@ -662,7 +834,7 @@ def classify_corpus_chunks(
         texts: List[str] = []
         chunk_text_pairs: List[Tuple[str, str]] = []
         for chunk in chunks:
-            text = (chunk.text or "").strip()
+            text = nf_filter_text((chunk.text or ""), spec)
             if not text:
                 continue
             local_passage_id = f"{local_doc_id}:chunk{int(chunk.chunk_id):03d}"
@@ -678,9 +850,9 @@ def classify_corpus_chunks(
 
         # Apply optional keyword gate: skip classification if none of the chunks
         # contain any of the required keywords (case-insensitive substring).
-        if normalized_keywords is not None:
+        if spec.keywords is not None:
             lowered_texts = [t.lower() for t in texts]
-            if not any(any(kw in t for kw in normalized_keywords) for t in lowered_texts):
+            if not any(any(kw in t for kw in spec.keywords) for t in lowered_texts):
                 continue
 
         probabilities = model.predict_proba_batch(texts, batch_size=batch_size)
@@ -721,18 +893,23 @@ def aggregate_classified_documents(
     aggregator: Optional[FrameAggregationStrategy] = None,
     *,
     require_keywords: Optional[Sequence[str]] = None,
+    exclude_regex: Optional[Sequence[str]] = None,
+    exclude_min_hits: Optional[Dict[str, int]] = None,
+    trim_after_markers: Optional[Sequence[str]] = None,
 ) -> Sequence[DocumentFrameAggregate]:
     if not documents:
         return []
 
     frame_ids = [frame.frame_id for frame in schema.frames]
-    active_aggregator = aggregator or LengthWeightedFrameAggregator(frame_ids)
+    active_aggregator = aggregator or WeightedFrameAggregator(frame_ids)
 
-    # Normalize keyword filter once (lowercased substring match)
-    normalized_keywords: Optional[List[str]] = None
-    if require_keywords:
-        normalized = [str(k).strip().lower() for k in require_keywords if str(k).strip()]
-        normalized_keywords = normalized or None
+    # Unified filter spec
+    spec = make_filter_spec(
+        exclude_regex=exclude_regex,
+        exclude_min_hits=exclude_min_hits,
+        trim_after_markers=trim_after_markers,
+        keywords=require_keywords,
+    )
 
     for doc_record in documents:
         doc_id = str(doc_record.get("doc_id"))
@@ -740,24 +917,30 @@ def aggregate_classified_documents(
         if not doc_id or not isinstance(chunks, Sequence):
             continue
 
+        # Apply per-chunk cleanup/exclusion before aggregation
+        filtered_chunks: List[Dict[str, object]] = nf_filter_chunks(chunks, spec)
+
+        if not filtered_chunks:
+            continue
+
         # Apply optional keyword filter at the document level: require at least
         # one chunk to contain any of the configured keywords.
-        if normalized_keywords is not None:
+        if spec.keywords is not None:
+            # Skip this document entirely if no chunk contains a keyword
             has_keyword = False
-            for chunk in chunks:
+            for chunk in filtered_chunks:
                 if not isinstance(chunk, dict):
                     continue
                 text = str(chunk.get("text", "")).lower()
-                if any(kw in text for kw in normalized_keywords):
+                if any(kw in text for kw in spec.keywords):
                     has_keyword = True
                     break
             if not has_keyword:
-                # Skip this document entirely if no chunk contains a keyword
                 continue
         published_at = doc_record.get("published_at")
         title = doc_record.get("title")
         url = doc_record.get("url")
-        for chunk in chunks:
+        for chunk in filtered_chunks:
             if not isinstance(chunk, dict):
                 continue
             passage_text = str(chunk.get("text", ""))
@@ -797,19 +980,188 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     config.workspace_root.mkdir(parents=True, exist_ok=True)
     paths = resolve_result_paths(config.results_dir)
 
-    if config.reset_chunk_classifications and paths.chunk_classifications_dir:
-        shutil.rmtree(paths.chunk_classifications_dir, ignore_errors=True)
-        print("Cleared cached chunk classifications.")
-    if config.reset_document_aggregates:
-        for target in (paths.aggregated_documents_dir, paths.document_aggregates):
-            if target is None:
-                continue
-            if target.is_dir():
-                shutil.rmtree(target, ignore_errors=True)
-            elif target.exists():
-                target.unlink(missing_ok=True)
-        print("Cleared cached document aggregates.")
+    # Snapshot the input configuration into results/configs with timestamp
+    try:
+        base_results_dir = config.results_dir or Path("results/narrative_framing")
+        cfg_dir = base_results_dir / "configs"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Prefer copying original YAML if known
+        src_path = getattr(config, "source_config_path", None)
+        if isinstance(src_path, Path) and src_path.exists():
+            dst_name = f"{src_path.stem}_{ts}{src_path.suffix}"
+            shutil.copy2(src_path, cfg_dir / dst_name)
+        else:
+            # Fall back to dumping current config state as YAML
+            try:
+                from dataclasses import asdict
+                import yaml  # type: ignore
+                data = asdict(config)
+                # Convert Path objects to strings for YAML serialization
+                for k, v in list(data.items()):
+                    if isinstance(v, Path):
+                        data[k] = str(v)
+                dst_name = f"config_{ts}.yaml"
+                (cfg_dir / dst_name).write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            except Exception as exc:
+                print(f"⚠️ Failed to dump config to YAML: {exc}")
+    except Exception as exc:
+        print(f"⚠️ Failed to snapshot configuration: {exc}")
 
+
+    # Fast path: regenerate report only from cached artifacts
+    # ============================================================================
+    if getattr(config, "regenerate_report_only", False):
+        print("Regenerating report from cached artifacts only…")
+        # Load schema
+        if not (paths.schema and paths.schema.exists()):
+            raise FileNotFoundError("Cannot regenerate report: cached frame_schema.json not found")
+        schema = load_schema(paths.schema)
+
+        # Load assignments if available (optional for LLM charts)
+        assignments = []
+        if paths.assignments and paths.assignments.exists():
+            try:
+                assignments = load_assignments(paths.assignments)
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached assignments: {exc}")
+
+        # Load classifier predictions if available
+        classifier_predictions = []
+        classifier_lookup = None
+        if paths.classifier_predictions and paths.classifier_predictions.exists():
+            try:
+                classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
+                classifier_lookup = {item["passage_id"]: item for item in classifier_predictions if isinstance(item, dict) and item.get("passage_id")}
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached classifier predictions: {exc}")
+
+        # Load weighted aggregates (required)
+        if paths.weighted_aggregates_file and paths.weighted_aggregates_file.exists():
+            document_aggregates_weighted = load_document_aggregates(paths.weighted_aggregates_file)
+        else:
+            raise FileNotFoundError(
+                "Cannot regenerate report: no cached weighted aggregates found (expected aggregates/weighted.json)"
+            )
+        document_aggregates_occurrence: List[DocumentFrameAggregate] = []
+        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
+            try:
+                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
+            except Exception:
+                document_aggregates_occurrence = []
+        
+        # Compute domain statistics from aggregates
+        frame_ids = [f.frame_id for f in schema.frames]
+        domain_counts, domain_frame_summaries = _compute_domain_statistics(document_aggregates_weighted, frame_ids, top_n=20)
+
+        # Compute optional per-corpus summaries when multiple corpora were used
+        corpus_frame_summaries = []
+        if len(list(config.iter_corpus_names())) > 1:
+            # Best-effort reconstruction by reading classified chunks for doc→corpus mapping
+            chunk_classification_map: Dict[str, Dict[str, object]] = {}
+            if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
+                for payload in load_chunk_classifications(paths.chunk_classifications_dir):
+                    try:
+                        gid = str(payload.get("doc_id", "")).strip()
+                        if gid:
+                            chunk_classification_map[gid] = payload
+                    except Exception:
+                        continue
+            # Build corpus-level shares
+            doc_to_corpus: Dict[str, str] = {}
+            for payload in chunk_classification_map.values():
+                gid = str(payload.get("doc_id", "")).strip()
+                cname = str(payload.get("corpus", "")).strip()
+                if gid and cname:
+                    doc_to_corpus[gid] = cname
+            corpus_state: Dict[str, Dict[str, object]] = {}
+            for aggregate in document_aggregates_weighted:
+                gid = aggregate.doc_id
+                corpus_name, _local = split_global_doc_id(gid)
+                corpus = corpus_name or doc_to_corpus.get(gid)
+                if not corpus:
+                    continue
+                state = corpus_state.setdefault(
+                    corpus,
+                    {
+                        "count": 0,
+                        "weight": 0.0,
+                        "frame_sums": {frame_id: 0.0 for frame_id in frame_ids},
+                    },
+                )
+                state["count"] = int(state["count"]) + 1
+                weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
+                state["weight"] = float(state["weight"]) + weight
+                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+                for frame_id in frame_ids:
+                    frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
+            for corpus, state in sorted(corpus_state.items()):
+                weight = float(state["weight"])  # type: ignore[arg-type]
+                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+                if weight <= 0:
+                    shares = {frame_id: 0.0 for frame_id in frame_ids}
+                else:
+                    shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids}
+                corpus_frame_summaries.append({"corpus": corpus, "count": int(state["count"]), "shares": shares})
+
+        # Load or rebuild time series
+        frame_timeseries_records: List[Dict[str, object]] = []
+        frame_area_chart_b64: Optional[str] = None
+        if paths.frame_timeseries and paths.frame_timeseries.exists():
+            try:
+                frame_timeseries_records = json.loads(paths.frame_timeseries.read_text(encoding="utf-8"))
+            except Exception:
+                frame_timeseries_records = []
+        else:
+            # Recompute
+            ts_df = build_weighted_time_series(document_aggregates_weighted)
+            frame_timeseries_records = time_series_to_records(ts_df)
+            if paths.frame_timeseries:
+                save_frame_timeseries(paths.frame_timeseries, frame_timeseries_records)
+        # Area chart b64
+        if paths.frame_area_chart and paths.frame_area_chart.exists():
+            try:
+                frame_area_chart_b64 = image_to_base64(paths.frame_area_chart)
+            except Exception:
+                frame_area_chart_b64 = None
+
+        # Global frame share
+        global_frame_share = compute_global_frame_share(document_aggregates_weighted)
+
+        # Build classifier lookup and whether to include classifier plots
+        include_classifier_plots = True if classifier_predictions else False
+
+        # Write report
+        if paths.html and schema:
+            write_html_report(
+                schema=schema,
+                assignments=assignments,
+                output_path=paths.html,
+                classifier_lookup=classifier_lookup,
+                global_frame_share=global_frame_share,
+                timeseries_records=frame_timeseries_records,
+                classified_documents=len(document_aggregates_weighted),
+                classifier_sample_limit=config.classifier_corpus_sample_size,
+                area_chart_b64=frame_area_chart_b64,
+                include_classifier_plots=include_classifier_plots,
+                domain_counts=domain_counts,
+                domain_frame_summaries=domain_frame_summaries,
+                document_aggregates_weighted=document_aggregates_weighted,
+                document_aggregates_occurrence=document_aggregates_occurrence,
+                corpus_frame_summaries=corpus_frame_summaries,
+                hide_empty_passages=config.report.hide_empty_passages,
+                plot_title=config.report.plot.title,
+                plot_subtitle=config.report.plot.subtitle,
+                plot_note=config.report.plot.note,
+                export_plotly_png_dir=(paths.html.parent / "plots"),
+            )
+            # Publish PNGs and HTML to docs for GitHub Pages
+            try:
+                _publish_to_docs_assets(paths.html.parent.name, paths.html)
+            except Exception as exc:
+                print(f"⚠️ Failed to publish docs assets: {exc}")
+        print(f"\nHTML report written to {paths.html}")
+        return
 
     # ============================================================================
     # VARIABLE INITIALIZATION
@@ -821,7 +1173,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     classifier_predictions: List[Dict[str, object]] = []
     classifier_model: Optional[FrameClassifierModel] = None
     chunk_classifications: List[Dict[str, object]] = []
-    document_aggregates: List[DocumentFrameAggregate] = []
+    document_aggregates_weighted: List[DocumentFrameAggregate] = []
     frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
     frame_timeseries_records: List[Dict[str, object]] = []
     frame_area_chart_b64: Optional[str] = None
@@ -892,7 +1244,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         temperature=application_temp,
         timeout=600.0,
         ignore_cache=False,
-        verbose=True,  # Enable warnings for temperature overrides
+        verbose=False,  # Disable verbose logging to simplify output
     )
 
     # ============================================================================
@@ -1013,12 +1365,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 system_template=app_sys_t,
                 user_template=app_usr_t,
             )
-            print(
-                f"Applying frames to {len(new_samples)} additional passages using {applicator_client.name}..."
-            )
             with tqdm(
                 total=len(new_samples),
-                desc="Applying frames",
+                desc=f"Applying frames ({applicator_client.config.model})",
                 unit="passages",
                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
             ) as pbar:
@@ -1229,7 +1578,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             )
             
     # ============================================================================
-    # CLASSIFY CORPUS DOCUMENTS AND PREPARE DOCUMENT AGGREGATES
+    # CLASSIFY CORPUS DOCUMENTS
     # ============================================================================
 
     total_doc_ids = _list_global_doc_ids(corpora_map)
@@ -1243,6 +1592,23 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         and paths.chunk_classifications_dir
         and paths.chunk_classifications_dir.exists()
     ):
+        # Clean up cached chunks that match exclude regex patterns
+        if hasattr(config, 'filter_exclude_regex') and config.filter_exclude_regex:
+            print("Cleaning up cached chunks matching exclude regex patterns...")
+            removed_count, removed_doc_ids = cleanup_cached_chunks_by_regex(
+                paths.chunk_classifications_dir, 
+                config.filter_exclude_regex,
+                dry_run=False
+            )
+            if removed_count > 0:
+                print(f"🗑️  Removed {removed_count} cached chunk files matching exclude patterns:")
+                for doc_id in removed_doc_ids[:10]:  # Show first 10
+                    print(f"   - {doc_id}")
+                if len(removed_doc_ids) > 10:
+                    print(f"   ... and {len(removed_doc_ids) - 10} more")
+            else:
+                print("✅ No cached chunks matched exclude patterns")
+        
         cached_docs = load_chunk_classifications(paths.chunk_classifications_dir)
         for payload in cached_docs:
             doc_id = str(payload.get("doc_id", "")).strip()
@@ -1277,6 +1643,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 output_dir=paths.chunk_classifications_dir,
                 doc_ids=doc_ids_to_classify,
                 require_keywords=config.filter_keywords,
+                exclude_regex=config.filter_exclude_regex,
+                exclude_min_hits=config.filter_exclude_min_hits,
+                trim_after_markers=config.filter_trim_after_markers,
             )
             for payload in new_docs:
                 doc_id = str(payload.get("doc_id", "")).strip()
@@ -1312,47 +1681,91 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         print(
             f"Prepared {len(chunk_classifications)} classified documents (cached total: {len(chunk_classification_map)})."
         )
-
+        
+    
+    # ============================================================================
+    # PREPARE DOCUMENT AGGREGATES
+    # ============================================================================
+    
     # Load cached document aggregates if available
-    aggregate_candidates: List[Path] = []
-    if paths.aggregated_documents_dir:
-        aggregate_candidates.append(paths.aggregated_documents_dir)
-    if paths.document_aggregates:
-        aggregate_candidates.append(paths.document_aggregates)
-
     if config.reload_document_aggregates:
-        for candidate in aggregate_candidates:
-            if not candidate or not candidate.exists():
-                continue
+        # Weighted aggregates
+        if paths.weighted_aggregates_file and paths.weighted_aggregates_file.exists():
             try:
-                loaded = load_document_aggregates(candidate)
-                if loaded:
-                    document_aggregates = list(loaded)
-                    print(
-                        f"Reloaded {len(document_aggregates)} document aggregates from {candidate}."
-                    )
-                    break
+                document_aggregates_weighted = load_document_aggregates(paths.weighted_aggregates_file)
+                print(f"Loaded weighted aggregates: {len(document_aggregates_weighted)} from {paths.weighted_aggregates_file}.")
             except Exception as exc:
-                print(f"⚠️ Failed to load document aggregates from {candidate}: {exc}")
+                print(f"⚠️ Failed to load weighted aggregates: {exc}")
 
-    if schema and chunk_classifications and not document_aggregates:
-        document_aggregates = list(
+        # Occurrence aggregates
+        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
+            try:
+                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
+                print(f"Loaded occurrence aggregates: {len(document_aggregates_occurrence)} from {paths.occurrence_aggregates_file}.")
+            except Exception as exc:
+                print(f"⚠️ Failed to load occurrence aggregates: {exc}")
+
+    document_aggregates_occurrence: List[DocumentFrameAggregate] = []
+
+    if schema and chunk_classifications and not document_aggregates_weighted:
+        # Weighted aggregates (length-weighted, threshold, normalize per config)
+        weighted_agg = WeightedFrameAggregator(
+            [frame.frame_id for frame in schema.frames],
+            top_k=config.application_top_k,
+            min_threshold=config.agg_min_threshold_weighted,
+            normalize=config.agg_normalize_weighted,
+        )
+        document_aggregates_weighted = list(
             aggregate_classified_documents(
                 documents=chunk_classifications,
                 schema=schema,
-                aggregator=None,
+                aggregator=weighted_agg,
                 require_keywords=config.filter_keywords,
+                exclude_regex=config.filter_exclude_regex,
+                exclude_min_hits=config.filter_exclude_min_hits,
+                trim_after_markers=config.filter_trim_after_markers,
             )
         )
-        if paths.aggregated_documents_dir:
-            save_document_aggregates(paths.aggregated_documents_dir, document_aggregates)
-        if paths.document_aggregates:
-            save_document_aggregates(paths.document_aggregates, document_aggregates)
+        if paths.weighted_aggregates_file:
+            save_document_aggregates(paths.weighted_aggregates_file, document_aggregates_weighted)
 
-    if schema and document_aggregates:
+        # Occurrence aggregates (binary presence by threshold)
+        occurrence_agg = OccurrenceFrameAggregator(
+            [frame.frame_id for frame in schema.frames],
+            min_threshold=config.agg_min_threshold_occurrence,
+            top_k=config.application_top_k,
+        )
+        document_aggregates_occurrence = list(
+            aggregate_classified_documents(
+                documents=chunk_classifications,
+                schema=schema,
+                aggregator=occurrence_agg,
+                require_keywords=config.filter_keywords,
+                exclude_regex=config.filter_exclude_regex,
+                exclude_min_hits=config.filter_exclude_min_hits,
+                trim_after_markers=config.filter_trim_after_markers,
+            )
+        )
+        if paths.occurrence_aggregates_file:
+            save_document_aggregates(paths.occurrence_aggregates_file, document_aggregates_occurrence)
+    else:
+        # Attempt to load occurrence aggregates when reloading
+        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
+            try:
+                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
+                print(f"Reloaded {len(document_aggregates_occurrence)} occurrence aggregates from {paths.occurrence_aggregates_file}.")
+            except Exception:
+                document_aggregates_occurrence = []
+
+    if schema and document_aggregates_weighted:
+        # Provide a unified structure for downstream logic/reporting
+        aggregates_by_metric: Dict[str, List[DocumentFrameAggregate]] = {
+            "weighted": document_aggregates_weighted,
+            "occurrence": document_aggregates_occurrence,
+        }
         frame_ids = [frame.frame_id for frame in schema.frames]
         domain_counts, domain_frame_summaries = _compute_domain_statistics(
-            document_aggregates,
+            document_aggregates_weighted,
             frame_ids,
             top_n=20,
         )
@@ -1368,7 +1781,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                     doc_to_corpus[gid] = cname
 
             corpus_state: Dict[str, Dict[str, object]] = {}
-            for aggregate in document_aggregates:
+            for aggregate in document_aggregates_weighted:
                 gid = aggregate.doc_id
                 corpus_name, _local = split_global_doc_id(gid)
                 corpus = corpus_name or doc_to_corpus.get(gid)
@@ -1428,9 +1841,9 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             
             
     # Build time series if we have document aggregates but no cached time series
-    if document_aggregates and frame_timeseries_df.empty:
+    if document_aggregates_weighted and frame_timeseries_df.empty:
         print("Building time series from document aggregates...")
-        frame_timeseries_df = build_weighted_time_series(document_aggregates)
+        frame_timeseries_df = build_weighted_time_series(document_aggregates_weighted)
         frame_timeseries_records = time_series_to_records(frame_timeseries_df)
         if paths.frame_timeseries:
             save_frame_timeseries(paths.frame_timeseries, frame_timeseries_records)
@@ -1452,8 +1865,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             )
             if result_path:
                 frame_area_chart_b64 = image_to_base64(result_path)
-        global_frame_share = compute_global_frame_share(document_aggregates)
-        classified_docs = len(document_aggregates)
+        global_frame_share = compute_global_frame_share(document_aggregates_weighted)
+        classified_docs = len(document_aggregates_weighted)
         sampled_suffix = (
             f" (sample of {config.classifier_corpus_sample_size})"
             if config.classifier_corpus_sample_size
@@ -1479,15 +1892,26 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             classifier_lookup=classifier_lookup,
             global_frame_share=global_frame_share,
             timeseries_records=frame_timeseries_records,
-            classified_documents=len(document_aggregates),
+            classified_documents=len(document_aggregates_weighted),
             classifier_sample_limit=config.classifier_corpus_sample_size,
             area_chart_b64=frame_area_chart_b64,
             include_classifier_plots=True if classifier_predictions else False,
             domain_counts=domain_counts,
             domain_frame_summaries=domain_frame_summaries,
-            document_aggregates=document_aggregates,
+            document_aggregates_weighted=document_aggregates_weighted,
+            document_aggregates_occurrence=document_aggregates_occurrence,
             corpus_frame_summaries=corpus_frame_summaries,
+            hide_empty_passages=config.report.hide_empty_passages,
+            plot_title=config.report.plot.title,
+            plot_subtitle=config.report.plot.subtitle,
+            plot_note=config.report.plot.note,
+            export_plotly_png_dir=(paths.html.parent / "plots"),
         )
+        # Publish PNGs and HTML to docs for GitHub Pages
+        try:
+            _publish_to_docs_assets(paths.html.parent.name, paths.html)
+        except Exception as exc:
+            print(f"⚠️ Failed to publish docs assets: {exc}")
         print(f"\nHTML report written to {paths.html}")
 
 
@@ -1502,8 +1926,6 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.reload_chunk_classifications = True
         config.reload_document_aggregates = True
         config.reload_time_series = True
-        config.reset_chunk_classifications = False
-        config.reset_document_aggregates = False
     if args.reload_induction:
         config.reload_induction = True
     if args.reload_application:
@@ -1516,10 +1938,6 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.reload_document_aggregates = True
     if hasattr(args, 'reload_time_series') and args.reload_time_series:
         config.reload_time_series = True
-    if hasattr(args, 'reset_chunk_classifications') and args.reset_chunk_classifications:
-        config.reset_chunk_classifications = True
-    if hasattr(args, 'reset_document_aggregates') and args.reset_document_aggregates:
-        config.reset_document_aggregates = True
     if args.train_classifier:
         config.classifier.enabled = True
     if args.induction_model:
@@ -1530,6 +1948,8 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.induction_temperature = args.induction_temperature
     if args.application_temperature is not None:
         config.application_temperature = args.application_temperature
+    if hasattr(args, 'regenerate_report_only') and args.regenerate_report_only:
+        config.regenerate_report_only = True
     return config
 
 
@@ -1554,22 +1974,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--reload-document-aggregates", action="store_true", help="Reuse cached document aggregates")
     parser.add_argument("--reload-time-series", action="store_true", help="Reuse cached time series data")
-    parser.add_argument(
-        "--reset-chunk-classifications",
-        action="store_true",
-        help="Delete cached chunk classifications before running",
-    )
-    parser.add_argument(
-        "--reset-document-aggregates",
-        action="store_true",
-        help="Delete cached document aggregates before running",
-    )
     parser.add_argument("--skip-application", action="store_true", help="Skip the frame application step")
     parser.add_argument("--train-classifier", action="store_true", help="Force-enable classifier training")
+    parser.add_argument("--regenerate-report-only", action="store_true", help="Skip analysis and regenerate report from cached artifacts")
     parser.add_argument("--induction-model", type=str, help="Override the induction model name at runtime")
     parser.add_argument("--application-model", type=str, help="Override the application model name at runtime")
     parser.add_argument("--induction-temperature", type=float, help="Override the induction temperature at runtime")
     parser.add_argument("--application-temperature", type=float, help="Override the application temperature at runtime")
+    parser.add_argument("--cleanup-cached-chunks", action="store_true", help="Clean up cached chunks matching exclude regex patterns")
+    parser.add_argument("--cleanup-cached-chunks-keywords", action="store_true", help="Clean up cached chunks that don't match filter keywords")
     return parser.parse_args()
 
 
@@ -1577,6 +1990,56 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
     config = apply_overrides(config, args)
+    
+    # Handle cleanup options
+    if args.cleanup_cached_chunks:
+        paths = resolve_result_paths(config.results_dir)
+        if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
+            if hasattr(config, 'filter_exclude_regex') and config.filter_exclude_regex:
+                print("🧹 Cleaning up cached chunks matching exclude regex patterns...")
+                removed_count, removed_doc_ids = cleanup_cached_chunks_by_regex(
+                    paths.chunk_classifications_dir, 
+                    config.filter_exclude_regex,
+                    dry_run=False
+                )
+                if removed_count > 0:
+                    print(f"🗑️  Removed {removed_count} cached chunk files matching exclude patterns:")
+                    for doc_id in removed_doc_ids[:10]:  # Show first 10
+                        print(f"   - {doc_id}")
+                    if len(removed_doc_ids) > 10:
+                        print(f"   ... and {len(removed_doc_ids) - 10} more")
+                else:
+                    print("✅ No cached chunks matched exclude patterns")
+            else:
+                print("⚠️  No filter_exclude_regex patterns configured")
+        else:
+            print("⚠️  No chunk classifications directory found")
+        return
+    
+    if args.cleanup_cached_chunks_keywords:
+        paths = resolve_result_paths(config.results_dir)
+        if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
+            if hasattr(config, 'filter_keywords') and config.filter_keywords:
+                print("🧹 Cleaning up cached chunks that don't match filter keywords...")
+                removed_count, removed_doc_ids = cleanup_cached_chunks_by_keywords(
+                    paths.chunk_classifications_dir, 
+                    config.filter_keywords,
+                    dry_run=False
+                )
+                if removed_count > 0:
+                    print(f"🗑️  Removed {removed_count} cached chunk files that don't match keywords:")
+                    for doc_id in removed_doc_ids[:10]:  # Show first 10
+                        print(f"   - {doc_id}")
+                    if len(removed_doc_ids) > 10:
+                        print(f"   ... and {len(removed_doc_ids) - 10} more")
+                else:
+                    print("✅ All cached chunks match filter keywords")
+            else:
+                print("⚠️  No filter_keywords configured")
+        else:
+            print("⚠️  No chunk classifications directory found")
+        return
+    
     run_workflow(config)
 
 

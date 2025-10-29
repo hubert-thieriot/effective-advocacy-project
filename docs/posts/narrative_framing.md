@@ -19,6 +19,37 @@ This post is part of a series of technical explorations for **Effective Advocacy
 ## Method overview
 A compact pipeline from LLM exploration to scalable measurement.
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    window.mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('pageshow', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('pjax:end', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('turbolinks:load', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('turbo:load', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('turbo:render', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('turbo:frame-render', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+  document.addEventListener('turbo:frame-load', function(){
+    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
+  });
+</script>
+
 ```mermaid
 flowchart LR
   A["Article discovery (MediaCloud)"] --> A2[Scrape + extract text]

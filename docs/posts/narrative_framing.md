@@ -21,33 +21,60 @@ A compact pipeline from LLM exploration to scalable measurement.
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
-  if (window.mermaid) {
-    window.mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
-  }
-  document.addEventListener('DOMContentLoaded', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('pageshow', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('pjax:end', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('turbolinks:load', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('turbo:load', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('turbo:render', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('turbo:frame-render', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
-  document.addEventListener('turbo:frame-load', function(){
-    if (window.mermaid) { try { window.mermaid.init(); } catch (e) {} }
-  });
+  (function(){
+    function log(){
+      if (!window.console) return;
+      var args = Array.prototype.slice.call(arguments);
+      args.unshift('[mermaid-init]');
+      try { console.log.apply(console, args); } catch(e) { console.log(args.join(' ')); }
+    }
+
+    function upgradeCodeBlocks() {
+      var selector = 'pre code.language-mermaid, pre code.mermaid, code.language-mermaid';
+      var nodes = document.querySelectorAll(selector);
+      log('found mermaid code blocks:', nodes.length);
+      nodes.forEach(function(code){
+        var pre = code.closest && code.closest('pre');
+        var container = pre || code.parentNode;
+        var parent = container.parentNode;
+        var txt = code.textContent || '';
+        var div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = txt;
+        try {
+          parent.replaceChild(div, container);
+        } catch (e) {
+          log('replaceChild failed', e);
+        }
+      });
+    }
+
+    function initMermaid(){
+      log('init called. mermaid present:', !!window.mermaid);
+      if (!window.mermaid) return;
+      try {
+        upgradeCodeBlocks();
+      } catch (e) {
+        log('upgrade error:', e);
+      }
+      try {
+        window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+        var targets = document.querySelectorAll('.mermaid');
+        log('rendering targets:', targets.length);
+        window.mermaid.init(undefined, targets);
+        log('render complete');
+      } catch (e) {
+        log('mermaid init error:', e);
+      }
+    }
+
+    log('script loaded. mermaid present:', !!window.mermaid);
+    document.addEventListener('DOMContentLoaded', initMermaid);
+    document.addEventListener('pageshow', initMermaid);
+    document.addEventListener('pjax:end', initMermaid);
+    document.addEventListener('turbolinks:load', initMermaid);
+    document.addEventListener('turbo:load', initMermaid);
+  })();
 </script>
 
 ```mermaid

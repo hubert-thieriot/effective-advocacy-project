@@ -118,10 +118,13 @@ def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path]) -> 
     - HTML report copied to docs/reports/<run_name>/frame_report.html
     """
     try:
-        plots_src = Path("results/plots") / run_dir_name / "plots"
+        # Prefer plots under the run directory; fall back to legacy location
+        plots_src = (results_html.parent / "plots") if results_html else None
+        if not plots_src or not plots_src.exists():
+            plots_src = Path("results/plots") / run_dir_name / "plots"
         plots_dst = Path("docs/assets") / run_dir_name / "plots"
         report_dst = Path("docs/reports") / run_dir_name
-        if plots_src.exists():
+        if plots_src and plots_src.exists():
             plots_dst.mkdir(parents=True, exist_ok=True)
             for png in sorted(plots_src.glob("*.png")):
                 shutil.copy2(png, plots_dst / png.name)

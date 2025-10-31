@@ -8,13 +8,10 @@ structure while respecting maximum word limits and various heuristics.
 import re
 from typing import List, Optional
 from pydantic import BaseModel
+import spacy
+
 from efi_core.types import ChunkerSpec
 
-try:
-    import spacy
-    SPACY_AVAILABLE = True
-except ImportError:
-    SPACY_AVAILABLE = False
 
 
 class TextChunkerConfig(BaseModel):
@@ -39,9 +36,6 @@ class TextChunker:
         Args:
             config: TextChunkerConfig instance. If None, uses default configuration.
         """
-        if not SPACY_AVAILABLE:
-            raise ImportError("spaCy is required for TextChunker. Install with: pip install spacy")
-
         # Use default config if none provided
         self.config = config or TextChunkerConfig()
         self.max_words = self.config.max_words

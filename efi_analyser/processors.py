@@ -108,10 +108,19 @@ class TextStatisticsProcessor(Processor):
 
 
 class KeywordExtractorProcessor(Processor):
-    """Extract keywords from documents using regex for whole word matching"""
+    """Extract keywords from documents using regex for whole word matching.
+
+    Also supports raw regex patterns via the optional ``patterns`` argument. These
+    are compiled as-is (with case sensitivity per ``case_sensitive``) and are not
+    escaped nor subject to whole-word or hyphenation handling. This enables
+    combined/boolean-like matching such as:
+
+    - (konstruksi|pembangunan).{0,80}(debu|polusi|partikel)
+    - resuspensi\s+debu
+    """
     
     def __init__(self, keywords: List[str], case_sensitive: bool = False, whole_word_only: bool = True, 
-                 allow_hyphenation: bool = True, name: str = None):
+                 allow_hyphenation: bool = True, name: str = None, patterns: Optional[List[str]] = None):
         """
         Initialize keyword extractor
         
@@ -127,6 +136,7 @@ class KeywordExtractorProcessor(Processor):
         self.whole_word_only = whole_word_only
         self.allow_hyphenation = allow_hyphenation
         self.name = name or "keyword_extractor"
+        self._custom_patterns = list(patterns or [])
         
         # Compile regex patterns for whole word matching
         self.regex_patterns = {}
@@ -160,6 +170,16 @@ class KeywordExtractorProcessor(Processor):
                 flags |= re.IGNORECASE
             
             self.regex_patterns[keyword] = re.compile(pattern, flags)
+
+        # Compile raw regex patterns (as-is)
+        if self._custom_patterns:
+            flags = 0 if self.case_sensitive else re.IGNORECASE
+            for pat in self._custom_patterns:
+                try:
+                    self.regex_patterns[pat] = re.compile(pat, flags)
+                except re.error:
+                    # Skip invalid patterns silently; alternatively could record in result metadata
+                    continue
     
     def _create_hyphenated_pattern(self, keyword: str) -> str:
         """Create a regex pattern that allows keywords to be split across hyphens and line breaks"""

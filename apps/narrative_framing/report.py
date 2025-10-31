@@ -7,6 +7,7 @@ import html
 import json
 import textwrap
 from datetime import datetime
+import copy
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -28,6 +29,81 @@ from sklearn.metrics import (
 
 from apps.narrative_framing.aggregation import DocumentFrameAggregate
 from efi_analyser.frames import FrameAssignment, FrameSchema
+
+# Optional Plotly (for exporting PNG versions of interactive charts)
+try:  # pragma: no cover - optional dependency
+    import plotly.graph_objects as _go  # type: ignore
+    import plotly.io as _pio  # type: ignore
+    _PLOTLY_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    _go = None
+    _pio = None
+    _PLOTLY_AVAILABLE = False
+
+# Optional Kaleido engine for static image export
+try:  # pragma: no cover - optional dependency
+    import kaleido  # type: ignore  # noqa: F401
+    _KALEIDO_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    _KALEIDO_AVAILABLE = False
+
+_PLOTLY_WARNED: Dict[str, bool] = {}
+
+
+def _sanitize_filename(name: str, *, max_len: int = 120, fallback: Optional[str] = None) -> str:
+    """Return a filesystem-safe filename (no path) limited in length.
+
+    - Keeps alphanumerics, dash, underscore, dot; replaces others with underscore.
+    - Ensures we keep the original extension if present.
+    - Truncates base name to fit within max_len.
+    """
+    if not name:
+        return fallback or "chart.png"
+    # Split extension
+    dot = name.rfind(".")
+    if 0 < dot < len(name) - 1:
+        base, ext = name[:dot], name[dot:]
+    else:
+        base, ext = name, ".png"
+    # Filter base chars
+    safe = []
+    for ch in base:
+        if ch.isalnum() or ch in ("-", "_", "."):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    base_safe = "".join(safe).strip("._") or (fallback or "chart").rsplit(".", 1)[0]
+    # Truncate
+    keep = max_len - len(ext)
+    if keep < 8:
+        keep = max(8, keep)
+    if len(base_safe) > keep:
+        base_safe = base_safe[:keep]
+    return base_safe + ext
+
+
+def _safe_export_path(export_png_path: Optional[Path], *, div_id: str) -> Optional[Path]:
+    """Sanitize and shorten the output path to avoid OS filename limits.
+
+    Falls back to `<div_id>.png` if the provided name is missing or unsafe.
+    """
+    if export_png_path is None:
+        return None
+    try:
+        p = Path(export_png_path)
+    except Exception:
+        p = Path(str(export_png_path))
+    # Ensure we only sanitize the final filename, not the directory
+    name = p.name or f"{div_id}.png"
+    # If the name looks like an HTML-ish title dump, replace with div_id
+    suspicious_tokens = ("br", "span", "style", "font", "color")
+    if any(tok in name for tok in suspicious_tokens) or len(name) > 120:
+        name = f"{div_id}.png"
+    safe_name = _sanitize_filename(name, fallback=f"{div_id}.png")
+    if safe_name != name and not _PLOTLY_WARNED.get("sanitized_name"):
+        print(f"ℹ️  Sanitized export filename for {div_id}: '{name}' → '{safe_name}'")
+        _PLOTLY_WARNED["sanitized_name"] = True
+    return p.with_name(safe_name)
 
 _PALETTE = [
     "#1E3D58",
@@ -179,6 +255,67 @@ def _plot_auc_bars(metrics: Dict[str, Dict[str, float]], frame_names: Dict[str, 
     return _fig_to_base64(fig)
 
 
+def _wrap_label_html(text: str, max_len: int = 16) -> str:
+    """Insert <br> breaks into text so that each line is at most max_len characters.
+
+    Wraps at word boundaries; preserves original words. If a single word
+    is longer than max_len, it is placed on its own line.
+    """
+    words = str(text).split()
+    if not words:
+        return text
+    lines: List[str] = []
+    current: List[str] = []
+    current_len = 0
+    for w in words:
+        wlen = len(w)
+        # If adding this word exceeds max_len, start a new line
+        if current and (current_len + 1 + wlen) > max_len:
+            lines.append(" ".join(current))
+            current = [w]
+            current_len = wlen
+        else:
+            if current:
+                current_len += 1 + wlen
+                current.append(w)
+            else:
+                current = [w]
+                current_len = wlen
+    if current:
+        lines.append(" ".join(current))
+    return "<br>".join(lines)
+
+def _wrap_text_html(text: str, max_len: int = 72) -> str:
+    """Soft-wrap long text for Plotly titles by inserting <br> at word boundaries.
+
+    Uses a larger default width than axis labels for better responsiveness.
+    """
+    if not text:
+        return text
+    words = str(text).split()
+    if not words:
+        return text
+    lines: List[str] = []
+    current: List[str] = []
+    current_len = 0
+    for w in words:
+        wlen = len(w)
+        if current and (current_len + 1 + wlen) > max_len:
+            lines.append(" ".join(current))
+            current = [w]
+            current_len = wlen
+        else:
+            if current:
+                current.append(w)
+                current_len += 1 + wlen
+            else:
+                current = [w]
+                current_len = wlen
+    if current:
+        lines.append(" ".join(current))
+    return "<br>".join(lines)
+
+
 def _render_plotly_llm_coverage(
     assignments: Sequence[FrameAssignment],
     frames: Sequence[dict],
@@ -216,7 +353,7 @@ def _render_plotly_llm_coverage(
         "margin": {"l": 40, "r": 20, "t": 20, "b": 80},
         "xaxis": {"title": "Frame", "tickangle": -30},
         "yaxis": {"title": "Passages (LLM top_k)"},
-        "height": 420,
+        "height": 500,
     }
     return _render_plotly_fragment("llm-coverage-chart", traces, layout)
 
@@ -301,6 +438,352 @@ def _render_plotly_llm_binned_distribution(
         "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
     }
     return _render_plotly_fragment("llm-binned-chart", traces, layout)
+
+
+def _render_plotly_classifier_percentage_bars(
+    assignments: Sequence[FrameAssignment],
+    frames: Sequence[dict],
+    color_map: Dict[str, str],
+    classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None,
+    threshold: float = 0.5,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+) -> str:
+    """Render a bar chart showing normalized percentage per frame using classifier predictions.
+    
+    Similar to LLM coverage but uses classifier predictions and normalizes to 100%.
+    """
+    if not assignments or not frames or not classifier_lookup:
+        return ""
+    
+    # Count passages per frame using classifier predictions (at threshold)
+    counts: Dict[str, int] = {str(f["frame_id"]): 0 for f in frames}
+    for assignment in assignments:
+        pred_entry = classifier_lookup.get(assignment.passage_id)
+        if not pred_entry or not isinstance(pred_entry.get("probabilities"), dict):
+            continue
+        probs = pred_entry["probabilities"]  # type: ignore[index]
+        for frame_id in counts.keys():
+            prob = float(probs.get(frame_id, 0.0))
+            if prob >= threshold:
+                counts[frame_id] += 1
+    
+    # Calculate total and percentages
+    total = sum(counts.values())
+    if total == 0:
+        return ""
+    
+    # Sort by count desc
+    ordered = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    frame_ids = [fid for fid, _ in ordered]
+    values = [int(v) for _, v in ordered]
+    percentages = [(v / total * 100) if total > 0 else 0.0 for v in values]
+    
+    labels = []
+    for fid in frame_ids:
+        meta = next((f for f in frames if str(f["frame_id"]) == fid), None)
+        label = (meta.get("short") or meta.get("name") or fid) if meta else fid
+        # Smart wrapping based on max line length
+        wrapped_label = _wrap_label_html(label, max_len=16)
+        labels.append(wrapped_label)
+    colors = [color_map.get(fid, "#057d9f") for fid in frame_ids]
+    
+    traces = [
+        {
+            "type": "bar",
+            "x": labels,
+            "y": percentages,
+            "marker": {"color": colors},
+            "hovertemplate": "%{x}<br>%{y:.1f}%<br>(%{customdata} passages)<extra></extra>",
+            "customdata": values,
+        }
+    ]
+    
+    layout = {
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
+        "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
+        # No Y title per request
+        "yaxis": {"title": ""},
+        "height": 500,
+        # Place legend slightly below the title area to avoid overlap
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.02, "x": 0, "xanchor": "left"},
+    }
+    
+    return _render_plotly_fragment("classifier-percentage-chart", traces, layout)
+
+
+def _render_plotly_classifier_by_year(
+    assignments: Sequence[FrameAssignment],
+    frames: Sequence[dict],
+    color_map: Dict[str, str],
+    classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None,
+    threshold: float = 0.5,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+) -> str:
+    """Render a grouped bar chart with one column per year, using frame colors with transparency.
+    
+    Grouped by frame, with years shown using transparency variations.
+    Values are normalized to percentages per year.
+    """
+    if not assignments or not frames or not classifier_lookup:
+        return ""
+    
+    from collections import defaultdict
+    from datetime import date
+    from dateutil import parser
+    
+    # Collect counts per frame per year
+    frame_year_counts: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    year_totals: Dict[int, int] = defaultdict(int)
+    years_set = set()
+    today = date.today()
+    
+    for assignment in assignments:
+        pred_entry = classifier_lookup.get(assignment.passage_id)
+        if not pred_entry or not isinstance(pred_entry.get("probabilities"), dict):
+            continue
+        
+        # Extract year from metadata with proper date parsing
+        published_at = assignment.metadata.get("published_at", "")
+        if not published_at:
+            continue
+        try:
+            # Parse the date string properly
+            parsed_date = parser.parse(str(published_at))
+            # Skip future dates
+            if parsed_date.date() > today:
+                continue
+            # Skip dates before 2020 (for air pollution study focus period)
+            if parsed_date.year < 2020:
+                continue
+            # Skip unreasonably future dates
+            if parsed_date.year > today.year:
+                continue
+            year = parsed_date.year
+            years_set.add(year)
+        except (ValueError, TypeError, parser.ParserError):
+            continue
+        
+        probs = pred_entry["probabilities"]  # type: ignore[index]
+        for frame in frames:
+            frame_id = str(frame["frame_id"])
+            prob = float(probs.get(frame_id, 0.0))
+            if prob >= threshold:
+                frame_year_counts[frame_id][year] += 1
+                year_totals[year] += 1
+    
+    if not years_set:
+        return ""
+    
+    years = sorted(years_set)
+    base_frame_ids = [str(f["frame_id"]) for f in frames]
+    # Order frames by overall importance (total counts across years, desc)
+    totals_by_frame: Dict[str, int] = {fid: sum(frame_year_counts[fid].values()) for fid in base_frame_ids}
+    frame_ids = sorted(base_frame_ids, key=lambda fid: totals_by_frame.get(fid, 0), reverse=True)
+    labels = []
+    for fid in frame_ids:
+        meta = next((f for f in frames if str(f["frame_id"]) == fid), None)
+        label = (meta.get("short") or meta.get("name") or fid) if meta else fid
+        labels.append(_wrap_label_html(label, max_len=16))
+    
+    # Create traces - one per year
+    traces: List[Dict[str, object]] = []
+    num_years = len(years)
+    for idx, year in enumerate(years):
+        # Calculate alpha: ensure minimum opacity is not too light
+        # Older years more transparent, recent years more opaque
+        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4  # Range from 0.6 to 1.0
+        
+        # Get counts for this year and normalize to percentages
+        year_total = year_totals[year]
+        if year_total > 0:
+            percentages = [(frame_year_counts[fid][year] / year_total * 100) for fid in frame_ids]
+            counts = [frame_year_counts[fid][year] for fid in frame_ids]
+        else:
+            percentages = [0.0] * len(frame_ids)
+            counts = [0] * len(frame_ids)
+        
+        # Create colors with transparency
+        colors_with_alpha = [_hex_to_rgba(color_map.get(fid, "#057d9f"), alpha) for fid in frame_ids]
+        
+        traces.append({
+            "type": "bar",
+            "name": str(year),
+            "x": labels,
+            "y": percentages,
+            "customdata": counts,
+            "marker": {"color": colors_with_alpha},
+            "hovertemplate": "%{x}<br>Year: " + str(year) + "<br>%{y:.1f}%<br>(%{customdata} passages)<extra></extra>",
+            # Hide legends for bar traces; we'll add grey-scale legend entries below
+            "showlegend": False,
+        })
+
+    # Add grey-scale legend entries for years (legend-only traces)
+    # Use progressively darker greys for more recent years to mirror alpha progression
+    for idx, year in enumerate(years):
+        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
+        # Map alpha to grey intensity (lighter for older years)
+        intensity = int(min(255, max(60, round(255 * (0.5 + 0.5 * alpha)))))
+        grey_rgba = f"rgba({intensity}, {intensity}, {intensity}, 1.0)"
+        traces.append({
+            "type": "scatter",
+            "mode": "markers",
+            "x": [None],
+            "y": [None],
+            "marker": {"size": 10, "color": grey_rgba},
+            "name": str(year),
+            "showlegend": True,
+            "hoverinfo": "skip",
+        })
+    
+    layout = {
+        "barmode": "group",
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
+        "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
+        # No Y title per request
+        "yaxis": {"title": ""},
+        "height": 500,
+        # Move legend slightly higher per request
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.08, "x": 0.5, "xanchor": "center"},
+    }
+    
+    return _render_plotly_fragment("classifier-by-year-chart", traces, layout)
+
+
+def _render_occurrence_percentage_bars(
+    documents: Sequence[DocumentFrameAggregate],
+    frames: Sequence[dict],
+    color_map: Dict[str, str],
+    *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
+    export_png_path: Optional[Path] = None,
+) -> str:
+    if not documents or not frames:
+        return ""
+    total_docs = len(documents)
+    frame_ids = [str(f["frame_id"]) for f in frames]
+    counts: Dict[str, int] = {fid: 0 for fid in frame_ids}
+    for doc in documents:
+        for fid in frame_ids:
+            try:
+                val = float(doc.frame_scores.get(fid, 0.0))
+            except Exception:
+                val = 0.0
+            if val > 0.0:
+                counts[fid] += 1
+    ordered = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    frame_ids = [fid for fid, _ in ordered]
+    shares = [((counts[fid] / total_docs)) if total_docs > 0 else 0.0 for fid in frame_ids]
+    labels = []
+    for fid in frame_ids:
+        meta = next((f for f in frames if str(f["frame_id"]) == fid), None)
+        label = (meta.get("short") or meta.get("name") or fid) if meta else fid
+        labels.append(_wrap_label_html(label, max_len=16))
+    colors = [color_map.get(fid, "#057d9f") for fid in frame_ids]
+    traces = [{
+        "type": "bar",
+        "x": labels,
+        "y": shares,
+        "marker": {"color": colors},
+        "hovertemplate": "%{x}<br>%{y:.1f}%<extra></extra>",
+    }]
+    layout = {
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 70},
+        "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
+        "yaxis": {"title": "", "tickformat": ".0%"},
+        "height": 420,
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.02, "x": 0, "xanchor": "left"},
+    }
+    return _render_plotly_fragment("occurrence-percentage-chart", traces, layout, export_png_path=export_png_path)
+
+
+def _render_occurrence_by_year(
+    documents: Sequence[DocumentFrameAggregate],
+    frames: Sequence[dict],
+    color_map: Dict[str, str],
+    *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
+    export_png_path: Optional[Path] = None,
+) -> str:
+    if not documents or not frames:
+        return ""
+    from collections import defaultdict
+    from datetime import date
+    from dateutil import parser
+    frame_ids = [str(f["frame_id"]) for f in frames]
+    frame_year_counts: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    year_totals: Dict[int, int] = defaultdict(int)
+    years_set = set()
+    today = date.today()
+    for doc in documents:
+        published_at = doc.published_at or ""
+        try:
+            parsed_date = parser.parse(str(published_at))
+            if parsed_date.date() > today:
+                continue
+            year = parsed_date.year
+            years_set.add(year)
+        except Exception:
+            continue
+        year_totals[year] += 1
+        for fid in frame_ids:
+            try:
+                val = float(doc.frame_scores.get(fid, 0.0))
+            except Exception:
+                val = 0.0
+            if val > 0.0:
+                frame_year_counts[fid][year] += 1
+    if not years_set:
+        return ""
+    years = sorted(years_set)
+    totals_by_frame: Dict[str, int] = {fid: sum(frame_year_counts[fid].values()) for fid in frame_ids}
+    frame_ids = sorted(frame_ids, key=lambda fid: totals_by_frame.get(fid, 0), reverse=True)
+    labels = []
+    for fid in frame_ids:
+        meta = next((f for f in frames if str(f["frame_id"]) == fid), None)
+        label = (meta.get("short") or meta.get("name") or fid) if meta else fid
+        labels.append(_wrap_label_html(label, max_len=16))
+
+    traces: List[Dict[str, object]] = []
+    num_years = len(years)
+    
+    # Create a more gradual alpha progression
+    for idx, year in enumerate(years):
+        # More gradual alpha range: 0.3 to 1.0
+        alpha = 0.3 + (idx / max(num_years - 1, 1)) * 0.7
+        year_total = year_totals[year]
+        if year_total > 0:
+            shares = [(frame_year_counts[fid][year] / year_total) for fid in frame_ids]
+            counts = [frame_year_counts[fid][year] for fid in frame_ids]
+        else:
+            shares = [0.0] * len(frame_ids)
+            counts = [0] * len(frame_ids)
+        # Apply transparency to frame colors
+        colors_with_alpha = [_hex_to_rgba(color_map.get(fid, "#057d9f"), alpha) for fid in frame_ids]
+        traces.append({
+            "type": "bar",
+            "name": str(year),
+            "x": labels,
+            "y": shares,
+            "customdata": counts,
+            "marker": {"color": colors_with_alpha},
+            "hovertemplate": "%{x}<br>Year: " + str(year) + "<br>%{y:.1f}%<extra></extra>",
+            "showlegend": True,
+        })
+    layout = {
+        "barmode": "group",
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 40},
+        "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
+        "yaxis": {"title": "", "tickformat": ".0%"},
+        "height": 500,
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.06, "x": 0.5, "xanchor": "center"},
+    }
+    return _render_plotly_fragment("occurrence-by-year-chart", traces, layout, export_png_path=export_png_path)
 
 
 def _plot_confusion_matrix(
@@ -617,10 +1100,65 @@ def _render_plotly_fragment(
     layout: Dict[str, object],
     *,
     config: Optional[Dict[str, object]] = None,
+    export_png_path: Optional[Path] = None,
 ) -> str:
     if not data:
         return ""
-    config = config or {"displayModeBar": False, "responsive": True}
+    # Disable interactivity by default to prevent scroll trapping
+    config = config or {"displayModeBar": False, "responsive": True, "staticPlot": True, "scrollZoom": False, "doubleClick": False}
+
+    # Best-effort PNG export when requested
+    if export_png_path is not None:
+        export_png_path = _safe_export_path(export_png_path, div_id=div_id)
+        if not _PLOTLY_AVAILABLE:
+            key = "no_plotly"
+            if not _PLOTLY_WARNED.get(key):
+                print(f"⚠️ Plotly not installed; skipping PNG export for {div_id} → {export_png_path}")
+                _PLOTLY_WARNED[key] = True
+        elif not _KALEIDO_AVAILABLE:
+            key = "no_kaleido"
+            if not _PLOTLY_WARNED.get(key):
+                print(f"⚠️ Kaleido not installed; skipping PNG export for {div_id} → {export_png_path}")
+                _PLOTLY_WARNED[key] = True
+        else:
+            try:
+                fig = _go.Figure(data=list(data))
+                # Use a title-safe layout for static export to avoid filename inference issues
+                try:
+                    safe_layout = copy.deepcopy(layout)
+                except Exception:
+                    safe_layout = dict(layout)
+                title_entry = safe_layout.get("title")
+                # Move title text into an annotation instead of layout.title
+                if isinstance(title_entry, dict) and title_entry.get("text"):
+                    title_text = title_entry.get("text")
+                    # Remove title from layout for export
+                    safe_layout.pop("title", None)
+                    # Ensure annotations list exists
+                    anns = list(safe_layout.get("annotations", []))
+                    anns.append({
+                        "text": title_text,
+                        "xref": "paper",
+                        "yref": "paper",
+                        "x": 0,
+                        "y": 1.10,
+                        "xanchor": "left",
+                        "yanchor": "bottom",
+                        "showarrow": False,
+                        "align": "left",
+                        "font": {"size": 18, "color": "#333"},
+                    })
+                    safe_layout["annotations"] = anns
+                fig.update_layout(**safe_layout)
+                export_png_path.parent.mkdir(parents=True, exist_ok=True)
+                # Use to_image() + write to avoid any filename inference quirks
+                img_bytes = _pio.to_image(fig, format="png", scale=2)
+                export_png_path.write_bytes(img_bytes)
+            except Exception as exc:
+                key = f"export_fail_{div_id}"
+                if not _PLOTLY_WARNED.get(key):
+                    print(f"⚠️ Plotly PNG export failed for {div_id}: {exc}")
+                    _PLOTLY_WARNED[key] = True
     data_json = json.dumps(data, ensure_ascii=False)
     layout_json = json.dumps(layout, ensure_ascii=False)
     config_json = json.dumps(config, ensure_ascii=False)
@@ -653,6 +1191,11 @@ def _render_plotly_timeseries(
     records: Optional[Sequence[Dict[str, object]]],
     frame_lookup: Dict[str, Dict[str, str]],
     color_map: Dict[str, str],
+    *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
+    export_png_path: Optional[Path] = None,
 ) -> str:
     if not records:
         return ""
@@ -717,7 +1260,7 @@ def _render_plotly_timeseries(
         "height": 520,
     }
 
-    return _render_plotly_fragment("time-series-chart", traces, layout)
+    return _render_plotly_fragment("time-series-chart", traces, layout, export_png_path=export_png_path)
 
 
 def _render_plotly_timeseries_lines(
@@ -857,24 +1400,88 @@ def _render_plotly_timeseries_abs_lines(
 
     return _render_plotly_fragment("time-series-abs-lines-chart", traces, layout)
 
+
+def _render_plotly_total_docs_timeseries(
+    aggregates: Optional[Sequence[DocumentFrameAggregate]],
+) -> str:
+    """Render total documents per day with 7-day rolling average."""
+    if not aggregates:
+        return ""
+    
+    from collections import defaultdict
+    from datetime import date
+    from efi_core.utils import normalize_date
+    
+    # Build daily counts from aggregates
+    daily_counts: Dict[str, int] = defaultdict(int)
+    today = date.today()
+    
+    for agg in aggregates:
+        if not agg.published_at:
+            continue
+        normalized = normalize_date(agg.published_at)
+        if not normalized:
+            continue
+        day_value = date(normalized.year, normalized.month, normalized.day)
+        # Skip future-dated documents
+        if day_value > today:
+            continue
+        daily_counts[day_value.isoformat()] += 1
+    
+    if not daily_counts:
+        return ""
+    
+    # Build DataFrame with 7-day rolling average
+    df = pd.DataFrame([{"date": d, "count": c} for d, c in daily_counts.items()])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date")
+    if df.empty:
+        return ""
+    
+    df = df.set_index("date").asfreq("D", fill_value=0)
+    df["smooth"] = df["count"].rolling(window=7, min_periods=1).mean()
+    
+    data = [{
+        "type": "scatter",
+        "mode": "lines",
+        "name": "Articles per day",
+        "x": df.index.strftime("%Y-%m-%d").tolist(),
+        "y": df["smooth"].tolist(),
+        "line": {"color": "#1E3D58", "width": 2.5},
+        "hovertemplate": "Date: %{x}<br>Articles (7-day avg): %{y}<extra></extra>"
+    }]
+    
+    layout = {
+        "margin": {"l": 60, "r": 30, "t": 20, "b": 60},
+        "yaxis": {"title": "Articles per day (7-day avg)"},
+        "xaxis": {"title": "Date"},
+        "height": 420,
+    }
+    
+    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout)
+
+
 def _render_plotly_domain_counts(
     domain_counts: Optional[Sequence[Tuple[str, int]]],
+    total_documents: int = 0,
 ) -> str:
     if not domain_counts:
         return ""
-    top_entries = domain_counts[:20]
-    if not top_entries:
+    
+    # Sort by total count descending and take top 20
+    sorted_entries = sorted(domain_counts, key=lambda x: x[1], reverse=True)[:20]
+    if not sorted_entries:
         return ""
 
-    domains = [name for name, _ in top_entries]
-    values = [int(count) for _, count in top_entries]
-
+    domains = [name for name, _ in sorted_entries]
+    values = [count for _, count in sorted_entries]
+    
     traces = [
         {
             "type": "bar",
             "orientation": "h",
-            "y": domains[::-1],
-            "x": values[::-1],
+            "y": domains,
+            "x": values,
             "marker": {"color": "#057d9f"},
             "hovertemplate": "%{y}<br>%{x} documents<extra></extra>",
         }
@@ -882,21 +1489,35 @@ def _render_plotly_domain_counts(
 
     layout = {
         "margin": {"l": 120, "r": 30, "t": 20, "b": 40},
-        "xaxis": {"title": "Documents"},
-        "yaxis": {"title": "Domain"},
-        "height": max(320, 32 * len(top_entries)),
+        "xaxis": {"title": "Number of documents"},
+        "yaxis": {"title": "", "autorange": "reversed"},
+        "height": max(400, 32 * len(sorted_entries)),
     }
+
     return _render_plotly_fragment("domain-counts-chart", traces, layout)
 
 
 def _extract_domain_from_url(url: Optional[str]) -> str:
+    """Extract base domain from URL, ignoring subdomains."""
     if not url:
         return ""
     parsed = urlparse(url)
     netloc = parsed.netloc or parsed.path
     if netloc.startswith("www."):
         netloc = netloc[4:]
-    return netloc.lower()
+    domain = netloc.lower()
+    
+    # Extract base domain (ignore subdomains)
+    # e.g., kota.tribunnews.com -> tribunnews.com
+    parts = domain.split('.')
+    if len(parts) >= 2:
+        # Handle common two-part TLDs like .co.uk, .co.id, .com.au
+        if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
+            return '.'.join(parts[-3:])
+        else:
+            return '.'.join(parts[-2:])
+    
+    return domain
 
 
 def _format_date_label(raw: Optional[str]) -> str:
@@ -910,15 +1531,15 @@ def _format_date_label(raw: Optional[str]) -> str:
 
 
 def _collect_top_stories_by_frame(
-    document_aggregates: Optional[Sequence[DocumentFrameAggregate]],
+    document_aggregates_weighted: Optional[Sequence[DocumentFrameAggregate]],
     *,
     top_n: int = 3,
 ) -> Dict[str, List[Dict[str, object]]]:
     top_stories: Dict[str, List[Dict[str, object]]] = {}
-    if not document_aggregates:
+    if not document_aggregates_weighted:
         return top_stories
 
-    for aggregate in document_aggregates:
+    for aggregate in document_aggregates_weighted:
         for frame_id, score in aggregate.frame_scores.items():
             value = float(score)
             if value <= 0:
@@ -956,9 +1577,15 @@ def write_html_report(
     include_classifier_plots: bool = True,
     domain_counts: Optional[Sequence[Tuple[str, int]]] = None,
     domain_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
-    document_aggregates: Optional[Sequence[DocumentFrameAggregate]] = None,
+    document_aggregates_weighted: Optional[Sequence[DocumentFrameAggregate]] = None,
+    document_aggregates_occurrence: Optional[Sequence[DocumentFrameAggregate]] = None,
     corpus_frame_summaries: Optional[Sequence[Dict[str, object]]] = None,
     metrics_threshold: float = 0.3,
+    hide_empty_passages: bool = False,
+    plot_title: Optional[str] = None,
+    plot_subtitle: Optional[str] = None,
+    plot_note: Optional[str] = None,
+    export_plotly_png_dir: Optional[Path] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
 
@@ -1048,9 +1675,41 @@ def write_html_report(
             else:
                 timeseries_note = f"Data covers {html.escape(start)} to {html.escape(end)}."
 
-    timeseries_chart_html = _render_plotly_timeseries(timeseries_records, frame_lookup, color_map)
+    # Decide export directory for PNGs if requested
+    export_dir = export_plotly_png_dir
+    if export_dir is None and output_path is not None:
+        # Default under the run directory: <run_dir>/plots
+        export_dir = output_path.parent / "plots"
+
+    # Build caption for time series
+    ts_caption_parts: List[str] = []
+    if timeseries_note:
+        ts_caption_parts.append(timeseries_note)
+    ts_caption_parts.append("30-day rolling average of frame share.")
+    if plot_note:
+        try:
+            ts_caption_parts.append(plot_note.format(n_articles=classified_documents))
+        except Exception:
+            ts_caption_parts.append(plot_note)
+    ts_caption = " • ".join([p for p in ts_caption_parts if p])
+
+    timeseries_chart_html = _render_plotly_timeseries(
+        timeseries_records, frame_lookup, color_map,
+        title=plot_title, subtitle=(plot_subtitle.format(n_articles=classified_documents) if plot_subtitle else None),
+        caption=ts_caption,
+        export_png_path=(export_dir / "time_series_area.png") if export_dir else None,
+    )
     timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
     timeseries_abs_lines_html = _render_plotly_timeseries_abs_lines(timeseries_records, frame_lookup, color_map)
+    
+    # Total docs volume chart
+    total_docs_chart_html = ""
+    if document_aggregates_occurrence:
+        # Use occurrence aggregates since they're simpler (one per document)
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_occurrence)
+    elif document_aggregates_weighted:
+        # Fallback to weighted aggregates if occurrence not available
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_weighted)
     if not timeseries_chart_html and area_chart_b64:
         timeseries_chart_html = (
             "<figure class=\"chart\">"
@@ -1059,7 +1718,11 @@ def write_html_report(
             "</figure>"
         )
 
-    domain_counts_chart_html = _render_plotly_domain_counts(domain_counts)
+    # Prepare frames for domain counts chart
+    domain_counts_chart_html = _render_plotly_domain_counts(
+        domain_counts, 
+        total_documents=classified_documents
+    )
     if not domain_counts_chart_html and domain_counts:
         domain_counts_b64 = _plot_domain_counts_bar(domain_counts[:20])
         if domain_counts_b64:
@@ -1097,6 +1760,27 @@ def write_html_report(
                     frame_lookup,
                     color_map,
         )
+
+        # Optionally hide passages with no associated frame.
+        # Treat probabilities below a small threshold as effectively zero to avoid rows that render as 0%.
+        if hide_empty_passages:
+            def _all_below(d: Dict[str, float], thr: float) -> bool:
+                try:
+                    if not d:
+                        return True
+                    return max(float(v) for v in d.values()) < thr
+                except Exception:
+                    return True
+            # Use metrics_threshold as the display threshold for emptiness (fallback to 0.0)
+            _thr = float(metrics_threshold or 0.0)
+            llm_empty = _all_below(assignment.probabilities or {}, _thr)
+            clf_empty = True
+            if classifier_lookup and assignment.passage_id in classifier_lookup:
+                cprobs = classifier_lookup.get(assignment.passage_id, {}).get("probabilities", {})
+                if isinstance(cprobs, dict):
+                    clf_empty = _all_below({k: float(v) for k, v in cprobs.items()}, _thr)
+            if llm_empty and clf_empty:
+                continue
 
         rationale = html.escape(assignment.rationale) if assignment.rationale else "—"
         evidence_text = (
@@ -1191,6 +1875,23 @@ def write_html_report(
         </section>
         """
 
+    # Article volume section
+    article_volume_section_html = ""
+    if total_docs_chart_html:
+        article_volume_section_html = f"""
+        <section class="report-section" id="article-volume">
+            <header class="section-heading">
+                <h2>Article Volume Over Time</h2>
+                <p>Total number of articles per day (7-day rolling average).</p>
+            </header>
+            <div class="section-body">
+                <div class="card chart-card">
+                    {total_docs_chart_html}
+                </div>
+            </div>
+        </section>
+        """
+    
     time_series_section_html = ""
     if timeseries_note or timeseries_chart_html:
         note_parts: List[str] = []
@@ -1198,16 +1899,46 @@ def write_html_report(
             note_parts.append(html.escape(timeseries_note))
         note_parts.append("30-day rolling average of frame share.")
         note_html = f"<p class=\"section-note\">{' • '.join(note_parts)}</p>"
-        chart_inner = ""
+        
+        # Build individual chart blocks with explanatory text
+        chart_blocks = []
         if timeseries_chart_html:
-            chart_inner += timeseries_chart_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Frame Share Over Time (Stacked Area):</strong> '
+                'Length-weighted share of each frame. Documents with more content contribute more. '
+                'Grouped by day, then normalized so shares sum to 100% across all frames on each day.'
+                '</p>'
+                f'{timeseries_chart_html}'
+                '</div>'
+            )
         if timeseries_lines_html:
-            chart_inner += timeseries_lines_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Frame Share Over Time (Lines):</strong> '
+                'Same length-weighted share metric as above, shown as individual lines. '
+                'Shows proportional importance of each frame over time.'
+                '</p>'
+                f'{timeseries_lines_html}'
+                '</div>'
+            )
         if timeseries_abs_lines_html:
-            chart_inner += timeseries_abs_lines_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Average Frame Score Over Time:</strong> '
+                'Absolute average strength of each frame (0-1 scale), length-weighted. '
+                'Unlike shares, these scores are not normalized and can reveal intensity trends.'
+                '</p>'
+                f'{timeseries_abs_lines_html}'
+                '</div>'
+            )
+        
         chart_block = (
-            f"<div class=\"card chart-card\">{chart_inner}</div>"
-            if chart_inner
+            f"<div class=\"card chart-card\">{''.join(chart_blocks)}</div>"
+            if chart_blocks
             else "<div class=\"card chart-card\"><p class=\"empty-note\">Not enough data to show the time series.</p></div>"
         )
         time_series_section_html = f"""
@@ -1223,13 +1954,128 @@ def write_html_report(
         </section>
         """
 
+    # Classifier distribution charts (or occurrence-based shares if provided)
+    classifier_percentage_section_html = ""
+    classifier_by_year_section_html = ""
+    frames_as_dicts = [
+        {"frame_id": f.frame_id, "name": f.name, "short": f.short_name}
+        for f in schema.frames
+    ]
+    if document_aggregates_occurrence:
+        # Use occurrence document aggregates to show share of articles mentioning each frame
+        chart_title = plot_title or "Sources of air pollution mentioned in Media"
+        base_subtitle = plot_subtitle or "Share of articles that mention each source"
+        subtitle_text = (base_subtitle.format(n_articles=classified_documents) if base_subtitle else None)
+        classifier_pct_html = _render_occurrence_percentage_bars(
+            list(document_aggregates_occurrence), frames_as_dicts, color_map,
+            title=chart_title, subtitle=subtitle_text,
+            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
+            export_png_path=(export_dir / "occurrence_share.png") if export_dir else None,
+        )
+        if classifier_pct_html:
+            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
+            heading_html = (
+                f"<div class=\"chart-heading\">"
+                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
+                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
+                + "</div>"
+            )
+            explanation = '<p class="chart-explanation" style="margin-bottom: 16px;"><strong>Note:</strong> These charts show <em>occurrence</em> metrics (share of articles mentioning each frame), not weighted by content length. Each article counts equally regardless of size.</p>'
+            classifier_percentage_section_html = f"""
+        <section class=\"report-section\" id=\"classifier-percentage\">
+            <div class=\"section-body\">
+                {heading_html}
+                {explanation}
+                {classifier_pct_html}
+                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
+            </div>
+        </section>
+        """
+
+        classifier_year_html = _render_occurrence_by_year(
+            list(document_aggregates_occurrence), frames_as_dicts, color_map,
+            title=chart_title, subtitle=subtitle_text,
+            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
+            export_png_path=(export_dir / "occurrence_by_year.png") if export_dir else None,
+        )
+        if classifier_year_html:
+            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
+            heading_html = (
+                f"<div class=\"chart-heading\">"
+                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
+                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
+                + "</div>"
+            )
+            classifier_by_year_section_html = f"""
+        <section class=\"report-section\" id=\"classifier-by-year\">
+            <div class=\"section-body\">
+                {heading_html}
+                {classifier_year_html}
+                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
+            </div>
+        </section>
+        """
+    elif assignments and classifier_lookup:
+        
+        # Chart titles and subtitles
+        chart_title = plot_title or "Sources of air pollution mentioned in Media"
+        base_subtitle = plot_subtitle or "Normalised percentage of mentions in air pollution related articles over 2020-2025 in Jakarta"
+        subtitle_text = (base_subtitle.format(n_articles=classified_documents) if base_subtitle else None)
+        
+        classifier_pct_html = _render_plotly_classifier_percentage_bars(
+            assignments, frames_as_dicts, color_map, classifier_lookup, 
+            threshold=metrics_threshold,
+            title=None,
+            subtitle=None
+        )
+        if classifier_pct_html:
+            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
+            heading_html = (
+                f"<div class=\"chart-heading\">"
+                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
+                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
+                + "</div>"
+            )
+            classifier_percentage_section_html = f"""
+        <section class=\"report-section\" id=\"classifier-percentage\">
+            <div class=\"section-body\">
+                {heading_html}
+                {classifier_pct_html}
+                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
+            </div>
+        </section>
+        """
+
+        classifier_year_html = _render_plotly_classifier_by_year(
+            assignments, frames_as_dicts, color_map, classifier_lookup, 
+            threshold=metrics_threshold,
+            title=None,
+            subtitle=None
+        )
+        if classifier_year_html:
+            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
+            heading_html = (
+                f"<div class=\"chart-heading\">"
+                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
+                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
+                + "</div>"
+            )
+            classifier_by_year_section_html = f"""
+        <section class=\"report-section\" id=\"classifier-by-year\">
+            <div class=\"section-body\">
+                {heading_html}
+                {classifier_year_html}
+                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
+            </div>
+        </section>
+        """
+
     domain_counts_card = ""
     if domain_counts_chart_html:
         domain_counts_card = (
             "<div class=\"card chart-card\">"
-            "<h3>Top Media Sources</h3>"
             f"{domain_counts_chart_html}"
-            "<p class=\"chart-note\">Classified document counts for the leading domains.</p>"
+            f"<p class=\"chart-note\" style=\"margin-top: 4px; font-style: normal; color: #777;\">Note: based on the analysis of {classified_documents:,} articles.</p>"
             "</div>"
         )
 
@@ -1258,7 +2104,7 @@ def write_html_report(
         </section>
         """
 
-    top_stories_by_frame = _collect_top_stories_by_frame(document_aggregates)
+    top_stories_by_frame = _collect_top_stories_by_frame(document_aggregates_weighted)
     story_cards: List[str] = []
     for frame in schema.frames:
         stories = top_stories_by_frame.get(frame.frame_id)
@@ -1268,12 +2114,12 @@ def write_html_report(
         items: List[str] = []
         for idx, story in enumerate(stories, start=1):
             title_value = str(story.get("title") or f"Story {idx}")
-            title = html.escape(title_value)
+            story_title = html.escape(title_value)
             url_value = str(story.get("url") or "").strip()
             title_html = (
-                f"<a href=\"{html.escape(url_value)}\" target=\"_blank\" rel=\"noopener noreferrer\">{title}</a>"
+                f"<a href=\"{html.escape(url_value)}\" target=\"_blank\" rel=\"noopener noreferrer\">{story_title}</a>"
                 if url_value
-                else title
+                else story_title
             )
             meta_parts: List[str] = []
             domain_label = str(story.get("domain") or "").strip()
@@ -1284,6 +2130,16 @@ def write_html_report(
                 meta_parts.append(html.escape(date_label))
             meta_html = f"<div class=\"story-meta\">{' • '.join(meta_parts)}</div>" if meta_parts else ""
             score_pct = f"{float(story.get('score', 0.0)) * 100:.0f}%"
+            doc_id = str(story.get('doc_id', ''))
+            classification_link = f"classified_chunks/{html.escape(doc_id)}.json" if doc_id else ""
+            classification_html = (
+                f"<div class=\"story-links\">"
+                f"<a href=\"{classification_link}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"classification-link\">"
+                f"View classification details</a>"
+                f"</div>"
+                if classification_link
+                else ""
+            )
             items.append(
                 "<li>"
                 f"<div class=\"story-rank\">{idx}</div>"
@@ -1291,6 +2147,7 @@ def write_html_report(
                 f"<div class=\"story-title\">{title_html}</div>"
                 f"{meta_html}"
                 f"<div class=\"story-score\">{score_pct} frame weight</div>"
+                f"{classification_html}"
                 "</div>"
                 "</li>"
             )
@@ -1357,6 +2214,15 @@ def write_html_report(
         </section>
         """
 
+    # Format plot subtitle with {n_articles} placeholder if present
+    formatted_plot_subtitle = plot_subtitle.format(n_articles=classified_documents) if plot_subtitle else None
+    
+    # Format plot note with {n_articles} placeholder if present
+    formatted_plot_note = plot_note.format(n_articles=classified_documents) if plot_note else None
+    
+    # Coverage text for report header
+    coverage_text = f"Analysis of {classified_documents:,} classified documents"
+    
     header_metrics = (
         "<div class=\"header-metrics\">"
         f"<div class=\"metric\"><span class=\"metric-value\">{len(schema.frames)}</span><span class=\"metric-label\">Frames</span></div>"
@@ -1368,7 +2234,7 @@ def write_html_report(
     header_html = f"""
     <header class=\"report-header\">
         <div class=\"heading-text\">
-            <span class=\"eyebrow\">Narrative Framing Report</span>
+            <span class=\"eyebrow\">Narrative Framing Analysis</span>
             <h1>{html.escape(schema.domain)}</h1>
             <p>{html.escape(coverage_text)}</p>
             {timeline_html}
@@ -1382,7 +2248,7 @@ def write_html_report(
 <html lang=\"en\">
 <head>
   <meta charset=\"utf-8\" />
-  <title>Narrative Framing Report - {html.escape(schema.domain)}</title>
+  <title>{html.escape(schema.domain)} — Narrative Framing Analysis</title>
   <script src=\"https://cdn.plot.ly/plotly-2.27.0.min.js\"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap');
@@ -1433,6 +2299,20 @@ def write_html_report(
       margin: 8px 0 12px;
       font-size: 2.25rem;
       letter-spacing: -0.015em;
+    }}
+    .heading-text .subtitle {{
+      margin: 0 0 12px 0;
+      font-size: 1.125rem;
+      color: var(--ink-600);
+      font-weight: 400;
+    }}
+    .heading-text .note {{
+      margin: 16px 0 0 0;
+      font-size: 0.875rem;
+      color: var(--ink-500);
+      font-weight: 400;
+      line-height: 1.6;
+      white-space: pre-wrap;
     }}
     .heading-text p {{ margin: 6px 0 0 0; font-size: 1rem; }}
     .eyebrow {{
@@ -1505,6 +2385,11 @@ def write_html_report(
       margin: 0;
       font-size: 1rem;
       color: var(--ink-600);
+    }}
+    .chart-card {{
+      min-height: fit-content;
+      height: auto;
+      overflow: visible;
     }}
     .frame-card {{
       position: relative;
@@ -1623,11 +2508,48 @@ def write_html_report(
       margin: 12px 0 0 0;
       font-size: 0.9rem;
       color: var(--ink-500);
+      font-weight: 200;
+    }}
+    .chart-item {{
+      margin: 24px 0;
+    }}
+    .chart-item:first-child {{
+      margin-top: 0;
+    }}
+    .chart-explanation {{
+      margin: 0 0 16px 0;
+      padding: 12px 16px;
+      background: var(--slate-100);
+      border-left: 3px solid var(--accent-2);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.9rem;
+      color: var(--ink-600);
+      line-height: 1.5;
+    }}
+    .chart-explanation strong {{
+      color: var(--ink-800);
     }}
     .plotly-chart {{
       width: 100%;
-      min-height: 420px;
+      min-height: 500px;
       flex: 1;
+    }}
+    .chart-heading {{
+      margin: 0 0 8px 0;
+    }}
+    .chart-title {{
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--ink-800);
+      line-height: 1.15;
+      margin: 0;
+    }}
+    .chart-subtitle {{
+      margin: 2px 0 0 0;
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--ink-600);
+      line-height: 1.4;
     }}
     .story-grid {{
       display: grid;
@@ -1685,6 +2607,23 @@ def write_html_report(
     .story-title {{ font-weight: 600; color: var(--ink-800); font-size: 0.95rem; }}
     .story-meta {{ font-size: 0.85rem; color: var(--ink-500); margin: 6px 0; }}
     .story-score {{ font-size: 0.85rem; color: var(--accent-color, var(--accent-2)); font-weight: 600; }}
+    .story-links {{ margin-top: 8px; }}
+    .classification-link {{
+      font-size: 0.8rem;
+      color: var(--ink-600);
+      text-decoration: none;
+      padding: 4px 8px;
+      border: 1px solid var(--ink-300);
+      border-radius: 4px;
+      background: var(--ink-50);
+      display: inline-block;
+      transition: all 0.2s ease;
+    }}
+    .classification-link:hover {{
+      background: var(--accent-color, var(--accent-2));
+      color: white;
+      border-color: var(--accent-color, var(--accent-2));
+    }}
     .developer-block {{ margin-top: 24px; }}
     .developer-block:first-of-type {{ margin-top: 0; }}
     .developer-block h3 {{
@@ -1757,7 +2696,10 @@ def write_html_report(
     {frames_section_html}
     {llm_coverage_section_html}
     {llm_binned_section_html}
+    {article_volume_section_html}
     {time_series_section_html}
+    {classifier_percentage_section_html}
+    {classifier_by_year_section_html}
     {top_media_section_html}
     {top_stories_section_html}
     {developer_section_html}

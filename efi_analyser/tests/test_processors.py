@@ -529,3 +529,66 @@ class TestTextStatisticsProcessor:
         assert result["char_count"] == 0
         assert result["sentence_count"] == 0
         assert result["avg_word_length"] == 0
+
+
+class TestKeywordExtractorPatterns:
+    """Tests for raw regex pattern support in KeywordExtractorProcessor."""
+
+    def test_raw_patterns_combined_matching(self):
+        processor = KeywordExtractorProcessor(
+            keywords=["transport"],
+            case_sensitive=False,
+            whole_word_only=True,
+            allow_hyphenation=True,
+            patterns=[
+                r"(?i)(konstruksi|pembangunan|pekerjaan\s+jalan).{0,80}(debu|polusi|partikel)",
+                r"(?i)resuspensi\s+debu",
+            ],
+        )
+
+        doc = Document(
+            doc_id="doc1",
+            url="https://example.com",
+            title="Test",
+            text=(
+                "Pemerintah melakukan pembangunan jalan utama di Jakarta yang menyebabkan partikel dan debu "
+                "berterbangan selama musim kemarau. Selain itu, ada resuspensi debu dari lalu lintas."
+            ),
+            published_at=None,
+            language=None,
+            meta={},
+        )
+
+        result = processor.process(doc)
+        # Keyword 'transport' should not match here
+        assert result["keyword_counts"].get("transport", 0) == 0
+        # Raw patterns should match
+        assert any(
+            result["keyword_counts"].get(pat, 0) > 0
+            for pat in processor._custom_patterns  # type: ignore[attr-defined]
+        )
+
+    def test_patterns_do_not_require_whole_word_flags(self):
+        """Patterns are compiled as-is; whole_word_only/allow_hyphenation do not alter them."""
+        processor = KeywordExtractorProcessor(
+            keywords=[],
+            case_sensitive=False,
+            whole_word_only=True,
+            allow_hyphenation=False,
+            patterns=[r"(?i)semen.{0,40}debu|debu.{0,40}semen"],
+        )
+
+        doc = Document(
+            doc_id="doc2",
+            url="https://example.com",
+            title="Test",
+            text="Pabrik semen di pinggiran kota menimbulkan banyak debu pada siang hari.",
+            published_at=None,
+            language=None,
+            meta={},
+        )
+
+        result = processor.process(doc)
+        # Should match via raw pattern regardless of whole_word_only/hyphenation
+        pat = processor._custom_patterns[0]  # type: ignore[attr-defined]
+        assert result["keyword_counts"].get(pat, 0) >= 1

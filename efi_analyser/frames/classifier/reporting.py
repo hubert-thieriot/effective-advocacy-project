@@ -287,7 +287,12 @@ class PerFrameMetricsCallback(TrainerCallback):
             ("precision", "per_frame_precision_by_epoch.png"),
             ("recall", "per_frame_recall_by_epoch.png"),
         ):
-            plt.figure(figsize=(10, 6))
+            # Adjust figure size based on number of frames
+            num_frames = len(self.label_ids)
+            fig_width = max(10, num_frames * 1.2)
+            fig_height = max(6, 4 + (num_frames * 0.3))
+            plt.figure(figsize=(fig_width, fig_height))
+            
             for fid in self.label_ids:
                 ys: List[float] = []
                 for e in epochs:
@@ -305,14 +310,32 @@ class PerFrameMetricsCallback(TrainerCallback):
                     ys.append(val)
                 label = self.id_to_name.get(fid, fid)
                 plt.plot(epochs, ys, marker="o", label=label)
-            plt.title(f"Per-frame {metric_name} over epochs")
-            plt.xlabel("Epoch")
-            plt.ylabel(metric_name.capitalize())
+            
+            plt.title(f"Per-frame {metric_name} over epochs", fontsize=14, fontweight='bold')
+            plt.xlabel("Epoch", fontsize=12)
+            plt.ylabel(metric_name.capitalize(), fontsize=12)
             plt.ylim(0.0, 1.0)
             plt.grid(True, alpha=0.3)
-            plt.legend(fontsize=8, ncol=2)
+            
+            # Adjust legend based on number of frames
+            if num_frames <= 4:
+                ncol = 1
+                loc = 'best'
+            elif num_frames <= 8:
+                ncol = 2
+                loc = 'upper left'
+            else:
+                ncol = 3
+                loc = 'upper left'
+            
+            # Place legend outside if it would overlap too much
+            if num_frames > 6:
+                plt.legend(fontsize=9, ncol=ncol, loc=loc, bbox_to_anchor=(1.02, 1), borderaxespad=0)
+            else:
+                plt.legend(fontsize=9, ncol=ncol, loc=loc)
+            
             plt.tight_layout()
-            plt.savefig(self.out_dir / fname)
+            plt.savefig(self.out_dir / fname, bbox_inches='tight')
             plt.close()
 
     def on_evaluate(self, args, state, control, metrics, **kwargs):  # type: ignore[override]

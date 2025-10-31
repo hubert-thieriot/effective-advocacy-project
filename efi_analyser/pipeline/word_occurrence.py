@@ -30,7 +30,11 @@ class WordOccurrencePipeline(AbstractPipeline):
                  keywords: List[str],
                  case_sensitive: bool = False,
                  whole_word_only: bool = True,
-                 allow_hyphenation: bool = True):
+                 allow_hyphenation: bool = True,
+                 doc_limit: int | None = None,
+                 date_from: str | None = None,
+                 date_to: str | None = None,
+                 patterns: List[str] | None = None):
         """
         Initialize the word occurrence pipeline.
         
@@ -44,13 +48,18 @@ class WordOccurrencePipeline(AbstractPipeline):
         self.case_sensitive = case_sensitive
         self.whole_word_only = whole_word_only
         self.allow_hyphenation = allow_hyphenation
+        self.doc_limit = doc_limit
+        self.date_from = date_from
+        self.date_to = date_to
+        self.patterns = patterns or []
         
         # Initialize processor and aggregator
         self.processor = KeywordExtractorProcessor(
             keywords=keywords,
             case_sensitive=case_sensitive,
             whole_word_only=whole_word_only,
-            allow_hyphenation=allow_hyphenation
+            allow_hyphenation=allow_hyphenation,
+            patterns=self.patterns,
         )
         
         self.aggregator = KeywordPresenceAggregator()
@@ -80,7 +89,26 @@ class WordOccurrencePipeline(AbstractPipeline):
         results: List[AnalysisResult] = []
         iterator = tqdm(corpus_handle.iter_documents(), total=total_docs, desc="Processing documents")
 
+        processed = 0
         for doc in iterator:
+            # Optional date filtering
+            if self.date_from or self.date_to:
+                try:
+                    published_at = getattr(doc, "published_at", None)
+                    if published_at:
+                        # Support both datetime-like and string dates
+                        from datetime import datetime
+                        if hasattr(published_at, "isoformat"):
+                            pub_str = published_at.date().isoformat()
+                        else:
+                            pub_str = str(published_at)[:10]
+                        if self.date_from and pub_str < self.date_from:
+                            continue
+                        if self.date_to and pub_str > self.date_to:
+                            continue
+                except Exception:
+                    # If date parsing fails, do not filter out
+                    pass
             # All documents pass filters in word occurrence analysis
             passed = True
             filter_results: Dict[str, bool] = {"word_occurrence": True}
@@ -123,6 +151,10 @@ class WordOccurrencePipeline(AbstractPipeline):
             results.append(ar)
             self._processed_results.append(ar)
 
+            processed += 1
+            if self.doc_limit is not None and processed >= self.doc_limit:
+                break
+
         # Aggregate results
         aggregated_result = self.aggregator.aggregate(results)
         
@@ -158,7 +190,8 @@ class WordOccurrencePipeline(AbstractPipeline):
                 # Extract metadata
                 meta = result.meta
                 title = meta.get("title", "")
-                date = meta.get("date", "")
+                # Prefer explicit 'date', fall back to 'published_at'
+                date = meta.get("date", "") or meta.get("published_at", "")
                 
                 word_result = WordOccurrenceResult(
                     document_id=result.doc_id,

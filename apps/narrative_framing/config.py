@@ -42,11 +42,30 @@ class ClassifierSettings:
     eval_threshold: float = 0.5
     eval_top_k: Optional[int] = None
     eval_steps: Optional[int] = None
+    # Cross-validation (optional)
+    cv_folds: Optional[int] = None
+
+
+@dataclass
+class PlotSettings:
+    """Configuration for plot titles and descriptions."""
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    note: Optional[str] = None
+
+@dataclass
+class ReportSettings:
+    """Configuration for report generation and display."""
+    plot: PlotSettings = field(default_factory=PlotSettings)
+    hide_empty_passages: bool = False
 
 
 @dataclass
 class NarrativeFramingConfig:
     """Typed configuration for the narrative framing workflow."""
+
+    # For provenance: original YAML file path (set at load time)
+    source_config_path: Optional[Path] = None
 
     corpus: str = None
     corpora: Optional[List[str]] = None
@@ -77,13 +96,18 @@ class NarrativeFramingConfig:
     reload_chunk_classifications: bool = False
     reload_document_aggregates: bool = False
     reload_time_series: bool = False
-    reset_chunk_classifications: bool = False
-    reset_document_aggregates: bool = False
     results_dir: Optional[Path] = None
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
+    report: ReportSettings = field(default_factory=ReportSettings)
     induction_guidance: Optional[str] = None
     classifier_corpus_sample_size: Optional[int] = None
     sampling_policy: str = "equal"
+    # Utility: when true, skip analysis and rebuild report from cached artifacts only
+    regenerate_report_only: bool = False
+    # Aggregation controls
+    agg_min_threshold_weighted: float = 0.2
+    agg_normalize_weighted: bool = True
+    agg_min_threshold_occurrence: float = 0.2
 
     def normalize(self) -> None:
         """Normalize derived fields after loading from disk."""
@@ -186,6 +210,12 @@ def _load_classifier_settings(data: Dict[str, Any]) -> ClassifierSettings:
             settings.eval_steps = int(data["eval_steps"]) if data["eval_steps"] is not None else None
         except Exception:
             settings.eval_steps = None
+    if "cv_folds" in data:
+        try:
+            v = int(data["cv_folds"]) if data["cv_folds"] is not None else None
+        except Exception:
+            v = None
+        settings.cv_folds = v if (v is None or v >= 2) else None
     return settings
 
 
@@ -196,6 +226,11 @@ def load_config(path: Path) -> NarrativeFramingConfig:
     data: Dict[str, Any] = payload or {}
 
     config = NarrativeFramingConfig()
+    # Record provenance of the config file for later snapshotting
+    try:
+        config.source_config_path = path
+    except Exception:
+        config.source_config_path = None
     if "corpus" in data:
         raw_corpus = data["corpus"]
         if isinstance(raw_corpus, (list, tuple)):
@@ -276,12 +311,34 @@ def load_config(path: Path) -> NarrativeFramingConfig:
         config.reload_document_aggregates = bool(data["reload_document_aggregates"])
     if "reload_time_series" in data:
         config.reload_time_series = bool(data["reload_time_series"])
-    if "reset_chunk_classifications" in data:
-        config.reset_chunk_classifications = bool(data["reset_chunk_classifications"])
-    if "reset_document_aggregates" in data:
-        config.reset_document_aggregates = bool(data["reset_document_aggregates"])
     if "results_dir" in data:
         config.results_dir = _as_path(data["results_dir"])
+    if "regenerate_report_only" in data:
+        try:
+            config.regenerate_report_only = bool(data["regenerate_report_only"])  # type: ignore[attr-defined]
+        except Exception:
+            config.regenerate_report_only = False
+    # Back-compat: allow top-level hide_empty_passages to set report flag
+    if "hide_empty_passages" in data:
+        try:
+            config.report.hide_empty_passages = bool(data["hide_empty_passages"])  # prefer report-scoped flag
+        except Exception:
+            pass
+    if "agg_min_threshold_weighted" in data:
+        try:
+            config.agg_min_threshold_weighted = float(data["agg_min_threshold_weighted"])  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    if "agg_normalize_weighted" in data:
+        try:
+            config.agg_normalize_weighted = bool(data["agg_normalize_weighted"])  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    if "agg_min_threshold_occurrence" in data:
+        try:
+            config.agg_min_threshold_occurrence = float(data["agg_min_threshold_occurrence"])  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     if "classifier" in data:
         config.classifier = _load_classifier_settings(data["classifier"])
@@ -307,10 +364,24 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.reload_document_aggregates = True
         if "reload_time_series" not in data:
             config.reload_time_series = True
-        if "reset_chunk_classifications" not in data:
-            config.reset_chunk_classifications = False
-        if "reset_document_aggregates" not in data:
-            config.reset_document_aggregates = False
+
+    # Handle report section
+    if "report" in data:
+        report_data = data["report"]
+        if isinstance(report_data, dict):
+            if "hide_empty_passages" in report_data:
+                # Report-level override takes precedence over top-level
+                config.report.hide_empty_passages = bool(report_data["hide_empty_passages"])
+            
+            # Handle plot settings
+            if "plot" in report_data and isinstance(report_data["plot"], dict):
+                plot_data = report_data["plot"]
+                if "title" in plot_data:
+                    config.report.plot.title = str(plot_data["title"]) if plot_data["title"] else None
+                if "subtitle" in plot_data:
+                    config.report.plot.subtitle = str(plot_data["subtitle"]) if plot_data["subtitle"] else None
+                if "note" in plot_data:
+                    config.report.plot.note = str(plot_data["note"]) if plot_data["note"] else None
 
     config.normalize()
     return config

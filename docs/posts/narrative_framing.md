@@ -29,6 +29,21 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 
 **Aggregation and reporting**: Chunk-level predictions are aggregated to article-level profiles using length-weighted attention, then rolled up into time series (daily values, 30-day smoothed) and domain-level breakdowns. Reports combine interactive HTML for exploration with static visualizations for versioning and embedding.
 
+<style>
+.mermaid svg {
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+}
+.mermaid .cluster text,
+.mermaid .cluster-label text {
+  font-weight: bold;
+}
+.mermaid .cluster-label {
+  margin-bottom: 8px;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
   (function(){
@@ -79,15 +94,44 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
         var targets = document.querySelectorAll('.mermaid');
         log('rendering targets:', targets.length);
         window.mermaid.init(undefined, targets);
-        // Ensure rendered SVGs take full width
-        targets.forEach(function(target) {
-          var svg = target.querySelector('svg');
-          if (svg) {
-            svg.style.maxWidth = '100%';
-            svg.style.width = '100%';
-            svg.style.height = 'auto';
-          }
-        });
+        
+        // Apply styling after rendering completes
+        function applyStyling() {
+          targets.forEach(function(target) {
+            var svg = target.querySelector('svg');
+            if (svg) {
+              // Find all clusters (subgraphs)
+              var clusters = svg.querySelectorAll('g.cluster');
+              clusters.forEach(function(cluster) {
+                var rect = cluster.querySelector('rect');
+                var titleText = cluster.querySelector('text');
+                
+                if (rect && titleText) {
+                  // Get rectangle position and dimensions
+                  var rectY = parseFloat(rect.getAttribute('y')) || 0;
+                  var rectHeight = parseFloat(rect.getAttribute('height')) || 0;
+                  
+                  // Apply rounded corners
+                  rect.setAttribute('rx', '8');
+                  rect.setAttribute('ry', '8');
+                  
+                  // Move title above the box (position it above the top edge of the rectangle)
+                  // Add some spacing between title and box
+                  var titleAboveY = rectY - 8;
+                  titleText.setAttribute('y', titleAboveY);
+                  
+                  // Make sure the title is bold
+                  titleText.style.fontWeight = 'bold';
+                }
+              });
+            }
+          });
+        }
+        
+        // Try immediately and again after a delay to catch async rendering
+        applyStyling();
+        setTimeout(applyStyling, 100);
+        setTimeout(applyStyling, 300);
         log('render complete');
       } catch (e) {
         log('mermaid init error:', e);
@@ -107,41 +151,72 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 flowchart LR
     subgraph Collection["1. Collection & Preparation"]
         direction TB
+        subgraph CollectionSub[ ]
+        direction TB
         A["Article discovery<br/>(MediaCloud collections + filters)"] 
         A2["Scrape & extract text<br/>(remove boilerplate)"]
         B["Chunk into sentences<br/>(for frame analysis)"]
         A --> A2 --> B
+        end
     end
     
-    subgraph Discovery["2. Frame Discovery"]
+    subgraph Discovery["2. Frame Induction & Application"]
+        direction TB
+        subgraph DiscoverySub[ ]
         direction TB
         C["LLM: Induce frames<br/>(domain-specific taxonomy)"]
         D["LLM: Label samples<br/>(multi-label distributions)"]
         C --> D
+        end
     end
     
+    
+
     subgraph Classification["3. Scalable Classification"]
+        direction TB
+        subgraph ClassificationSub[ ]
         direction TB
         E["Train transformer classifier<br/>(fine-tune on LLM labels)"]
         F["Classify all chunks<br/>(fast inference)"]
         E --> F
+        end
     end
     
     subgraph Analysis["4. Aggregation & Reporting"]
+        direction TB
+        subgraph AnalysisSub[ ]
         direction TB
         G["Aggregate to article level<br/>(length-weighted attention)"]
         H["Time series & domain breakdowns<br/>(30-day smoothing)"]
         I["Generate reports<br/>(interactive HTML + static plots)"]
         G --> H --> I
+        end
     end
     
-    B --> C
-    D --> E
-    F --> G
+    Collection --> Discovery
+    Discovery --> Classification
+    Classification --> Analysis
+    
+    classDef nodeBox fill:#ffffff33,stroke:#333,stroke-width:1px
+    classDef somePaddingClass padding-bottom:5em
+    classDef transparent fill:#ffffff00,stroke-width:0
+    
+    Collection:::somePaddingClass
+    CollectionSub:::transparent
+    Discovery:::somePaddingClass
+    DiscoverySub:::transparent
+    Classification:::somePaddingClass
+    ClassificationSub:::transparent
+    Analysis:::somePaddingClass
+    AnalysisSub:::transparent
+
+    
+    class A,A2,B,C,D,E,F,G,H,I nodeBox
     style Collection fill:#e1f5ff,stroke:#0277bd,stroke-width:2px
     style Discovery fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     style Classification fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     style Analysis fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    
 ```
 
 ## Results

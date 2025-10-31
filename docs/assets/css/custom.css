@@ -5,19 +5,19 @@
 
 body {
   /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #393a3f;
+  color: #5d5f6e;
 }
 
 /* Use Linux Libertine for body text */
 p, li, div, span {
   /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #393a3f;
+  color: #5d5f6e;
 }
 
 /* Smaller font size for tables */
 table, td, th {
   /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #393a3f;
+  color: #5d5f6e;
   font-size: 0.9em;
 }
 

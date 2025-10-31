@@ -1,10 +1,33 @@
 title: Effective Advocacy – Narrative Framing
 description: Narrative framing analyses for media coverage
-theme: minima
+theme: jekyll-theme-cayman
 markdown: kramdown
 permalink: pretty
 url: "https://hubert-thieriot.github.io"
 baseurl: "/efi-corpus"
+
+# Site owner information
+# name: Hubert Thieriot
+# email: # Add your email if desired
+# author: Hubert Thieriot
+# author_image: # Add path to author image if desired (300x300px)
+# logo: # Add path to logo if desired (300x300px)
+# cover: # Add path to cover image for index page if desired
+
+# Navigation
 header_pages:
   - index.md
   - posts/narrative_framing.md
+
+    
+# Disqus (optional - uncomment and add your shortname if you want comments)
+# disqus: your-disqus-shortname
+
+# Social links (optional - uncomment and configure as needed)
+# social:
+#   - icon: github
+#     url: https://github.com/hubert-thieriot
+#     desc: GitHub
+#     share_url: https://github.com/hubert-thieriot
+#     share_title: "Check out this post: "
+#     share_link: ""

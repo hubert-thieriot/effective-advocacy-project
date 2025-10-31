@@ -4,11 +4,12 @@ title: Narrative Framing for Media Analysis
 ---
 # Narrative Framing for Media Analysis — Air Pollution, Energy Transition, Animal Welfare
 
-> TL;DR: We identify a small set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps you see how issues are discussed, spot trends and shifts, and surface outlets/journalists to prioritize—useful for informing advocacy and gauging impact (e.g., air pollution, renewables, animal welfare).
+TL;DR: I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge impact.
 
-[Jump to results](#results)
 
-This post is part of a series of technical explorations for **Effective Advocacy**. The ultimate goal is to devise practical tools that help advocacy teams understand narratives, diagnose gaps, and track changes (and ideally impact) over time.
+<div style="border:1px solid #ccc; border-radius:4px; background:#f7f7f7; padding:12px 16px; margin:1.5em 0;">
+  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The ultimate goal is to devise practical tools that help advocacy teams understand narratives, map strategic actors, and track changes (and ideally impact) over time.
+</div>
 
 ## Why narrative framing?
 - Understand how a topic is discussed: what narratives, causes, and emphases appear—and how they change over time.
@@ -17,7 +18,16 @@ This post is part of a series of technical explorations for **Effective Advocacy
 - Keep it pragmatic: start with LLM exploration; scale via a supervised classifier; iterate with spot checks.
 
 ## Method overview
-A compact pipeline from LLM exploration to scalable measurement.
+
+The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible LLM exploration to discover and annotate narrative frames, then scale up with a fine-tuned transformer classifier. This balances domain adaptability (frames tailored to each question and context) with computational efficiency (fast inference over large corpora).
+
+**Data collection and preparation**: We query MediaCloud collections with topical filters to discover relevant articles, scrape full text, extract main content (removing boilerplate), and chunk into sentences or short spans for analysis.
+
+**Frame discovery and labeling**: An LLM proposes a compact set of narrative frames tailored to the specific question (e.g., "What are the causes of air pollution discussed in Jakarta?"), creating a domain-specific taxonomy. We then use the LLM to carefully label a diverse sample of chunks with frame distributions (multi-label), capturing ambiguous cases and providing training data.
+
+**Scalable classification**: We fine-tune a multi-label transformer classifier (language-appropriate, e.g., IndoBERT for Indonesian) on the LLM-labeled samples, then use it to classify all chunks across the corpus. This gives us consistent, fast inference while preserving the frame schema defined by induction.
+
+**Aggregation and reporting**: Chunk-level predictions are aggregated to article-level profiles using length-weighted attention, then rolled up into time series (daily values, 30-day smoothed) and domain-level breakdowns. Reports combine interactive HTML for exploration with static visualizations for versioning and embedding.
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
@@ -40,6 +50,8 @@ A compact pipeline from LLM exploration to scalable measurement.
         var txt = code.textContent || '';
         var div = document.createElement('div');
         div.className = 'mermaid';
+        div.style.width = '100%';
+        div.style.overflowX = 'auto';
         div.textContent = txt;
         try {
           parent.replaceChild(div, container);
@@ -58,10 +70,24 @@ A compact pipeline from LLM exploration to scalable measurement.
         log('upgrade error:', e);
       }
       try {
-        window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+        window.mermaid.initialize({ 
+          startOnLoad: false, 
+          theme: 'default', 
+          securityLevel: 'loose',
+          flowchart: { useMaxWidth: false, htmlLabels: true }
+        });
         var targets = document.querySelectorAll('.mermaid');
         log('rendering targets:', targets.length);
         window.mermaid.init(undefined, targets);
+        // Ensure rendered SVGs take full width
+        targets.forEach(function(target) {
+          var svg = target.querySelector('svg');
+          if (svg) {
+            svg.style.maxWidth = '100%';
+            svg.style.width = '100%';
+            svg.style.height = 'auto';
+          }
+        });
         log('render complete');
       } catch (e) {
         log('mermaid init error:', e);
@@ -79,15 +105,43 @@ A compact pipeline from LLM exploration to scalable measurement.
 
 ```mermaid
 flowchart LR
-  A["Article discovery (MediaCloud)"] --> A2[Scrape + extract text]
-  A2 --> B[Chunk text]
-  B --> C[LLM: induce frames]
-  C --> D[LLM: apply frames to samples]
-  D --> E[Train classifier on samples]
-  E --> F[Classify chunks]
-  F --> G["Aggregate at the article level"]
-  G --> H[Time series, domains]
-  H --> I[Report]
+    subgraph Collection["1. Collection & Preparation"]
+        direction TB
+        A["Article discovery<br/>(MediaCloud collections + filters)"] 
+        A2["Scrape & extract text<br/>(remove boilerplate)"]
+        B["Chunk into sentences<br/>(for frame analysis)"]
+        A --> A2 --> B
+    end
+    
+    subgraph Discovery["2. Frame Discovery"]
+        direction TB
+        C["LLM: Induce frames<br/>(domain-specific taxonomy)"]
+        D["LLM: Label samples<br/>(multi-label distributions)"]
+        C --> D
+    end
+    
+    subgraph Classification["3. Scalable Classification"]
+        direction TB
+        E["Train transformer classifier<br/>(fine-tune on LLM labels)"]
+        F["Classify all chunks<br/>(fast inference)"]
+        E --> F
+    end
+    
+    subgraph Analysis["4. Aggregation & Reporting"]
+        direction TB
+        G["Aggregate to article level<br/>(length-weighted attention)"]
+        H["Time series & domain breakdowns<br/>(30-day smoothing)"]
+        I["Generate reports<br/>(interactive HTML + static plots)"]
+        G --> H --> I
+    end
+    
+    B --> C
+    D --> E
+    F --> G
+    style Collection fill:#e1f5ff,stroke:#0277bd,stroke-width:2px
+    style Discovery fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    style Classification fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Analysis fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
 ## Results

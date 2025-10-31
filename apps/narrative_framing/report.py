@@ -7,6 +7,7 @@ import html
 import json
 import textwrap
 from datetime import datetime
+import copy
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -38,6 +39,71 @@ except Exception:  # pragma: no cover - optional dependency
     _go = None
     _pio = None
     _PLOTLY_AVAILABLE = False
+
+# Optional Kaleido engine for static image export
+try:  # pragma: no cover - optional dependency
+    import kaleido  # type: ignore  # noqa: F401
+    _KALEIDO_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    _KALEIDO_AVAILABLE = False
+
+_PLOTLY_WARNED: Dict[str, bool] = {}
+
+
+def _sanitize_filename(name: str, *, max_len: int = 120, fallback: Optional[str] = None) -> str:
+    """Return a filesystem-safe filename (no path) limited in length.
+
+    - Keeps alphanumerics, dash, underscore, dot; replaces others with underscore.
+    - Ensures we keep the original extension if present.
+    - Truncates base name to fit within max_len.
+    """
+    if not name:
+        return fallback or "chart.png"
+    # Split extension
+    dot = name.rfind(".")
+    if 0 < dot < len(name) - 1:
+        base, ext = name[:dot], name[dot:]
+    else:
+        base, ext = name, ".png"
+    # Filter base chars
+    safe = []
+    for ch in base:
+        if ch.isalnum() or ch in ("-", "_", "."):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    base_safe = "".join(safe).strip("._") or (fallback or "chart").rsplit(".", 1)[0]
+    # Truncate
+    keep = max_len - len(ext)
+    if keep < 8:
+        keep = max(8, keep)
+    if len(base_safe) > keep:
+        base_safe = base_safe[:keep]
+    return base_safe + ext
+
+
+def _safe_export_path(export_png_path: Optional[Path], *, div_id: str) -> Optional[Path]:
+    """Sanitize and shorten the output path to avoid OS filename limits.
+
+    Falls back to `<div_id>.png` if the provided name is missing or unsafe.
+    """
+    if export_png_path is None:
+        return None
+    try:
+        p = Path(export_png_path)
+    except Exception:
+        p = Path(str(export_png_path))
+    # Ensure we only sanitize the final filename, not the directory
+    name = p.name or f"{div_id}.png"
+    # If the name looks like an HTML-ish title dump, replace with div_id
+    suspicious_tokens = ("br", "span", "style", "font", "color")
+    if any(tok in name for tok in suspicious_tokens) or len(name) > 120:
+        name = f"{div_id}.png"
+    safe_name = _sanitize_filename(name, fallback=f"{div_id}.png")
+    if safe_name != name and not _PLOTLY_WARNED.get("sanitized_name"):
+        print(f"ℹ️  Sanitized export filename for {div_id}: '{name}' → '{safe_name}'")
+        _PLOTLY_WARNED["sanitized_name"] = True
+    return p.with_name(safe_name)
 
 _PALETTE = [
     "#1E3D58",
@@ -632,6 +698,7 @@ def _render_occurrence_percentage_bars(
     *,
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
     export_png_path: Optional[Path] = None,
 ) -> str:
     if not documents or not frames:
@@ -664,8 +731,9 @@ def _render_occurrence_percentage_bars(
         "hovertemplate": "%{x}<br>%{y:.1f}%<extra></extra>",
     }]
     top_margin = 100 if title else 20
+    bottom_margin = 90 if caption else 70
     layout = {
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": 70},
+        "margin": {"l": 40, "r": 20, "t": top_margin, "b": bottom_margin},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 420,
@@ -683,6 +751,18 @@ def _render_occurrence_percentage_bars(
             "pad": {"b": 4},
             "font": {"size": 18, "color": "#333"},
         }
+    if caption:
+        layout.setdefault("annotations", []).append({
+            "text": caption,
+            "xref": "paper",
+            "yref": "paper",
+            "x": 0,
+            "y": -0.25,
+            "xanchor": "left",
+            "yanchor": "top",
+            "showarrow": False,
+            "font": {"size": 12, "color": "#666"},
+        })
     return _render_plotly_fragment("occurrence-percentage-chart", traces, layout, export_png_path=export_png_path)
 
 
@@ -693,6 +773,7 @@ def _render_occurrence_by_year(
     *,
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
     export_png_path: Optional[Path] = None,
 ) -> str:
     if not documents or not frames:
@@ -761,9 +842,10 @@ def _render_occurrence_by_year(
             "showlegend": True,
         })
     top_margin = 120 if title else 20
+    bottom_margin = 100 if caption else 40
     layout = {
         "barmode": "group",
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": 40},
+        "margin": {"l": 40, "r": 20, "t": top_margin, "b": bottom_margin},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 500,
@@ -781,6 +863,18 @@ def _render_occurrence_by_year(
             "pad": {"b": 6},
             "font": {"size": 18, "color": "#333"},
         }
+    if caption:
+        layout.setdefault("annotations", []).append({
+            "text": caption,
+            "xref": "paper",
+            "yref": "paper",
+            "x": 0,
+            "y": -0.25,
+            "xanchor": "left",
+            "yanchor": "top",
+            "showarrow": False,
+            "font": {"size": 12, "color": "#666"},
+        })
     return _render_plotly_fragment("occurrence-by-year-chart", traces, layout, export_png_path=export_png_path)
 
 
@@ -1105,18 +1199,58 @@ def _render_plotly_fragment(
     # Disable interactivity by default to prevent scroll trapping
     config = config or {"displayModeBar": False, "responsive": True, "staticPlot": True, "scrollZoom": False, "doubleClick": False}
 
-    # Best-effort PNG export when requested and Plotly is available
-    if export_png_path is not None and _PLOTLY_AVAILABLE:
-        try:
-            fig = _go.Figure(data=list(data))
+    # Best-effort PNG export when requested
+    if export_png_path is not None:
+        export_png_path = _safe_export_path(export_png_path, div_id=div_id)
+        if not _PLOTLY_AVAILABLE:
+            key = "no_plotly"
+            if not _PLOTLY_WARNED.get(key):
+                print(f"⚠️ Plotly not installed; skipping PNG export for {div_id} → {export_png_path}")
+                _PLOTLY_WARNED[key] = True
+        elif not _KALEIDO_AVAILABLE:
+            key = "no_kaleido"
+            if not _PLOTLY_WARNED.get(key):
+                print(f"⚠️ Kaleido not installed; skipping PNG export for {div_id} → {export_png_path}")
+                _PLOTLY_WARNED[key] = True
+        else:
             try:
-                fig.update_layout(**layout)
-            except Exception:
-                pass
-            export_png_path.parent.mkdir(parents=True, exist_ok=True)
-            _pio.write_image(fig, str(export_png_path), scale=2)
-        except Exception:
-            pass
+                fig = _go.Figure(data=list(data))
+                # Use a title-safe layout for static export to avoid filename inference issues
+                try:
+                    safe_layout = copy.deepcopy(layout)
+                except Exception:
+                    safe_layout = dict(layout)
+                title_entry = safe_layout.get("title")
+                # Move title text into an annotation instead of layout.title
+                if isinstance(title_entry, dict) and title_entry.get("text"):
+                    title_text = title_entry.get("text")
+                    # Remove title from layout for export
+                    safe_layout.pop("title", None)
+                    # Ensure annotations list exists
+                    anns = list(safe_layout.get("annotations", []))
+                    anns.append({
+                        "text": title_text,
+                        "xref": "paper",
+                        "yref": "paper",
+                        "x": 0,
+                        "y": 1.10,
+                        "xanchor": "left",
+                        "yanchor": "bottom",
+                        "showarrow": False,
+                        "align": "left",
+                        "font": {"size": 18, "color": "#333"},
+                    })
+                    safe_layout["annotations"] = anns
+                fig.update_layout(**safe_layout)
+                export_png_path.parent.mkdir(parents=True, exist_ok=True)
+                # Use to_image() + write to avoid any filename inference quirks
+                img_bytes = _pio.to_image(fig, format="png", scale=2)
+                export_png_path.write_bytes(img_bytes)
+            except Exception as exc:
+                key = f"export_fail_{div_id}"
+                if not _PLOTLY_WARNED.get(key):
+                    print(f"⚠️ Plotly PNG export failed for {div_id}: {exc}")
+                    _PLOTLY_WARNED[key] = True
     data_json = json.dumps(data, ensure_ascii=False)
     layout_json = json.dumps(layout, ensure_ascii=False)
     config_json = json.dumps(config, ensure_ascii=False)
@@ -1150,6 +1284,9 @@ def _render_plotly_timeseries(
     frame_lookup: Dict[str, Dict[str, str]],
     color_map: Dict[str, str],
     *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
     export_png_path: Optional[Path] = None,
 ) -> str:
     if not records:
@@ -1206,14 +1343,45 @@ def _render_plotly_timeseries(
             }
         )
 
+    # Build title/subtitle
+    layout_title = None
+    if title:
+        title_text = f"<b>{title}</b>"
+        if subtitle:
+            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
+        layout_title = {
+            "text": title_text,
+            "x": 0,
+            "xanchor": "left",
+            "yanchor": "top",
+            "pad": {"b": 6},
+            "font": {"size": 18, "color": "#333"},
+        }
+
+    bottom_margin = 90 if caption else 60
+    top_margin = 30 if not layout_title else 80
     layout = {
-        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
+        "margin": {"l": 60, "r": 30, "t": top_margin, "b": bottom_margin},
         "yaxis": {"tickformat": ".0%", "title": "Share", "range": [0, 1]},
         "xaxis": {"title": "Date"},
         "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
         "hovermode": "x unified",
         "height": 520,
     }
+    if layout_title:
+        layout["title"] = layout_title
+    if caption:
+        layout.setdefault("annotations", []).append({
+            "text": caption,
+            "xref": "paper",
+            "yref": "paper",
+            "x": 0,
+            "y": -0.2,
+            "xanchor": "left",
+            "yanchor": "top",
+            "showarrow": False,
+            "font": {"size": 12, "color": "#666"},
+        })
 
     return _render_plotly_fragment("time-series-chart", traces, layout, export_png_path=export_png_path)
 
@@ -1583,8 +1751,22 @@ def write_html_report(
         # Default under the run directory: <run_dir>/plots
         export_dir = output_path.parent / "plots"
 
+    # Build caption for time series
+    ts_caption_parts: List[str] = []
+    if timeseries_note:
+        ts_caption_parts.append(timeseries_note)
+    ts_caption_parts.append("30-day rolling average of frame share.")
+    if plot_note:
+        try:
+            ts_caption_parts.append(plot_note.format(n_articles=classified_documents))
+        except Exception:
+            ts_caption_parts.append(plot_note)
+    ts_caption = " • ".join([p for p in ts_caption_parts if p])
+
     timeseries_chart_html = _render_plotly_timeseries(
         timeseries_records, frame_lookup, color_map,
+        title=plot_title, subtitle=(plot_subtitle.format(n_articles=classified_documents) if plot_subtitle else None),
+        caption=ts_caption,
         export_png_path=(export_dir / "time_series_area.png") if export_dir else None,
     )
     timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
@@ -1800,7 +1982,8 @@ def write_html_report(
         subtitle_text = (base_subtitle.format(n_articles=classified_documents) if base_subtitle else None)
         classifier_pct_html = _render_occurrence_percentage_bars(
             list(document_aggregates_occurrence), frames_as_dicts, color_map,
-            title=None, subtitle=None,
+            title=chart_title, subtitle=subtitle_text,
+            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
             export_png_path=(export_dir / "occurrence_share.png") if export_dir else None,
         )
         if classifier_pct_html:
@@ -1823,7 +2006,8 @@ def write_html_report(
 
         classifier_year_html = _render_occurrence_by_year(
             list(document_aggregates_occurrence), frames_as_dicts, color_map,
-            title=None, subtitle=None,
+            title=chart_title, subtitle=subtitle_text,
+            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
             export_png_path=(export_dir / "occurrence_by_year.png") if export_dir else None,
         )
         if classifier_year_html:

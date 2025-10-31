@@ -8,7 +8,7 @@ description: Exploring Tools for Effective Advocacy
 TL;DR: I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.
 
 
-<div style="border:1px solid #ccc; border-radius:4px; background:#f7f7f7; padding:12px 16px; margin:1.5em 0;">
+<div class="text-box">
   This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing, strategic actors mapping, and key findings dissemination.
 </div>
 
@@ -289,7 +289,7 @@ We classify content at the chunk level (typically sentences or short spans) to a
 **Aggregate and report**:
 Finally, we aggregate chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all.
 
-<div style="border:1px solid #ccc; border-radius:4px; background:#fff9e6; padding:12px 16px; margin:1.5em 0;">
+<div class="text-box">
   <strong>Why not simply use keywords?</strong>
   
   <p>Keyword-based approaches have significant limitations for narrative analysis:</p>
@@ -310,5 +310,5 @@ Finally, we aggregate chunk‑level predictions to article‑level profiles and 
 ---
 
 ## Get in touch
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you—[drop me a line](mailto:hubert.thieriot@gmail.com).
+I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - [reach out to me](mailto:hubert.thieriot@gmail.com).
 

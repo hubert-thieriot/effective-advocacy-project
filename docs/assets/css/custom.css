@@ -1,0 +1,51 @@
+/* Custom CSS overrides for Cayman theme */
+
+/* Import Linux Libertine font */
+@import url('https://fonts.googleapis.com/css2?family=Linux+Libertine:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+body {
+  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
+  color: #393a3f;
+}
+
+/* Use Linux Libertine for body text */
+p, li, div, span {
+  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
+  color: #393a3f;
+}
+
+/* Smaller font size for tables */
+table, td, th {
+  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
+  color: #393a3f;
+  font-size: 0.9em;
+}
+
+/* Use Open Sans for all headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Open Sans", sans-serif;
+}
+
+/* Color for headings in main-content */
+.main-content h1, .main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6 {
+  color: #4f6081;
+}
+
+.page-header {
+    background-image: linear-gradient(120deg, #1E3D58, #1E3D58)
+}
+
+/* Text box style */
+.text-box {
+    border: 1px solid #d3dce7;
+    border-radius: 6px;
+    background: #f7f9fc;
+    padding: 16px 20px;
+    margin: 1.5em 0;
+    color: #393a3f;
+}
+
+.text-box strong {
+    color: #4f6081;
+}
+

@@ -1,12 +1,25 @@
 ---
 layout: default
-title: Home
+title: Exploring Tools<br/><span style="font-weight:200; color:white;">for</span><br/>Effective Advocacy
+description: Hubert Thieriot
 ---
 
-# Effective Advocacy — Narrative Framing
 
-Welcome. This site publishes lightweight, reproducible narrative framing analyses across topics and countries.
+<div class="link-box coming-soon">
+<a href="{{ site.baseurl }}/posts/narrative_framing">
+  <h3>Narrative Framing</h3>
+  <p>Identify and track narrative framings across media articles using LLMs and NLP techniques to understand how issues are discussed and measure campaign impact.</p>
+</a>
+</div>
 
-- Read the overview and Jakarta case study: [Narrative Framing for Media Analysis]({{ site.baseurl }}/posts/narrative_framing)
+<div class="link-box coming-soon">
+  <h3>Actors Identification</h3>
+  <p>Coming soon</p>
+</div>
 
-Reports and assets are published under `reports/` and `assets/` for stable linking.
+<div class="link-box coming-soon">
+  <h3>Key Findings Dissemination</h3>
+  <p>Coming soon</p>
+</div>
+
+

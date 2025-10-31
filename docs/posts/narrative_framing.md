@@ -5,10 +5,10 @@ description: Exploring Tools for Effective Advocacy
 ---
 # Narrative Framing for **Air Pollution**, **Energy Transition**, **Animal Welfare**
 
-TL;DR: I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.
+<div class="tldr">I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.</div>
 
 
-<div class="text-box">
+<div class="disclaimer">
   This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing, strategic actors mapping, and key findings dissemination.
 </div>
 
@@ -244,10 +244,12 @@ flowchart LR
     
     Collection:::somePaddingClass
     CollectionSub:::transparent
+    Discovery:::discoveryStyle
     Discovery:::somePaddingClass
     DiscoverySub:::transparent
     Classification:::somePaddingClass
     ClassificationSub:::transparent
+    Analysis:::analysisStyle
     Analysis:::somePaddingClass
     AnalysisSub:::transparent
 

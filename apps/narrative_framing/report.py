@@ -499,11 +499,8 @@ def _render_plotly_classifier_percentage_bars(
         }
     ]
     
-    # Calculate top margin based on whether we have title/subtitle
-    top_margin = 100 if title else 20
-    
     layout = {
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": 0},
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         # No Y title per request
         "yaxis": {"title": ""},
@@ -511,23 +508,6 @@ def _render_plotly_classifier_percentage_bars(
         # Place legend slightly below the title area to avoid overlap
         "legend": {"orientation": "h", "yanchor": "top", "y": 1.02, "x": 0, "xanchor": "left"},
     }
-    
-    if title:
-        # Reduce spacing between title and subtitle
-        title_text = f"<b>{title}</b>" if title else ""
-        if subtitle:
-            # Larger subtitle, same dark grey color as title
-            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
-        layout["title"] = {
-            "text": title_text,
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            # Reduce padding so subtitle sits slightly higher (further from legend)
-            "pad": {"b": 4},
-            # Dark grey title color
-            "font": {"size": 18, "color": "#333"},
-        }
     
     return _render_plotly_fragment("classifier-percentage-chart", traces, layout)
 
@@ -657,12 +637,9 @@ def _render_plotly_classifier_by_year(
             "hoverinfo": "skip",
         })
     
-    # Calculate top margin based on whether we have title/subtitle
-    top_margin = 120 if title else 20
-    
     layout = {
         "barmode": "group",
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": 0},
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         # No Y title per request
         "yaxis": {"title": ""},
@@ -670,23 +647,6 @@ def _render_plotly_classifier_by_year(
         # Move legend slightly higher per request
         "legend": {"orientation": "h", "yanchor": "top", "y": 1.08, "x": 0.5, "xanchor": "center"},
     }
-    
-    if title:
-        # Reduce spacing between title and subtitle
-        title_text = f"<b>{title}</b>" if title else ""
-        if subtitle:
-            # Larger subtitle, same dark grey color as title
-            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
-        layout["title"] = {
-            "text": title_text,
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            # Reduce padding so subtitle sits a bit higher
-            "pad": {"b": 6},
-            # Dark grey title color
-            "font": {"size": 18, "color": "#333"},
-        }
     
     return _render_plotly_fragment("classifier-by-year-chart", traces, layout)
 
@@ -730,39 +690,13 @@ def _render_occurrence_percentage_bars(
         "marker": {"color": colors},
         "hovertemplate": "%{x}<br>%{y:.1f}%<extra></extra>",
     }]
-    top_margin = 100 if title else 20
-    bottom_margin = 90 if caption else 70
     layout = {
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": bottom_margin},
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 70},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 420,
         "legend": {"orientation": "h", "yanchor": "top", "y": 1.02, "x": 0, "xanchor": "left"},
     }
-    if title:
-        title_text = f"<b>{title}</b>"
-        if subtitle:
-            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
-        layout["title"] = {
-            "text": title_text,
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            "pad": {"b": 4},
-            "font": {"size": 18, "color": "#333"},
-        }
-    if caption:
-        layout.setdefault("annotations", []).append({
-            "text": caption,
-            "xref": "paper",
-            "yref": "paper",
-            "x": 0,
-            "y": -0.25,
-            "xanchor": "left",
-            "yanchor": "top",
-            "showarrow": False,
-            "font": {"size": 12, "color": "#666"},
-        })
     return _render_plotly_fragment("occurrence-percentage-chart", traces, layout, export_png_path=export_png_path)
 
 
@@ -841,40 +775,14 @@ def _render_occurrence_by_year(
             "hovertemplate": "%{x}<br>Year: " + str(year) + "<br>%{y:.1f}%<extra></extra>",
             "showlegend": True,
         })
-    top_margin = 120 if title else 20
-    bottom_margin = 100 if caption else 40
     layout = {
         "barmode": "group",
-        "margin": {"l": 40, "r": 20, "t": top_margin, "b": bottom_margin},
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 40},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 500,
         "legend": {"orientation": "h", "yanchor": "top", "y": 1.06, "x": 0.5, "xanchor": "center"},
     }
-    if title:
-        title_text = f"<b>{title}</b>"
-        if subtitle:
-            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
-        layout["title"] = {
-            "text": title_text,
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            "pad": {"b": 6},
-            "font": {"size": 18, "color": "#333"},
-        }
-    if caption:
-        layout.setdefault("annotations", []).append({
-            "text": caption,
-            "xref": "paper",
-            "yref": "paper",
-            "x": 0,
-            "y": -0.25,
-            "xanchor": "left",
-            "yanchor": "top",
-            "showarrow": False,
-            "font": {"size": 12, "color": "#666"},
-        })
     return _render_plotly_fragment("occurrence-by-year-chart", traces, layout, export_png_path=export_png_path)
 
 
@@ -1343,45 +1251,14 @@ def _render_plotly_timeseries(
             }
         )
 
-    # Build title/subtitle
-    layout_title = None
-    if title:
-        title_text = f"<b>{title}</b>"
-        if subtitle:
-            title_text += f"<br><span style='font-size:14px;color:#333'>{subtitle}</span>"
-        layout_title = {
-            "text": title_text,
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            "pad": {"b": 6},
-            "font": {"size": 18, "color": "#333"},
-        }
-
-    bottom_margin = 90 if caption else 60
-    top_margin = 30 if not layout_title else 80
     layout = {
-        "margin": {"l": 60, "r": 30, "t": top_margin, "b": bottom_margin},
+        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
         "yaxis": {"tickformat": ".0%", "title": "Share", "range": [0, 1]},
         "xaxis": {"title": "Date"},
         "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
         "hovermode": "x unified",
         "height": 520,
     }
-    if layout_title:
-        layout["title"] = layout_title
-    if caption:
-        layout.setdefault("annotations", []).append({
-            "text": caption,
-            "xref": "paper",
-            "yref": "paper",
-            "x": 0,
-            "y": -0.2,
-            "xanchor": "left",
-            "yanchor": "top",
-            "showarrow": False,
-            "font": {"size": 12, "color": "#666"},
-        })
 
     return _render_plotly_fragment("time-series-chart", traces, layout, export_png_path=export_png_path)
 
@@ -1550,18 +1427,10 @@ def _render_plotly_domain_counts(
     ]
 
     layout = {
-        "margin": {"l": 120, "r": 30, "t": 100, "b": 40},
+        "margin": {"l": 120, "r": 30, "t": 20, "b": 40},
         "xaxis": {"title": "Number of documents"},
         "yaxis": {"title": "", "autorange": "reversed"},
         "height": max(400, 32 * len(sorted_entries)),
-        "title": {
-            "text": f"<b>Top Media Sources</b><br><span style='font-size:14px;color:#333'>Based on {total_documents:,} classified documents</span>",
-            "x": 0,
-            "xanchor": "left",
-            "yanchor": "top",
-            "pad": {"b": 4},
-            "font": {"size": 18, "color": "#333"},
-        },
     }
 
     return _render_plotly_fragment("domain-counts-chart", traces, layout)

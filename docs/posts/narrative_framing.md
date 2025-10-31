@@ -9,14 +9,56 @@ TL;DR: I identify and track a set of narrative framings across media articles on
 
 
 <div style="border:1px solid #ccc; border-radius:4px; background:#f7f7f7; padding:12px 16px; margin:1.5em 0;">
-  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The ultimate goal is to devise practical tools that help advocacy teams understand narratives, map strategic actors, and track changes (and ideally impact) over time.
+  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing, strategic actors mapping, and key findings dissemination.
 </div>
 
 ## Why narrative framing?
-Narrative framing analysis can serve multiple purposes:
-- Understand how a topic is discussed: what narratives, causes, and emphases appear—and how they change over time.
-- Inform advocacy: detect momentum, measure campaign impact, and identify outlets/journalists to prioritize.
-- Go beyond keywords: capture paraphrase and implied meaning when language varies across outlets and time.
+Narrative framing analyses could serve multiple purposes:
+
+- **Understand how a topic is being discussed**: Identify which narratives dominate coverage versus those that remain marginal or absent. This helps advocates understand the current discourse landscape—what frames are being amplified, which perspectives are under-represented, and where there might be opportunities to shift narratives. For example, an analysis might reveal that air pollution discussions focus heavily on individual vehicle emissions while neglecting industrial sources, pointing to potential advocacy gaps.
+
+- **Prioritise regions, messaging and outlets**: Use data to identify gaps and opportunities—which regions or outlets are influential but missing key narratives, or which audiences lack exposure to critical frames. For instance, an analysis might reveal that certain media outlets heavily cover industrial pollution but rarely connect it to policy solutions, indicating a clear messaging gap. This enables more targeted grantmaking and campaign design, ensuring resources go to outlets and regions where narrative shifts are most needed and feasible.
+
+- **Measure change over time**: Track how narratives evolve before, during, and after advocacy campaigns or major events. Detect whether specific frames are gaining or losing traction, measure campaign impact by comparing pre- and post-intervention coverage, and identify emerging trends early. This provides evidence-based feedback loops for grantees and helps demonstrate the effectiveness of narrative change initiatives.
+
+
+
+## Examples
+
+### Jakarta — Air pollution causes
+
+**Context**: Analysis of Jan 2020– Oct 2025 Indonesian media coverage on air pollution in Jakarta, focusing on how different causes are discussed. The corpus spans 14,469 articles from major Indonesian outlets in Bahasa Indonesia, capturing how journalists frame pollution sources—from vehicle emissions to seasonal weather patterns.
+
+**Results summary**: Transport emissions dominate coverage (41% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next with a score of 8.5% articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution.
+
+![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/occurrence_by_year.png)
+
+
+**Frames identified**:
+
+| Frame | Description | Key Keywords | Share |
+|-------|-------------|--------------|-------|
+| **Transport Emissions** | Vehicle emissions from cars, motorcycles, buses, trucks, and road traffic | kendaraan bermotor, lalu lintas, emisi kendaraan, uji emisi | 41.1% |
+| **Natural Factors** | Meteorological and seasonal factors affecting air quality (weather patterns, El Niño, rainfall) | cuaca, angin, musim kemarau, El Nino, curah hujan rendah | 8.5% |
+| **Industrial Emissions** | Factory and manufacturing emissions, including smelters, steel, and cement production | pabrik, industri, smelter, industri baja, industri semen | 6.3% |
+| **Power Plant Emissions** | Coal-fired and fossil-fuel power plant emissions | PLTU, pembangkit listrik, coal-fired power plant | 3.3% |
+| **Biomass Burning** | Agricultural fires, forest fires, and land clearing through burning | pembakaran lahan, kebakaran hutan, pembakaran biomassa | 2.1% |
+| **Waste Burning** | Open burning of municipal waste and landfill fires | pembakaran sampah, open burning, landfill fire | 1.9% |
+| **Household Emissions** | Household cooking and heating using fossil fuels or biomass | pembakaran rumah tangga, kompor kayu, bahan bakar padat | 0.5% |
+| **Construction Dust** | Construction activities, roadworks, and resuspended dust | debu konstruksi, pembangunan, road dust, pekerjaan jalan | 0.4% |
+
+*Note: Percentages represent the share of articles that discuss each frame (occurrence-based, threshold ≥0.2). Articles can discuss multiple frames.*
+
+### Philippines — Renewable energy
+
+<!-- To be added -->
+
+### Brazil — Animal welfare
+
+<!-- To be added -->
+
+
+
 
 ## Method overview
 
@@ -29,6 +71,8 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 **Scalable classification**: We fine-tune a multi-label transformer classifier (language-appropriate, e.g., IndoBERT for Indonesian) on the LLM-labeled samples, then use it to classify all chunks across the corpus. This gives us consistent, fast inference while preserving the frame schema defined by induction.
 
 **Aggregation and reporting**: Chunk-level predictions are aggregated to article-level profiles using length-weighted attention, then rolled up into time series (daily values, 30-day smoothed) and domain-level breakdowns. Reports combine interactive HTML for exploration with static visualizations for versioning and embedding.
+
+
 
 <style>
 .mermaid svg {
@@ -150,22 +194,22 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 
 ```mermaid
 flowchart LR
-    subgraph Collection["1. Collection & Preparation"]
+    subgraph Collection["1. Data Collection & Preparation"]
         direction TB
         subgraph CollectionSub[ ]
         direction TB
         A["Article discovery<br/>(MediaCloud collections + filters)"] 
-        A2["Scrape & extract text<br/>(remove boilerplate)"]
-        B["Chunk into sentences<br/>(for frame analysis)"]
+        A2["Scrape & extract text<br/>(using Scrapy)"]
+        B["Chunk text<br/>(using SpaCy language model)"]
         A --> A2 --> B
         end
     end
     
-    subgraph Discovery["2. Frame Induction & Application"]
+    subgraph Discovery["2. Frame Induction & Annotation"]
         direction TB
         subgraph DiscoverySub[ ]
         direction TB
-        C["LLM: Induce frames<br/>(domain-specific taxonomy)"]
+        C["LLM: Induce frames<br/>(with or without user guidance)"]
         D["LLM: Label samples<br/>(multi-label distributions)"]
         C --> D
         end
@@ -188,7 +232,7 @@ flowchart LR
         subgraph AnalysisSub[ ]
         direction TB
         G["Aggregate to article level<br/>(length-weighted attention)"]
-        H["Time series & domain breakdowns<br/>(30-day smoothing)"]
+        H["Results analysis<br/>(e.g. time series & outlets breakdowns)"]
         I["Generate reports<br/>(interactive HTML + static plots)"]
         G --> H --> I
         end
@@ -220,40 +264,23 @@ flowchart LR
     
 ```
 
-## Results
-
-### Jakarta — Air pollution causes
-
-**Context**: Analysis of 2020–2025 Indonesian media coverage on air pollution in Jakarta, focusing on how different causes are discussed. The corpus spans 14,469 articles from major Indonesian outlets, capturing how journalists frame pollution sources—from vehicle emissions to seasonal weather patterns. This run demonstrates how narrative framing captures semantic nuance: for instance, construction-related pollution is frequently discussed alongside transportation (road dust, infrastructure development) even when explicit "construction dust" terminology is absent.
-
-**Frame share over time** (30‑day running average):
-
-![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/occurrence_by_year.png)
-
-**Results summary**: Transport emissions dominate coverage (41.1% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors appear in 8.5% of articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution. The framing reveals how media connects pollution to both immediate sources (vehicles, industry) and contextual factors (seasonal weather, urban development).
-
-**Frames identified**:
-
-| Frame | Description | Key Keywords | Share |
-|-------|-------------|--------------|-------|
-| **Transport Emissions** | Vehicle emissions from cars, motorcycles, buses, trucks, and road traffic | kendaraan bermotor, lalu lintas, emisi kendaraan, uji emisi | 41.1% |
-| **Natural Factors** | Meteorological and seasonal factors affecting air quality (weather patterns, El Niño, rainfall) | cuaca, angin, musim kemarau, El Nino, curah hujan rendah | 8.5% |
-| **Industrial Emissions** | Factory and manufacturing emissions, including smelters, steel, and cement production | pabrik, industri, smelter, industri baja, industri semen | 6.3% |
-| **Power Plant Emissions** | Coal-fired and fossil-fuel power plant emissions | PLTU, pembangkit listrik, coal-fired power plant | 3.3% |
-| **Biomass Burning** | Agricultural fires, forest fires, and land clearing through burning | pembakaran lahan, kebakaran hutan, pembakaran biomassa | 2.1% |
-| **Waste Burning** | Open burning of municipal waste and landfill fires | pembakaran sampah, open burning, landfill fire | 1.9% |
-| **Household Emissions** | Household cooking and heating using fossil fuels or biomass | pembakaran rumah tangga, kompor kayu, bahan bakar padat | 0.5% |
-| **Construction Dust** | Construction activities, roadworks, and resuspended dust | debu konstruksi, pembangunan, road dust, pekerjaan jalan | 0.4% |
-
-*Note: Percentages represent the share of articles that discuss each frame (occurrence-based, threshold ≥0.2). Articles can discuss multiple frames.*
-
-### Philippines — Renewable energy
-
-<!-- To be added -->
-
-### Brazil — Animal welfare
-
-<!-- To be added -->
+<div style="border:1px solid #ccc; border-radius:4px; background:#fff9e6; padding:12px 16px; margin:1.5em 0;">
+  <strong>Why not simply use keywords?</strong>
+  
+  <p>Keyword-based approaches have significant limitations for narrative analysis:</p>
+  
+  <ul>
+    <li><strong>Paraphrases and semantic variations</strong>: Journalists describe the same concept in many ways. An article discussing "road dust resuspension from heavy traffic" contains the same frame as one mentioning "vehicle emissions," but keyword matching would miss this connection.</li>
+    
+    <li><strong>Language evolution</strong>: Terms change over time and across regions. What counts as "construction pollution" in Jakarta might be discussed as "infrastructure development impacts" elsewhere, requiring constant keyword list updates.</li>
+    
+    <li><strong>Implied meaning</strong>: Media often conveys frames through context rather than explicit terms. A passage describing "stagnant air during the dry season" implies natural factors affecting pollution, even without using keywords like "El Niño" or "low rainfall."</li>
+    
+    <li><strong>Cross-language nuance</strong>: In multilingual contexts, keywords must be translated carefully, but semantic understanding captures equivalent concepts across languages automatically.</li>
+  </ul>
+  
+  <p>Our approach uses LLMs to capture semantic meaning, then scales it with a classifier—combining the flexibility of language understanding with the efficiency needed for large-scale analysis.</p>
+</div>
 
 ## Technical details / Supplementary information
 
@@ -264,21 +291,17 @@ We start by defining the slice of media we care about in a way that is both broa
 To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, “follow us” blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
 
 ### Frame induction (LLM)
-Instead of hard‑coding a universal taxonomy, we ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta). This keeps the schema close to how journalists actually talk in that domain and time, while our induction prompt nudges toward empirically grounded, measurable categories. We snapshot the resulting schema (names, short definitions, examples) and treat it as a contract for the rest of the run—minimizing drift and keeping the analysis auditable.
+We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
 
 ### Frame application to samples (LLM)
-We then use the LLM as a careful, probabilistic annotator on a sample of passages. Each passage gets a distribution over frames (not just a single label) plus a brief rationale. This does two things: it reveals ambiguous cases that keywords would miss, and it gives us enough labeled data to train a supervised model. Sampling is deliberate—we prefer a diverse, representative set rather than trying to label everything with the LLM, which would be costly and less reproducible.
+We then use another LLM as a probabilistic annotator on a sample of passages (typically 2,000 passages in the examples above). Each passage gets a distribution over frames (not just a single label) plus a brief rationale. We typically use a smaller GPT‑4 variant (e.g., `gpt-4.1-mini`) for this step to balance cost and quality, since we need to label thousands of examples. This does two things: it reveals ambiguous cases that keyword-based approaches would mis-label, and it gives us enough labeled data to train a supervised model.
 
 ### Supervised classifier (transformers)
-For scale and consistency, we fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema. We pick language‑appropriate encoders (e.g., IndoBERT for Indonesian), and use sigmoid outputs with a threshold to allow overlapping frames when passages truly mix narratives. The trade‑off is classic: the classifier is less flexible than an LLM but more stable, cheaper, and easier to validate with held‑out metrics.
+We then fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages using Hugging Face transformers. We start with a pre-trained language model (e.g., `indobenchmark/indobert-base-p1` for Bahasa Indonesia, `distilbert-base-uncased` for English) and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame using sigmoid activation. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema.
 
 ### Classify the corpus
 We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long articles. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
 
 ### Aggregate and report
-Finally, we move from chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all. We build daily time series and smooth them over 30 days to make seasonal shifts legible, and we break out top domains to see who emphasizes what. Reports are exported as interactive HTML (for exploration) and as static PNGs (for embedding and versioning).
+Finally, we aggregate chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all.
 
-### Models used (at a glance)
-- Induction + application (LLM): OpenAI GPT‑4 class models configured per run (e.g., `gpt-4.1` for induction; `gpt-4.1-mini` for application). See run config: `configs/narrative_framing/*`.
-- Classifier: Hugging Face transformers sequence classifier (BERT‑family encoder) trained for multi‑label classification with sigmoid outputs. Model is configurable; e.g., Indonesian runs use `indobenchmark/indobert-base-p1`.
-- Embeddings (when needed): Sentence‑Transformers encoders (e.g., `all-MiniLM-L6-v2`) via `efi_analyser/embedders/sentence_transformer_embedder.py`.

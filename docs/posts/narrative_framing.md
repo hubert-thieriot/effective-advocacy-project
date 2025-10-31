@@ -64,13 +64,9 @@ Narrative framing analyses could serve multiple purposes:
 
 The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible LLM exploration to discover and annotate narrative frames, then scale up with a fine-tuned transformer classifier. This balances domain adaptability (frames tailored to each question and context) with computational efficiency (fast inference over large corpora).
 
-**Data collection and preparation**: We query MediaCloud collections with topical filters to discover relevant articles, scrape full text, extract main content (removing boilerplate), and chunk into sentences or short spans for analysis.
 
-**Frame discovery and labeling**: An LLM proposes a compact set of narrative frames tailored to the specific question (e.g., "What are the causes of air pollution discussed in Jakarta?"), creating a domain-specific taxonomy. We then use the LLM to carefully label a diverse sample of chunks with frame distributions (multi-label), capturing ambiguous cases and providing training data.
 
-**Scalable classification**: We fine-tune a multi-label transformer classifier (language-appropriate, e.g., IndoBERT for Indonesian) on the LLM-labeled samples, then use it to classify all chunks across the corpus. This gives us consistent, fast inference while preserving the frame schema defined by induction.
 
-**Aggregation and reporting**: Chunk-level predictions are aggregated to article-level profiles using length-weighted attention, then rolled up into time series (daily values, 30-day smoothed) and domain-level breakdowns. Reports combine interactive HTML for exploration with static visualizations for versioning and embedding.
 
 
 
@@ -264,6 +260,35 @@ flowchart LR
     
 ```
 
+
+
+
+
+
+
+
+
+**Article discovery (search/filters)**:
+We start by defining the slice of media we care about in a way that is both broad enough to catch variation and precise enough to be actionable. Using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. The intent is to bias toward recall at this stage: we would rather include a few borderline articles and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
+
+**Scrape and extract**:
+To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, “follow us” blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
+
+**Frame induction (LLM)**:
+We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
+
+**Frame application to samples (LLM)**:
+We then use another LLM as a probabilistic annotator on a sample of passages (typically 2,000 passages in the examples above). Each passage gets a distribution over frames (not just a single label) plus a brief rationale. We typically use a smaller GPT‑4 variant (e.g., `gpt-4.1-mini`) for this step to balance cost and quality, since we need to label thousands of examples. This does two things: it reveals ambiguous cases that keyword-based approaches would mis-label, and it gives us enough labeled data to train a supervised model.
+
+**Supervised classifier (transformers)**:
+We then fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages using Hugging Face transformers. We start with a pre-trained language model (e.g., `indobenchmark/indobert-base-p1` for Bahasa Indonesia, `distilbert-base-uncased` for English) and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame using sigmoid activation. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema.
+
+**Classify the corpus**:
+We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long articles. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
+
+**Aggregate and report**:
+Finally, we aggregate chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all.
+
 <div style="border:1px solid #ccc; border-radius:4px; background:#fff9e6; padding:12px 16px; margin:1.5em 0;">
   <strong>Why not simply use keywords?</strong>
   
@@ -282,26 +307,8 @@ flowchart LR
   <p>Our approach uses LLMs to capture semantic meaning, then scales it with a classifier—combining the flexibility of language understanding with the efficiency needed for large-scale analysis.</p>
 </div>
 
-## Technical details / Supplementary information
+---
 
-### Article discovery (search/filters)
-We start by defining the slice of media we care about in a way that is both broad enough to catch variation and precise enough to be actionable. Using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. The intent is to bias toward recall at this stage: we would rather include a few borderline articles and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
-
-### Scrape and extract
-To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, “follow us” blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
-
-### Frame induction (LLM)
-We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
-
-### Frame application to samples (LLM)
-We then use another LLM as a probabilistic annotator on a sample of passages (typically 2,000 passages in the examples above). Each passage gets a distribution over frames (not just a single label) plus a brief rationale. We typically use a smaller GPT‑4 variant (e.g., `gpt-4.1-mini`) for this step to balance cost and quality, since we need to label thousands of examples. This does two things: it reveals ambiguous cases that keyword-based approaches would mis-label, and it gives us enough labeled data to train a supervised model.
-
-### Supervised classifier (transformers)
-We then fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages using Hugging Face transformers. We start with a pre-trained language model (e.g., `indobenchmark/indobert-base-p1` for Bahasa Indonesia, `distilbert-base-uncased` for English) and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame using sigmoid activation. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema.
-
-### Classify the corpus
-We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long articles. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
-
-### Aggregate and report
-Finally, we aggregate chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all.
+## Get in touch
+I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you—[drop me a line](mailto:hubert.thieriot@gmail.com).
 

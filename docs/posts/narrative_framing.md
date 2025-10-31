@@ -5,7 +5,7 @@ description: Exploring Tools for Effective Advocacy
 ---
 # Narrative Framing for **Air Pollution**, **Energy Transition**, **Animal Welfare**
 
-<div class="tldr">I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.</div>
+<div class="tldr">I identify and track a set of narrative framings across text corpora—from media articles to TV news transcripts, radio programs, forums, Reddit, and other sources—on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.</div>
 
 
 <div class="disclaimer">
@@ -194,7 +194,7 @@ flowchart LR
         direction TB
         subgraph CollectionSub[ ]
         direction TB
-        A["Article discovery<br/>(MediaCloud collections + filters)"] 
+        A["Content discovery<br/>(media, TV, radio, forums, etc.)"] 
         A2["Scrape & extract text<br/>(using Scrapy)"]
         B["Chunk text<br/>(using SpaCy language model)"]
         A --> A2 --> B
@@ -227,7 +227,7 @@ flowchart LR
         direction TB
         subgraph AnalysisSub[ ]
         direction TB
-        G["Aggregate to article level<br/>(length-weighted attention)"]
+        G["Aggregate to document level<br/>(length-weighted attention)"]
         H["Results analysis<br/>(e.g. time series & outlets breakdowns)"]
         I["Generate reports<br/>(interactive HTML + static plots)"]
         G --> H --> I
@@ -270,8 +270,8 @@ flowchart LR
 
 
 
-**Article discovery (search/filters)**:
-We start by defining the slice of media we care about in a way that is both broad enough to catch variation and precise enough to be actionable. Using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. The intent is to bias toward recall at this stage: we would rather include a few borderline articles and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
+**Content discovery (search/filters)**:
+We start by defining the slice of content we care about—whether from media articles, TV news transcripts, radio programs, forums, Reddit, or other sources—in a way that is both broad enough to catch variation and precise enough to be actionable. For media analysis, using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. Similar approaches work for other platforms: TV news and radio transcripts, forum posts, Reddit threads, or other text corpora can be collected through their respective APIs or scraping tools. The intent is to bias toward recall at this stage: we would rather include a few borderline documents and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
 
 **Scrape and extract**:
 To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, “follow us” blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
@@ -286,10 +286,10 @@ We then use another LLM as a probabilistic annotator on a sample of passages (ty
 We then fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages using Hugging Face transformers. We start with a pre-trained language model (e.g., `indobenchmark/indobert-base-p1` for Bahasa Indonesia, `distilbert-base-uncased` for English) and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame using sigmoid activation. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema.
 
 **Classify the corpus**:
-We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long articles. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
+We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long documents. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
 
 **Aggregate and report**:
-Finally, we aggregate chunk‑level predictions to article‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within an article; an occurrence view answers a different question—what share of articles mention a frame at all.
+Finally, we aggregate chunk‑level predictions to document‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within a document (article, post, thread, etc.); an occurrence view answers a different question—what share of documents mention a frame at all.
 
 <div class="text-box">
   <strong>Why not simply use keywords?</strong>

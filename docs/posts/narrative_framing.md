@@ -1,10 +1,11 @@
 ---
 layout: default
-title: Narrative Framing for Media Analysis
+title: Narrative Framing Analysis
+description: Exploring Tools for Effective Advocacy
 ---
-# Narrative Framing for Media Analysis — Air Pollution, Energy Transition, Animal Welfare
+# Narrative Framing for **Air Pollution**, **Energy Transition**, **Animal Welfare**
 
-TL;DR: I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge impact.
+TL;DR: I identify and track a set of narrative framings across media articles on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.
 
 
 <div style="border:1px solid #ccc; border-radius:4px; background:#f7f7f7; padding:12px 16px; margin:1.5em 0;">
@@ -12,10 +13,10 @@ TL;DR: I identify and track a set of narrative framings across media articles on
 </div>
 
 ## Why narrative framing?
+Narrative framing analysis can serve multiple purposes:
 - Understand how a topic is discussed: what narratives, causes, and emphases appear—and how they change over time.
 - Inform advocacy: detect momentum, measure campaign impact, and identify outlets/journalists to prioritize.
 - Go beyond keywords: capture paraphrase and implied meaning when language varies across outlets and time.
-- Keep it pragmatic: start with LLM exploration; scale via a supervised classifier; iterate with spot checks.
 
 ## Method overview
 
@@ -222,17 +223,31 @@ flowchart LR
 ## Results
 
 ### Jakarta — Air pollution causes
-Run: 2020–2025 Indonesian media on Jakarta air pollution; config at `configs/narrative_framing/indonesia_airpollution_causes_20251028.yaml`.
 
-- Stacked area of frame share over time (30‑day running average, Plotly render):
+**Context**: Analysis of 2020–2025 Indonesian media coverage on air pollution in Jakarta, focusing on how different causes are discussed. The corpus spans 14,469 articles from major Indonesian outlets, capturing how journalists frame pollution sources—from vehicle emissions to seasonal weather patterns. This run demonstrates how narrative framing captures semantic nuance: for instance, construction-related pollution is frequently discussed alongside transportation (road dust, infrastructure development) even when explicit "construction dust" terminology is absent.
 
-![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/time_series_area.png)
+**Frame share over time** (30‑day running average):
 
-- Frame set (short names): Transport, Industrial, Power Plant, Biomass Burning, Household, Waste Burning, Construction/Dust, Natural Factors.
-- Quick read: Transport dominates; Natural Factors emerges in seasonal spikes (e.g., stagnant air, lack of rain).
-- Interactive details: open the HTML report at `{{ site.baseurl }}/reports/indonesia_airpollution_causes_20251028/frame_report.html`.
+![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/occurrence_by_year.png)
 
-### United Kingdom — Renewable energy
+**Results summary**: Transport emissions dominate coverage (41.1% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors appear in 8.5% of articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution. The framing reveals how media connects pollution to both immediate sources (vehicles, industry) and contextual factors (seasonal weather, urban development).
+
+**Frames identified**:
+
+| Frame | Description | Key Keywords | Share |
+|-------|-------------|--------------|-------|
+| **Transport Emissions** | Vehicle emissions from cars, motorcycles, buses, trucks, and road traffic | kendaraan bermotor, lalu lintas, emisi kendaraan, uji emisi | 41.1% |
+| **Natural Factors** | Meteorological and seasonal factors affecting air quality (weather patterns, El Niño, rainfall) | cuaca, angin, musim kemarau, El Nino, curah hujan rendah | 8.5% |
+| **Industrial Emissions** | Factory and manufacturing emissions, including smelters, steel, and cement production | pabrik, industri, smelter, industri baja, industri semen | 6.3% |
+| **Power Plant Emissions** | Coal-fired and fossil-fuel power plant emissions | PLTU, pembangkit listrik, coal-fired power plant | 3.3% |
+| **Biomass Burning** | Agricultural fires, forest fires, and land clearing through burning | pembakaran lahan, kebakaran hutan, pembakaran biomassa | 2.1% |
+| **Waste Burning** | Open burning of municipal waste and landfill fires | pembakaran sampah, open burning, landfill fire | 1.9% |
+| **Household Emissions** | Household cooking and heating using fossil fuels or biomass | pembakaran rumah tangga, kompor kayu, bahan bakar padat | 0.5% |
+| **Construction Dust** | Construction activities, roadworks, and resuspended dust | debu konstruksi, pembangunan, road dust, pekerjaan jalan | 0.4% |
+
+*Note: Percentages represent the share of articles that discuss each frame (occurrence-based, threshold ≥0.2). Articles can discuss multiple frames.*
+
+### Philippines — Renewable energy
 
 <!-- To be added -->
 

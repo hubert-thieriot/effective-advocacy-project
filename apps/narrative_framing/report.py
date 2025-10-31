@@ -1400,6 +1400,67 @@ def _render_plotly_timeseries_abs_lines(
 
     return _render_plotly_fragment("time-series-abs-lines-chart", traces, layout)
 
+
+def _render_plotly_total_docs_timeseries(
+    aggregates: Optional[Sequence[DocumentFrameAggregate]],
+) -> str:
+    """Render total documents per day with 7-day rolling average."""
+    if not aggregates:
+        return ""
+    
+    from collections import defaultdict
+    from datetime import date
+    from efi_core.utils import normalize_date
+    
+    # Build daily counts from aggregates
+    daily_counts: Dict[str, int] = defaultdict(int)
+    today = date.today()
+    
+    for agg in aggregates:
+        if not agg.published_at:
+            continue
+        normalized = normalize_date(agg.published_at)
+        if not normalized:
+            continue
+        day_value = date(normalized.year, normalized.month, normalized.day)
+        # Skip future-dated documents
+        if day_value > today:
+            continue
+        daily_counts[day_value.isoformat()] += 1
+    
+    if not daily_counts:
+        return ""
+    
+    # Build DataFrame with 7-day rolling average
+    df = pd.DataFrame([{"date": d, "count": c} for d, c in daily_counts.items()])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date")
+    if df.empty:
+        return ""
+    
+    df = df.set_index("date").asfreq("D", fill_value=0)
+    df["smooth"] = df["count"].rolling(window=7, min_periods=1).mean()
+    
+    data = [{
+        "type": "scatter",
+        "mode": "lines",
+        "name": "Articles per day",
+        "x": df.index.strftime("%Y-%m-%d").tolist(),
+        "y": df["smooth"].tolist(),
+        "line": {"color": "#1E3D58", "width": 2.5},
+        "hovertemplate": "Date: %{x}<br>Articles (7-day avg): %{y}<extra></extra>"
+    }]
+    
+    layout = {
+        "margin": {"l": 60, "r": 30, "t": 20, "b": 60},
+        "yaxis": {"title": "Articles per day (7-day avg)"},
+        "xaxis": {"title": "Date"},
+        "height": 420,
+    }
+    
+    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout)
+
+
 def _render_plotly_domain_counts(
     domain_counts: Optional[Sequence[Tuple[str, int]]],
     total_documents: int = 0,
@@ -1640,6 +1701,15 @@ def write_html_report(
     )
     timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
     timeseries_abs_lines_html = _render_plotly_timeseries_abs_lines(timeseries_records, frame_lookup, color_map)
+    
+    # Total docs volume chart
+    total_docs_chart_html = ""
+    if document_aggregates_occurrence:
+        # Use occurrence aggregates since they're simpler (one per document)
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_occurrence)
+    elif document_aggregates_weighted:
+        # Fallback to weighted aggregates if occurrence not available
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_weighted)
     if not timeseries_chart_html and area_chart_b64:
         timeseries_chart_html = (
             "<figure class=\"chart\">"
@@ -1805,6 +1875,23 @@ def write_html_report(
         </section>
         """
 
+    # Article volume section
+    article_volume_section_html = ""
+    if total_docs_chart_html:
+        article_volume_section_html = f"""
+        <section class="report-section" id="article-volume">
+            <header class="section-heading">
+                <h2>Article Volume Over Time</h2>
+                <p>Total number of articles per day (7-day rolling average).</p>
+            </header>
+            <div class="section-body">
+                <div class="card chart-card">
+                    {total_docs_chart_html}
+                </div>
+            </div>
+        </section>
+        """
+    
     time_series_section_html = ""
     if timeseries_note or timeseries_chart_html:
         note_parts: List[str] = []
@@ -1812,16 +1899,46 @@ def write_html_report(
             note_parts.append(html.escape(timeseries_note))
         note_parts.append("30-day rolling average of frame share.")
         note_html = f"<p class=\"section-note\">{' • '.join(note_parts)}</p>"
-        chart_inner = ""
+        
+        # Build individual chart blocks with explanatory text
+        chart_blocks = []
         if timeseries_chart_html:
-            chart_inner += timeseries_chart_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Frame Share Over Time (Stacked Area):</strong> '
+                'Length-weighted share of each frame. Documents with more content contribute more. '
+                'Grouped by day, then normalized so shares sum to 100% across all frames on each day.'
+                '</p>'
+                f'{timeseries_chart_html}'
+                '</div>'
+            )
         if timeseries_lines_html:
-            chart_inner += timeseries_lines_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Frame Share Over Time (Lines):</strong> '
+                'Same length-weighted share metric as above, shown as individual lines. '
+                'Shows proportional importance of each frame over time.'
+                '</p>'
+                f'{timeseries_lines_html}'
+                '</div>'
+            )
         if timeseries_abs_lines_html:
-            chart_inner += timeseries_abs_lines_html
+            chart_blocks.append(
+                '<div class="chart-item">'
+                '<p class="chart-explanation">'
+                '<strong>Average Frame Score Over Time:</strong> '
+                'Absolute average strength of each frame (0-1 scale), length-weighted. '
+                'Unlike shares, these scores are not normalized and can reveal intensity trends.'
+                '</p>'
+                f'{timeseries_abs_lines_html}'
+                '</div>'
+            )
+        
         chart_block = (
-            f"<div class=\"card chart-card\">{chart_inner}</div>"
-            if chart_inner
+            f"<div class=\"card chart-card\">{''.join(chart_blocks)}</div>"
+            if chart_blocks
             else "<div class=\"card chart-card\"><p class=\"empty-note\">Not enough data to show the time series.</p></div>"
         )
         time_series_section_html = f"""
@@ -1863,10 +1980,12 @@ def write_html_report(
                 + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
                 + "</div>"
             )
+            explanation = '<p class="chart-explanation" style="margin-bottom: 16px;"><strong>Note:</strong> These charts show <em>occurrence</em> metrics (share of articles mentioning each frame), not weighted by content length. Each article counts equally regardless of size.</p>'
             classifier_percentage_section_html = f"""
         <section class=\"report-section\" id=\"classifier-percentage\">
             <div class=\"section-body\">
                 {heading_html}
+                {explanation}
                 {classifier_pct_html}
                 <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
             </div>
@@ -2391,6 +2510,25 @@ def write_html_report(
       color: var(--ink-500);
       font-weight: 200;
     }}
+    .chart-item {{
+      margin: 24px 0;
+    }}
+    .chart-item:first-child {{
+      margin-top: 0;
+    }}
+    .chart-explanation {{
+      margin: 0 0 16px 0;
+      padding: 12px 16px;
+      background: var(--slate-100);
+      border-left: 3px solid var(--accent-2);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.9rem;
+      color: var(--ink-600);
+      line-height: 1.5;
+    }}
+    .chart-explanation strong {{
+      color: var(--ink-800);
+    }}
     .plotly-chart {{
       width: 100%;
       min-height: 500px;
@@ -2558,6 +2696,7 @@ def write_html_report(
     {frames_section_html}
     {llm_coverage_section_html}
     {llm_binned_section_html}
+    {article_volume_section_html}
     {time_series_section_html}
     {classifier_percentage_section_html}
     {classifier_by_year_section_html}

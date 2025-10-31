@@ -65,6 +65,52 @@ def _render_plotly_fragment(
     )
 
 
+def _render_total_docs_timeseries(daily_total_docs: Dict[str, int]) -> str:
+    """Render total documents per day with 7-day rolling average."""
+    if not daily_total_docs:
+        return ""
+    
+    # Build DataFrame
+    rows = []
+    for date, count in daily_total_docs.items():
+        rows.append({"date": date, "count": int(count)})
+    if not rows:
+        return ""
+    
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
+    if df.empty:
+        return ""
+    
+    # Sort by date and fill missing days with 0, then apply 7-day rolling average
+    df = df.sort_values("date").set_index("date")
+    df = df.asfreq("D", fill_value=0)
+    df["smooth"] = df["count"].rolling(window=7, min_periods=1).mean()
+    
+    data = [{
+        "type": "scatter",
+        "mode": "lines",
+        "name": "Articles per day",
+        "x": df.index.strftime("%Y-%m-%d").tolist(),
+        "y": df["smooth"].tolist(),
+        "line": {"color": "#1E3D58", "width": 2.5},
+        "hovertemplate": "Date: %{x}<br>Articles (7-day avg): %{y}<extra></extra>"
+    }]
+    
+    layout = {
+        "title": {"text": "Total Articles Per Day", "font": {"size": 18, "color": "#1e293b"}},
+        "xaxis": {"title": "Date"},
+        "yaxis": {"title": "Articles per day (7-day avg)"},
+        "margin": {"l": 60, "r": 20, "t": 60, "b": 60},
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "font": {"family": "Inter, sans-serif", "size": 12},
+    }
+    
+    return _render_plotly_fragment("total-docs-timeseries-chart", data, layout)
+
+
 def _render_theme_bar(theme_counts: Dict[str, int], theme_names: Dict[str, str]) -> str:
     """Render theme coverage bar chart."""
     if not theme_counts:
@@ -442,6 +488,7 @@ def generate_html_report(
 
     # Generate Plotly charts
     theme_chart = _render_theme_bar(theme_counts, theme_names)
+    total_docs_chart = _render_total_docs_timeseries(daily_total_docs)
     timeseries_chart = _render_timeseries_lines(daily_counts, theme_names)
     domain_chart = _render_domain_bar(domain_counts)
     cooccurrence_chart = _render_cooccurrence_heatmap(cooccurrence, list(theme_counts.keys()), theme_names, total_docs)
@@ -682,6 +729,18 @@ def generate_html_report(
         <div class="chart-container">
           <h3 style="margin-top: 0; color: var(--ink-900);">Share Trend by Theme (30-day average)</h3>
           {share_trend_chart if share_trend_chart else '<p>No data available</p>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="section-heading">
+        <h2>Article Volume Over Time</h2>
+        <p>Total number of articles per day (7-day rolling average).</p>
+      </div>
+      <div class="section-body">
+        <div class="chart-container">
+          {total_docs_chart if total_docs_chart else '<p>No data available</p>'}
         </div>
       </div>
     </div>

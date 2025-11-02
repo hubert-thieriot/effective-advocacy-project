@@ -20,17 +20,18 @@ from dotenv import load_dotenv
 # Load environment variables from .env if present (for WANDB_*, etc.)
 load_dotenv()
 
-from apps.narrative_framing.aggregation import (
+from apps.narrative_framing.aggregation_document import (
     DocumentFrameAggregate,
     FrameAggregationStrategy,
     WeightedFrameAggregator,
     OccurrenceFrameAggregator,
-    build_weighted_time_series,
-    compute_global_frame_share,
-    time_series_to_records,
 )
+from apps.narrative_framing.aggregation_temporal import (
+    TemporalAggregator,
+    period_aggregates_to_records,
+)
+from apps.narrative_framing.aggregation_domain import DomainAggregator
 from apps.narrative_framing.config import ClassifierSettings, NarrativeFramingConfig, load_config
-from apps.narrative_framing.plots import image_to_base64, render_frame_area_chart
 from apps.narrative_framing.report import write_html_report
 from apps.narrative_framing.filtering import (
     make_filter_spec,
@@ -75,11 +76,8 @@ class ResultPaths:
     classifier_dir: Optional[Path] = None
     # Aggregates folder with strategy-specific files
     aggregates_dir: Optional[Path] = None
-    weighted_aggregates_file: Optional[Path] = None
-    occurrence_aggregates_file: Optional[Path] = None
     chunk_classifications_dir: Optional[Path] = None
     frame_timeseries: Optional[Path] = None
-    frame_area_chart: Optional[Path] = None
     html: Optional[Path] = None
 
 
@@ -102,11 +100,8 @@ def resolve_result_paths(results_dir: Optional[Path]) -> ResultPaths:
         classifier_predictions=results_dir / "frame_classifier_predictions.json",
         classifier_dir=classifier_dir,
         aggregates_dir=aggregates_dir,
-        weighted_aggregates_file=aggregates_dir / "weighted.json",
-        occurrence_aggregates_file=aggregates_dir / "occurrence.json",
         chunk_classifications_dir=results_dir / "classified_chunks",
         frame_timeseries=results_dir / "frame_timeseries.json",
-        frame_area_chart=results_dir / "frame_area_chart.png",
         html=results_dir / "frame_report.html",
     )
 
@@ -262,12 +257,6 @@ def load_classifier_predictions(path: Path) -> List[Dict[str, object]]:
     return list(data)
 
 
-def save_document_aggregates(path: Path, aggregates: Sequence[DocumentFrameAggregate]) -> None:
-    """Save document aggregates to a single JSON file."""
-    payload = [aggregate.to_dict() for aggregate in aggregates]
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
 def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
     """Load document aggregates from a single JSON file."""
     if not path.exists():
@@ -289,6 +278,174 @@ def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
                 top_frames=list(item.get("top_frames", [])),
             )
         )
+    return aggregates
+
+
+def save_aggregates_json(path: Path, data: object) -> None:
+    """Save aggregation data to JSON file."""
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def build_all_aggregates(
+    aggregates_dir: Path,
+    document_aggregates_weighted: List[DocumentFrameAggregate],
+    document_aggregates_occurrence: List[DocumentFrameAggregate],
+    frame_ids: List[str],
+) -> Dict[str, object]:
+    """Build all aggregation combinations and save them to files.
+    
+    Returns a dictionary with all aggregates for passing to the report.
+    """
+    aggregates = {}
+    
+    print("Building document aggregates...")
+    # Save document aggregates
+    if document_aggregates_weighted:
+        save_aggregates_json(
+            aggregates_dir / "documents_weighted.json",
+            [agg.to_dict() for agg in document_aggregates_weighted]
+        )
+        aggregates["documents_weighted"] = document_aggregates_weighted
+    if document_aggregates_occurrence:
+        save_aggregates_json(
+            aggregates_dir / "documents_occurrence.json",
+            [agg.to_dict() for agg in document_aggregates_occurrence]
+        )
+        aggregates["documents_occurrence"] = document_aggregates_occurrence
+    
+    print("Building temporal aggregates...")
+    # Temporal aggregates - year with/without zeros
+    for keep_zeros in [True, False]:
+        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+        agg = TemporalAggregator(
+            period="year",
+            weight_by_document_weight=True,
+            keep_documents_with_no_frames=keep_zeros
+        )
+        yearly_result = agg.aggregate(document_aggregates_weighted)
+        save_aggregates_json(
+            aggregates_dir / f"year_weighted_{key_suffix}.json",
+            [
+                {
+                    "period_id": p.period_id,
+                    "frame_scores": p.frame_scores,
+                    "document_count": p.document_count,
+                }
+                for p in yearly_result
+            ]
+        )
+        aggregates[f"year_weighted_{key_suffix}"] = yearly_result
+    
+    print("Building domain aggregates...")
+    # Domain aggregates - with/without zeros
+    for keep_zeros in [True, False]:
+        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+        
+        domain_agg = DomainAggregator(
+            keep_documents_with_no_frames=keep_zeros,
+            weight_by_document_weight=True,
+            avg_or_sum="avg"
+        )
+        domain_aggregates = domain_agg.aggregate(document_aggregates_weighted)
+        
+        # Convert to old format for compatibility
+        domain_frame_summaries = [
+            {
+                "domain": da.domain,
+                "count": da.document_count,
+                "shares": da.frame_scores,
+            }
+            for da in domain_aggregates
+        ]
+        
+        save_aggregates_json(
+            aggregates_dir / f"domain_weighted_{key_suffix}.json",
+            domain_frame_summaries
+        )
+        aggregates[f"domain_weighted_{key_suffix}"] = domain_frame_summaries
+    
+    print("Building global aggregates...")
+    # Global aggregates - with/without zeros
+    for keep_zeros in [True, False]:
+        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+        agg = TemporalAggregator(
+            period="all",
+            weight_by_document_weight=True,
+            keep_documents_with_no_frames=keep_zeros
+        )
+        global_result = agg.aggregate(document_aggregates_weighted)
+        if global_result:
+            global_data = {
+                "period_id": global_result[0].period_id,
+                "frame_scores": global_result[0].frame_scores,
+                "document_count": global_result[0].document_count,
+            }
+            save_aggregates_json(
+                aggregates_dir / f"global_weighted_{key_suffix}.json",
+                global_data
+            )
+            aggregates[f"global_weighted_{key_suffix}"] = global_result
+    
+    print("Building occurrence aggregates...")
+    # Occurrence aggregates - global and yearly with/without zeros
+    if document_aggregates_occurrence:
+        # Global occurrence aggregates
+        for keep_zeros in [True, False]:
+            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+            agg = TemporalAggregator(
+                period="all",
+                weight_by_document_weight=False,  # Occurrence: don't weight by document
+                keep_documents_with_no_frames=keep_zeros
+            )
+            global_result = agg.aggregate(document_aggregates_occurrence)
+            if global_result:
+                global_data = {
+                    "period_id": global_result[0].period_id,
+                    "frame_scores": global_result[0].frame_scores,
+                    "document_count": global_result[0].document_count,
+                }
+                save_aggregates_json(
+                    aggregates_dir / f"global_occurrence_{key_suffix}.json",
+                    global_data
+                )
+                aggregates[f"global_occurrence_{key_suffix}"] = global_result
+        
+        # Yearly occurrence aggregates
+        for keep_zeros in [True, False]:
+            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+            agg = TemporalAggregator(
+                period="year",
+                weight_by_document_weight=False,  # Occurrence: don't weight by document
+                keep_documents_with_no_frames=keep_zeros
+            )
+            yearly_result = agg.aggregate(document_aggregates_occurrence)
+            save_aggregates_json(
+                aggregates_dir / f"year_occurrence_{key_suffix}.json",
+                [
+                    {
+                        "period_id": p.period_id,
+                        "frame_scores": p.frame_scores,
+                        "document_count": p.document_count,
+                    }
+                    for p in yearly_result
+                ]
+            )
+            aggregates[f"year_occurrence_{key_suffix}"] = yearly_result
+    
+    print("Building time series with 30-day rolling average...")
+    # 30-day running average time series
+    # Don't normalize each period - compute avg_score, apply rolling average, then normalize globally
+    # This prevents all frames from appearing equal due to daily normalization
+    temporal_agg = TemporalAggregator(
+        period="day",
+        weight_by_document_weight=True,
+        avg_or_sum="avg",
+        rolling_window=30
+    )
+    frame_timeseries_aggregates = temporal_agg.aggregate(document_aggregates_weighted)
+    frame_timeseries_records = period_aggregates_to_records(frame_timeseries_aggregates)
+    save_aggregates_json(aggregates_dir / "time_series_30day.json", frame_timeseries_records)
+    aggregates["time_series_30day"] = frame_timeseries_records
     return aggregates
 
 
@@ -477,106 +634,6 @@ def write_chunk_classifications(directory: Path, documents: Sequence[Dict[str, o
     for existing in directory.glob("*.json"):
         if existing.stem not in keep_doc_ids:
             existing.unlink(missing_ok=True)
-
-
-def _extract_domain(url: Optional[str]) -> Optional[str]:
-    """Extract base domain from URL, ignoring subdomains."""
-    if not url:
-        return None
-    parsed = urlparse(url)
-    netloc = parsed.netloc or parsed.path
-    if not netloc:
-        return None
-    domain = netloc.lower()
-    if domain.startswith("www."):
-        domain = domain[4:]
-    
-    # Extract base domain (ignore subdomains)
-    # e.g., kota.tribunnews.com -> tribunnews.com
-    parts = domain.split('.')
-    if len(parts) >= 2:
-        # Handle common two-part TLDs like .co.uk, .co.id, .com.au
-        if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
-            return '.'.join(parts[-3:])
-        else:
-            return '.'.join(parts[-2:])
-    
-    return domain or None
-
-
-def _compute_domain_statistics(
-    aggregates: Sequence[DocumentFrameAggregate],
-    frame_ids: Sequence[str],
-    top_n: int = 20,
-) -> Tuple[List[Tuple[str, int]], List[Dict[str, object]]]:
-    if not aggregates:
-        return [], []
-
-    frame_ids_list = list(frame_ids)
-    domain_state: Dict[str, Dict[str, object]] = {}
-
-    for aggregate in aggregates:
-        domain = _extract_domain(aggregate.url)
-        if not domain:
-            continue
-        state = domain_state.setdefault(
-            domain,
-            {
-                "count": 0,
-                "weight": 0.0,
-                "frame_sums": {frame_id: 0.0 for frame_id in frame_ids_list},
-            },
-        )
-        state["count"] = int(state["count"]) + 1
-        weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
-        state["weight"] = float(state["weight"]) + weight
-        frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
-        for frame_id in frame_ids_list:
-            frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
-
-    if not domain_state:
-        return [], []
-
-    ordered_domains = sorted(
-        domain_state.items(), key=lambda item: (item[1]["count"], item[1]["weight"]), reverse=True
-    )
-    top_domains = ordered_domains[: max(top_n, 0)]
-
-    domain_counts: List[Tuple[str, int]] = []
-    domain_frame_summaries: List[Dict[str, object]] = []
-
-    for domain, state in top_domains:
-        count = int(state["count"])
-        weight = float(state["weight"])
-        frame_sums = state["frame_sums"]  # type: ignore[assignment]
-        if weight <= 0:
-            shares = {frame_id: 0.0 for frame_id in frame_ids_list}
-        else:
-            shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids_list}
-        domain_counts.append((domain, count))
-        domain_frame_summaries.append(
-            {
-                "domain": domain,
-                "count": count,
-                "shares": shares,
-            }
-        )
-
-    return domain_counts, domain_frame_summaries
-
-
-def save_frame_timeseries(path: Path, records: Sequence[Dict[str, object]]) -> None:
-    path.write_text(json.dumps(list(records), indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def load_frame_timeseries(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not payload:
-        return pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-    df = pd.DataFrame.from_records(payload)
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"]).dt.date
-    return df
 
 
 def enrich_assignments_with_metadata(
@@ -1011,161 +1068,6 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     except Exception as exc:
         print(f"⚠️ Failed to snapshot configuration: {exc}")
 
-
-    # Fast path: regenerate report only from cached artifacts
-    # ============================================================================
-    if getattr(config, "regenerate_report_only", False):
-        print("Regenerating report from cached artifacts only…")
-        # Load schema
-        if not (paths.schema and paths.schema.exists()):
-            raise FileNotFoundError("Cannot regenerate report: cached frame_schema.json not found")
-        schema = load_schema(paths.schema)
-
-        # Load assignments if available (optional for LLM charts)
-        assignments = []
-        if paths.assignments and paths.assignments.exists():
-            try:
-                assignments = load_assignments(paths.assignments)
-            except Exception as exc:
-                print(f"⚠️ Failed to load cached assignments: {exc}")
-
-        # Load classifier predictions if available
-        classifier_predictions = []
-        classifier_lookup = None
-        if paths.classifier_predictions and paths.classifier_predictions.exists():
-            try:
-                classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
-                classifier_lookup = {item["passage_id"]: item for item in classifier_predictions if isinstance(item, dict) and item.get("passage_id")}
-            except Exception as exc:
-                print(f"⚠️ Failed to load cached classifier predictions: {exc}")
-
-        # Load weighted aggregates (required)
-        if paths.weighted_aggregates_file and paths.weighted_aggregates_file.exists():
-            document_aggregates_weighted = load_document_aggregates(paths.weighted_aggregates_file)
-        else:
-            raise FileNotFoundError(
-                "Cannot regenerate report: no cached weighted aggregates found (expected aggregates/weighted.json)"
-            )
-        document_aggregates_occurrence: List[DocumentFrameAggregate] = []
-        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
-            try:
-                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
-            except Exception:
-                document_aggregates_occurrence = []
-        
-        # Compute domain statistics from aggregates
-        frame_ids = [f.frame_id for f in schema.frames]
-        domain_counts, domain_frame_summaries = _compute_domain_statistics(document_aggregates_weighted, frame_ids, top_n=20)
-
-        # Compute optional per-corpus summaries when multiple corpora were used
-        corpus_frame_summaries = []
-        if len(list(config.iter_corpus_names())) > 1:
-            # Best-effort reconstruction by reading classified chunks for doc→corpus mapping
-            chunk_classification_map: Dict[str, Dict[str, object]] = {}
-            if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
-                for payload in load_chunk_classifications(paths.chunk_classifications_dir):
-                    try:
-                        gid = str(payload.get("doc_id", "")).strip()
-                        if gid:
-                            chunk_classification_map[gid] = payload
-                    except Exception:
-                        continue
-            # Build corpus-level shares
-            doc_to_corpus: Dict[str, str] = {}
-            for payload in chunk_classification_map.values():
-                gid = str(payload.get("doc_id", "")).strip()
-                cname = str(payload.get("corpus", "")).strip()
-                if gid and cname:
-                    doc_to_corpus[gid] = cname
-            corpus_state: Dict[str, Dict[str, object]] = {}
-            for aggregate in document_aggregates_weighted:
-                gid = aggregate.doc_id
-                corpus_name, _local = split_global_doc_id(gid)
-                corpus = corpus_name or doc_to_corpus.get(gid)
-                if not corpus:
-                    continue
-                state = corpus_state.setdefault(
-                    corpus,
-                    {
-                        "count": 0,
-                        "weight": 0.0,
-                        "frame_sums": {frame_id: 0.0 for frame_id in frame_ids},
-                    },
-                )
-                state["count"] = int(state["count"]) + 1
-                weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
-                state["weight"] = float(state["weight"]) + weight
-                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
-                for frame_id in frame_ids:
-                    frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
-            for corpus, state in sorted(corpus_state.items()):
-                weight = float(state["weight"])  # type: ignore[arg-type]
-                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
-                if weight <= 0:
-                    shares = {frame_id: 0.0 for frame_id in frame_ids}
-                else:
-                    shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids}
-                corpus_frame_summaries.append({"corpus": corpus, "count": int(state["count"]), "shares": shares})
-
-        # Load or rebuild time series
-        frame_timeseries_records: List[Dict[str, object]] = []
-        frame_area_chart_b64: Optional[str] = None
-        if paths.frame_timeseries and paths.frame_timeseries.exists():
-            try:
-                frame_timeseries_records = json.loads(paths.frame_timeseries.read_text(encoding="utf-8"))
-            except Exception:
-                frame_timeseries_records = []
-        else:
-            # Recompute
-            ts_df = build_weighted_time_series(document_aggregates_weighted)
-            frame_timeseries_records = time_series_to_records(ts_df)
-            if paths.frame_timeseries:
-                save_frame_timeseries(paths.frame_timeseries, frame_timeseries_records)
-        # Area chart b64
-        if paths.frame_area_chart and paths.frame_area_chart.exists():
-            try:
-                frame_area_chart_b64 = image_to_base64(paths.frame_area_chart)
-            except Exception:
-                frame_area_chart_b64 = None
-
-        # Global frame share
-        global_frame_share = compute_global_frame_share(document_aggregates_weighted)
-
-        # Build classifier lookup and whether to include classifier plots
-        include_classifier_plots = True if classifier_predictions else False
-
-        # Write report
-        if paths.html and schema:
-            write_html_report(
-                schema=schema,
-                assignments=assignments,
-                output_path=paths.html,
-                classifier_lookup=classifier_lookup,
-                global_frame_share=global_frame_share,
-                timeseries_records=frame_timeseries_records,
-                classified_documents=len(document_aggregates_weighted),
-                classifier_sample_limit=config.classifier_corpus_sample_size,
-                area_chart_b64=frame_area_chart_b64,
-                include_classifier_plots=include_classifier_plots,
-                domain_counts=domain_counts,
-                domain_frame_summaries=domain_frame_summaries,
-                document_aggregates_weighted=document_aggregates_weighted,
-                document_aggregates_occurrence=document_aggregates_occurrence,
-                corpus_frame_summaries=corpus_frame_summaries,
-                hide_empty_passages=config.report.hide_empty_passages,
-                plot_title=config.report.plot.title,
-                plot_subtitle=config.report.plot.subtitle,
-                plot_note=config.report.plot.note,
-                export_plotly_png_dir=(paths.html.parent / "plots"),
-            )
-            # Publish PNGs and HTML to docs for GitHub Pages
-            try:
-                _publish_to_docs_assets(paths.html.parent.name, paths.html)
-            except Exception as exc:
-                print(f"⚠️ Failed to publish docs assets: {exc}")
-        print(f"\nHTML report written to {paths.html}")
-        return
-
     # ============================================================================
     # VARIABLE INITIALIZATION
     # ============================================================================
@@ -1177,13 +1079,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     classifier_model: Optional[FrameClassifierModel] = None
     chunk_classifications: List[Dict[str, object]] = []
     document_aggregates_weighted: List[DocumentFrameAggregate] = []
-    frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-    frame_timeseries_records: List[Dict[str, object]] = []
-    frame_area_chart_b64: Optional[str] = None
-    global_frame_share: Dict[str, float] = {}
-    domain_counts: List[Tuple[str, int]] = []
-    domain_frame_summaries: List[Dict[str, object]] = []
-    corpus_frame_summaries: List[Dict[str, object]] = []
+    all_aggregates: Dict[str, object] = {}
 
     induction_samples: List[Tuple[str, str]] = []
     induction_reused = False
@@ -1263,7 +1159,14 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     app_sys_t = _read_text_or_fail(prompt_paths["application_system"])
     app_usr_t = _read_text_or_fail(prompt_paths["application_user"])
 
-    if config.reload_induction and paths.schema and paths.schema.exists():
+    if config.regenerate_report_only:
+        # In regenerate mode, require cached schema to exist
+        if not (paths.schema and paths.schema.exists()):
+            raise FileNotFoundError("Cannot regenerate report: cached frame_schema.json not found")
+        schema = load_schema(paths.schema)
+        induction_reused = True
+        print(f"Reloaded frame schema from {paths.schema} (regenerate mode)")
+    elif config.reload_induction and paths.schema and paths.schema.exists():
         schema = load_schema(paths.schema)
         induction_reused = True
         print(f"Reloaded frame schema from {paths.schema}")
@@ -1315,7 +1218,28 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     assignment_map: Dict[str, FrameAssignment] = {}
     assignment_list: List[FrameAssignment] = []
 
-    if (
+    if config.regenerate_report_only:
+        # In regenerate mode, try to load assignments from cache (optional)
+        if paths.assignments and paths.assignments.exists():
+            try:
+                cached_assignments = load_assignments(paths.assignments)
+                for cached in cached_assignments:
+                    if cached.passage_id in assignment_map:
+                        continue
+                    assignment_map[cached.passage_id] = cached
+                    assignment_list.append(cached)
+                if assignment_list:
+                    assignments_reused = True
+                    print(f"Reloaded {len(assignment_list)} LLM frame assignments from cache (regenerate mode).")
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached assignments: {exc}")
+        # Skip application work in regenerate mode
+        assignments = assignment_list
+        application_samples = [
+            (item.passage_id, item.passage_text) for item in assignment_list
+        ]
+        target_application_count = max(0, config.application_sample_size)
+    elif (
         config.reload_application
         and paths.assignments
         and paths.assignments.exists()
@@ -1333,74 +1257,73 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         except Exception as exc:
             print(f"⚠️ Failed to load cached assignments: {exc}")
 
-    
-    target_application_count = max(0, config.application_sample_size)
-    existing_count = len(assignment_list)
-    additional_needed = max(0, target_application_count - existing_count)
+        target_application_count = max(0, config.application_sample_size)
+        existing_count = len(assignment_list)
+        additional_needed = max(0, target_application_count - existing_count)
 
-    if additional_needed > 0:
-        exclude_ids: List[str] = list(assignment_map.keys())
-        if induction_samples:
-            exclude_ids.extend(pid for pid, _ in induction_samples)
-        try:
-            new_samples = sampler.collect(
-                SamplerConfig(
-                    sample_size=additional_needed,
-                    seed=config.seed + 1,
-                    keywords=keywords,
-                    exclude_passage_ids=exclude_ids or None,
-                    exclude_regex=config.filter_exclude_regex,
-                    exclude_min_hits=config.filter_exclude_min_hits,
-                    trim_after_markers=config.filter_trim_after_markers,
-                )
-            )
-        except ValueError as exc:
-            print(f"⚠️ Unable to gather {additional_needed} new passages for application: {exc}")
-            new_samples = []
-
-        if new_samples:
-            applicator_client = OpenAIInterface(name="frame_application", config=applicator_config)
-            applicator = LLMFrameApplicator(
-                llm_client=applicator_client,
-                batch_size=config.application_batch_size,
-                max_chars_per_passage=None,
-                chunk_overlap_chars=0,
-                system_template=app_sys_t,
-                user_template=app_usr_t,
-            )
-            with tqdm(
-                total=len(new_samples),
-                desc=f"Applying frames ({applicator_client.config.model})",
-                unit="passages",
-                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
-            ) as pbar:
-                batch_size = applicator.batch_size
-                for i in range(0, len(new_samples), batch_size):
-                    batch = new_samples[i : i + batch_size]
-                    batch_assignments = applicator.batch_assign(
-                        schema,
-                        batch,
-                        top_k=config.application_top_k,
+        if additional_needed > 0:
+            exclude_ids: List[str] = list(assignment_map.keys())
+            if induction_samples:
+                exclude_ids.extend(pid for pid, _ in induction_samples)
+            try:
+                new_samples = sampler.collect(
+                    SamplerConfig(
+                        sample_size=additional_needed,
+                        seed=config.seed + 1,
+                        keywords=keywords,
+                        exclude_passage_ids=exclude_ids or None,
+                        exclude_regex=config.filter_exclude_regex,
+                        exclude_min_hits=config.filter_exclude_min_hits,
+                        trim_after_markers=config.filter_trim_after_markers,
                     )
-                    for assignment in batch_assignments:
-                        if assignment.passage_id in assignment_map:
-                            continue
-                        assignment_map[assignment.passage_id] = assignment
-                        assignment_list.append(assignment)
-                    pbar.update(len(batch))
-            print(
-                f"Received {len(assignment_list) - existing_count} new assignments; total cached assignments: {len(assignment_list)}."
-            )
-            if paths.assignments:
-                save_assignments(paths.assignments, assignment_list)
-            # Save resolved application prompts used across batches
-            if getattr(applicator, "emitted_messages", None):
-                resolved_dir = (config.results_dir or Path("results")) / "prompts" / "application" / "resolved"
-                _save_resolved_messages(resolved_dir, "application_batch", applicator.emitted_messages)
-        else:
-            print(
-                f"⚠️ No new passages were sampled; continuing with {len(assignment_list)} cached assignments."
-            )
+                )
+            except ValueError as exc:
+                print(f"⚠️ Unable to gather {additional_needed} new passages for application: {exc}")
+                new_samples = []
+
+            if new_samples:
+                applicator_client = OpenAIInterface(name="frame_application", config=applicator_config)
+                applicator = LLMFrameApplicator(
+                    llm_client=applicator_client,
+                    batch_size=config.application_batch_size,
+                    max_chars_per_passage=None,
+                    chunk_overlap_chars=0,
+                    system_template=app_sys_t,
+                    user_template=app_usr_t,
+                )
+                with tqdm(
+                    total=len(new_samples),
+                    desc=f"Applying frames ({applicator_client.config.model})",
+                    unit="passages",
+                    bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+                ) as pbar:
+                    batch_size = applicator.batch_size
+                    for i in range(0, len(new_samples), batch_size):
+                        batch = new_samples[i : i + batch_size]
+                        batch_assignments = applicator.batch_assign(
+                            schema,
+                            batch,
+                            top_k=config.application_top_k,
+                        )
+                        for assignment in batch_assignments:
+                            if assignment.passage_id in assignment_map:
+                                continue
+                            assignment_map[assignment.passage_id] = assignment
+                            assignment_list.append(assignment)
+                        pbar.update(len(batch))
+                print(
+                    f"Received {len(assignment_list) - existing_count} new assignments; total cached assignments: {len(assignment_list)}."
+                )
+                if paths.assignments:
+                    save_assignments(paths.assignments, assignment_list)
+                # Save resolved application prompts used across batches
+                if getattr(applicator, "emitted_messages", None):
+                    resolved_dir = (config.results_dir or Path("results")) / "prompts" / "application" / "resolved"
+                    _save_resolved_messages(resolved_dir, "application_batch", applicator.emitted_messages)
+            else:
+                print(
+                    f"⚠️ No new passages were sampled; continuing with {len(assignment_list)} cached assignments."
+                )
 
     # Limit to requested application_sample_size when cache contains more
     if target_application_count and len(assignment_list) > target_application_count:
@@ -1495,43 +1418,64 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # LOAD CLASSIFIER
     # ============================================================================
     
-    if (
-        config.classifier.enabled
-        and config.reload_classifier
-        and paths.classifier_predictions
-        and paths.classifier_predictions.exists()
-        and assignments_reused
-    ):
-        classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
-        print(f"Reloaded {len(classifier_predictions)} classifier predictions from cache.")
+    if config.regenerate_report_only:
+        # In regenerate mode, try to load classifier predictions and model from cache (optional)
+        if paths.classifier_predictions and paths.classifier_predictions.exists():
+            try:
+                classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
+                print(f"Reloaded {len(classifier_predictions)} classifier predictions from cache (regenerate mode).")
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached classifier predictions: {exc}")
+        if paths.classifier_dir and paths.classifier_dir.exists():
+            try:
+                classifier_model = FrameClassifierModel.load(paths.classifier_dir)
+                print(f"Reloaded classifier model from {paths.classifier_dir} (regenerate mode).")
+            except FileNotFoundError:
+                classifier_model = None
+            except Exception as exc:
+                print(f"⚠️ Failed to load classifier model from {paths.classifier_dir}: {exc}")
+                classifier_model = None
+    else:
+        if (
+            config.classifier.enabled
+            and config.reload_classifier
+            and paths.classifier_predictions
+            and paths.classifier_predictions.exists()
+            and assignments_reused
+        ):
+            classifier_predictions = load_classifier_predictions(paths.classifier_predictions)
+            print(f"Reloaded {len(classifier_predictions)} classifier predictions from cache.")
 
-    if (
-        config.classifier.enabled
-        and config.reload_classifier
-        and classifier_model is None
-        and paths.classifier_dir is not None
-    ):
-        try:
-            classifier_model = FrameClassifierModel.load(paths.classifier_dir)
-            print(f"Reloaded classifier model from {paths.classifier_dir}.")
-        except FileNotFoundError:
-            classifier_model = None
-        except Exception as exc:  # pragma: no cover - informational only
-            print(f"⚠️ Failed to load classifier model from {paths.classifier_dir}: {exc}")
-            classifier_model = None
-    elif (
-        config.classifier.enabled
-        and config.reload_classifier
-        and classifier_model is None
-        and paths.classifier_dir is None
-    ):
-        print("⚠️ Results directory not provided; skipping classifier model reload.")
+        if (
+            config.classifier.enabled
+            and config.reload_classifier
+            and classifier_model is None
+            and paths.classifier_dir is not None
+        ):
+            try:
+                classifier_model = FrameClassifierModel.load(paths.classifier_dir)
+                print(f"Reloaded classifier model from {paths.classifier_dir}.")
+            except FileNotFoundError:
+                classifier_model = None
+            except Exception as exc:  # pragma: no cover - informational only
+                print(f"⚠️ Failed to load classifier model from {paths.classifier_dir}: {exc}")
+                classifier_model = None
+        elif (
+            config.classifier.enabled
+            and config.reload_classifier
+            and classifier_model is None
+            and paths.classifier_dir is None
+        ):
+            print("⚠️ Results directory not provided; skipping classifier model reload.")
 
     # ============================================================================
     # TRAIN CLASSIFIER (IF NEEDED)
     # ============================================================================
     
-    if schema and assignments and config.classifier.enabled:
+    if config.regenerate_report_only:
+        # Skip classifier training in regenerate mode
+        pass
+    elif schema and assignments and config.classifier.enabled:
         need_training = not classifier_predictions or classifier_model is None
         if need_training:
             print("Training classifier on LLM-labeled passages...")
@@ -1590,7 +1534,21 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
 
     chunk_classification_map: Dict[str, Dict[str, object]] = {}
 
-    if (
+    if config.regenerate_report_only:
+        # In regenerate mode, try to load chunk classifications from cache (optional)
+        if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
+            cached_docs = load_chunk_classifications(paths.chunk_classifications_dir)
+            for payload in cached_docs:
+                doc_id = str(payload.get("doc_id", "")).strip()
+                if not doc_id or doc_id in chunk_classification_map:
+                    continue
+                chunk_classification_map[doc_id] = payload
+            if chunk_classification_map:
+                print(
+                    f"Reloaded chunk classifications for {len(chunk_classification_map)} documents from cache (regenerate mode)."
+                )
+        # Skip classification work in regenerate mode
+    elif (
         config.reload_chunk_classifications
         and paths.chunk_classifications_dir
         and paths.chunk_classifications_dir.exists()
@@ -1623,7 +1581,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 f"Reloaded chunk classifications for {len(chunk_classification_map)} documents from cache."
             )
 
-    if (
+    if config.regenerate_report_only:
+        # Skip classification work in regenerate mode
+        pass
+    elif (
         schema
         and classifier_model
         and desired_doc_total > len(chunk_classification_map)
@@ -1690,24 +1651,6 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # PREPARE DOCUMENT AGGREGATES
     # ============================================================================
     
-    # Load cached document aggregates if available
-    if config.reload_document_aggregates:
-        # Weighted aggregates
-        if paths.weighted_aggregates_file and paths.weighted_aggregates_file.exists():
-            try:
-                document_aggregates_weighted = load_document_aggregates(paths.weighted_aggregates_file)
-                print(f"Loaded weighted aggregates: {len(document_aggregates_weighted)} from {paths.weighted_aggregates_file}.")
-            except Exception as exc:
-                print(f"⚠️ Failed to load weighted aggregates: {exc}")
-
-        # Occurrence aggregates
-        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
-            try:
-                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
-                print(f"Loaded occurrence aggregates: {len(document_aggregates_occurrence)} from {paths.occurrence_aggregates_file}.")
-            except Exception as exc:
-                print(f"⚠️ Failed to load occurrence aggregates: {exc}")
-
     document_aggregates_occurrence: List[DocumentFrameAggregate] = []
 
     if schema and chunk_classifications and not document_aggregates_weighted:
@@ -1729,8 +1672,6 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 trim_after_markers=config.filter_trim_after_markers,
             )
         )
-        if paths.weighted_aggregates_file:
-            save_document_aggregates(paths.weighted_aggregates_file, document_aggregates_weighted)
 
         # Occurrence aggregates (binary presence by threshold)
         occurrence_agg = OccurrenceFrameAggregator(
@@ -1749,133 +1690,19 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 trim_after_markers=config.filter_trim_after_markers,
             )
         )
-        if paths.occurrence_aggregates_file:
-            save_document_aggregates(paths.occurrence_aggregates_file, document_aggregates_occurrence)
-    else:
-        # Attempt to load occurrence aggregates when reloading
-        if paths.occurrence_aggregates_file and paths.occurrence_aggregates_file.exists():
-            try:
-                document_aggregates_occurrence = load_document_aggregates(paths.occurrence_aggregates_file)
-                print(f"Reloaded {len(document_aggregates_occurrence)} occurrence aggregates from {paths.occurrence_aggregates_file}.")
-            except Exception:
-                document_aggregates_occurrence = []
 
-    if schema and document_aggregates_weighted:
-        # Provide a unified structure for downstream logic/reporting
-        aggregates_by_metric: Dict[str, List[DocumentFrameAggregate]] = {
-            "weighted": document_aggregates_weighted,
-            "occurrence": document_aggregates_occurrence,
-        }
+    # ============================================================================
+    # BUILD ALL AGGREGATES
+    # ============================================================================
+    
+    if schema and document_aggregates_weighted and paths.aggregates_dir:
         frame_ids = [frame.frame_id for frame in schema.frames]
-        domain_counts, domain_frame_summaries = _compute_domain_statistics(
+        all_aggregates = build_all_aggregates(
+            paths.aggregates_dir,
             document_aggregates_weighted,
-            frame_ids,
-            top_n=20,
+            document_aggregates_occurrence,
+            frame_ids
         )
-
-        # Compute per-corpus frame shares when unions of corpora are used
-        if len(corpora_map) > 1:
-            # Build lookup from global doc_id -> corpus name
-            doc_to_corpus: Dict[str, str] = {}
-            for payload in chunk_classification_map.values():
-                gid = str(payload.get("doc_id", "")).strip()
-                cname = str(payload.get("corpus", "")).strip()
-                if gid and cname:
-                    doc_to_corpus[gid] = cname
-
-            corpus_state: Dict[str, Dict[str, object]] = {}
-            for aggregate in document_aggregates_weighted:
-                gid = aggregate.doc_id
-                corpus_name, _local = split_global_doc_id(gid)
-                corpus = corpus_name or doc_to_corpus.get(gid)
-                if not corpus:
-                    continue
-                state = corpus_state.setdefault(
-                    corpus,
-                    {
-                        "count": 0,
-                        "weight": 0.0,
-                        "frame_sums": {frame_id: 0.0 for frame_id in frame_ids},
-                    },
-                )
-                state["count"] = int(state["count"]) + 1
-                weight = float(aggregate.total_weight) if aggregate.total_weight else 1.0
-                state["weight"] = float(state["weight"]) + weight
-                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
-                for frame_id in frame_ids:
-                    frame_sums[frame_id] += float(aggregate.frame_scores.get(frame_id, 0.0)) * weight
-
-            corpus_frame_summaries = []
-            for corpus, state in sorted(corpus_state.items()):
-                weight = float(state["weight"])  # type: ignore[arg-type]
-                frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
-                if weight <= 0:
-                    shares = {frame_id: 0.0 for frame_id in frame_ids}
-                else:
-                    shares = {frame_id: frame_sums[frame_id] / weight for frame_id in frame_ids}
-                corpus_frame_summaries.append(
-                    {
-                        "corpus": corpus,
-                        "count": int(state["count"]),
-                        "shares": shares,
-                    }
-                )
-
-    # ============================================================================
-    # BUILD TIME SERIES AND VISUALIZATIONS
-    # ============================================================================
-    
-    # Load cached time series if available
-    if config.reload_time_series and paths.frame_timeseries and paths.frame_timeseries.exists():
-        try:
-            time_series_data = json.loads(paths.frame_timeseries.read_text(encoding="utf-8"))
-            frame_timeseries_records = time_series_data
-            # Convert back to DataFrame for processing
-            if time_series_data:
-                frame_timeseries_df = pd.DataFrame(time_series_data)
-                frame_timeseries_df['date'] = pd.to_datetime(frame_timeseries_df['date']).dt.date
-                print(f"Reloaded time series with {len(frame_timeseries_df)} records from cache.")
-            else:
-                frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-        except Exception as exc:
-            print(f"⚠️ Failed to load time series from cache: {exc}")
-            frame_timeseries_df = pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-            frame_timeseries_records = []
-            
-            
-    # Build time series if we have document aggregates but no cached time series
-    if document_aggregates_weighted and frame_timeseries_df.empty:
-        print("Building time series from document aggregates...")
-        frame_timeseries_df = build_weighted_time_series(document_aggregates_weighted)
-        frame_timeseries_records = time_series_to_records(frame_timeseries_df)
-        if paths.frame_timeseries:
-            save_frame_timeseries(paths.frame_timeseries, frame_timeseries_records)
-    
-    # Set up frame order and labels for visualization
-    if schema:
-        frame_order = [frame.frame_id for frame in schema.frames]
-        frame_labels = {
-            frame.frame_id: frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
-            for frame in schema.frames
-        }
-        if paths.frame_area_chart:
-            result_path = render_frame_area_chart(
-                frame_timeseries_df,
-                frame_order=frame_order,
-                frame_labels=frame_labels,
-                output_path=paths.frame_area_chart,
-                rolling_window=30,  # 30-day running average
-            )
-            if result_path:
-                frame_area_chart_b64 = image_to_base64(result_path)
-        global_frame_share = compute_global_frame_share(document_aggregates_weighted)
-        classified_docs = len(document_aggregates_weighted)
-        sampled_suffix = (
-            f" (sample of {config.classifier_corpus_sample_size})"
-            if config.classifier_corpus_sample_size
-            else ""
-        )
-        print(f"Classifier applied to {classified_docs} documents{sampled_suffix}.")
     else:
         if not schema:
             print("⚠️ Skipping corpus classification because no schema is available.")
@@ -1883,39 +1710,60 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             print("⚠️ Skipping corpus classification because the classifier model is missing.")
 
     # ============================================================================
-    # GENERATE FINAL HTML REPORT
+    # GENERATE REPORT
     # ============================================================================
     
-    if paths.html and schema:
-        classifier_lookup = {item["passage_id"]: item for item in classifier_predictions} if classifier_predictions else None
+    if schema and paths.html and document_aggregates_weighted:
+        # Build classifier lookup for report
+        classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None
+        if classifier_predictions:
+            classifier_lookup = {
+                item["passage_id"]: item
+                for item in classifier_predictions
+                if isinstance(item, dict) and item.get("passage_id")
+            }
+        
+        include_classifier_plots = True if classifier_predictions else False
+        
         write_html_report(
             schema=schema,
-            assignments=display_assignments,
+            assignments=assignments,
             output_path=paths.html,
             classifier_lookup=classifier_lookup,
-            global_frame_share=global_frame_share,
-            timeseries_records=frame_timeseries_records,
             classified_documents=len(document_aggregates_weighted),
             classifier_sample_limit=config.classifier_corpus_sample_size,
-            area_chart_b64=frame_area_chart_b64,
-            include_classifier_plots=True if classifier_predictions else False,
-            domain_counts=domain_counts,
-            domain_frame_summaries=domain_frame_summaries,
+            include_classifier_plots=include_classifier_plots,
             document_aggregates_weighted=document_aggregates_weighted,
             document_aggregates_occurrence=document_aggregates_occurrence,
-            corpus_frame_summaries=corpus_frame_summaries,
+            all_aggregates=all_aggregates,
             hide_empty_passages=config.report.hide_empty_passages,
+            custom_plots=config.report.custom_plots,
             plot_title=config.report.plot.title,
             plot_subtitle=config.report.plot.subtitle,
             plot_note=config.report.plot.note,
             export_plotly_png_dir=(paths.html.parent / "plots"),
         )
+        
         # Publish PNGs and HTML to docs for GitHub Pages
         try:
             _publish_to_docs_assets(paths.html.parent.name, paths.html)
         except Exception as exc:
             print(f"⚠️ Failed to publish docs assets: {exc}")
-        print(f"\nHTML report written to {paths.html}")
+        
+        print(f"\n✅ HTML report written to {paths.html}")
+    else:
+        if not schema:
+            print("⚠️ Cannot generate report: schema is missing.")
+        elif not paths.html:
+            print("⚠️ Cannot generate report: HTML output path is not configured.")
+        elif not document_aggregates_weighted:
+            print("⚠️ Cannot generate report: document aggregates are missing.")
+    
+    # ============================================================================
+    # WORKFLOW COMPLETE
+    # ============================================================================
+    
+    print(f"\n✅ Workflow complete. Aggregates computed and saved to {paths.aggregates_dir}")
 
 
 def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) -> NarrativeFramingConfig:
@@ -1927,8 +1775,6 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.reload_application = True
         config.reload_classifier = True
         config.reload_chunk_classifications = True
-        config.reload_document_aggregates = True
-        config.reload_time_series = True
     if args.reload_induction:
         config.reload_induction = True
     if args.reload_application:
@@ -1937,10 +1783,6 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.reload_classifier = True
     if hasattr(args, 'reload_chunk_classifications') and args.reload_chunk_classifications:
         config.reload_chunk_classifications = True
-    if hasattr(args, 'reload_document_aggregates') and args.reload_document_aggregates:
-        config.reload_document_aggregates = True
-    if hasattr(args, 'reload_time_series') and args.reload_time_series:
-        config.reload_time_series = True
     if args.train_classifier:
         config.classifier.enabled = True
     if args.induction_model:
@@ -1951,7 +1793,7 @@ def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) ->
         config.induction_temperature = args.induction_temperature
     if args.application_temperature is not None:
         config.application_temperature = args.application_temperature
-    if hasattr(args, 'regenerate_report_only') and args.regenerate_report_only:
+    if args.regenerate_report_only:
         config.regenerate_report_only = True
     return config
 
@@ -1975,8 +1817,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Reuse cached per-document chunk classifications",
     )
-    parser.add_argument("--reload-document-aggregates", action="store_true", help="Reuse cached document aggregates")
-    parser.add_argument("--reload-time-series", action="store_true", help="Reuse cached time series data")
     parser.add_argument("--skip-application", action="store_true", help="Skip the frame application step")
     parser.add_argument("--train-classifier", action="store_true", help="Force-enable classifier training")
     parser.add_argument("--regenerate-report-only", action="store_true", help="Skip analysis and regenerate report from cached artifacts")

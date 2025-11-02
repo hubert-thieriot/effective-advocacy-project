@@ -1805,6 +1805,21 @@ html5 = ["html5lib"]
 htmlsoup = ["BeautifulSoup4"]
 
 [[package]]
+name = "lxml-html-clean"
+version = "0.4.3"
+description = "HTML cleaner from lxml project"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "lxml_html_clean-0.4.3-py3-none-any.whl", hash = "sha256:63fd7b0b9c3a2e4176611c2ca5d61c4c07ffca2de76c14059a81a2825833731e"},
+    {file = "lxml_html_clean-0.4.3.tar.gz", hash = "sha256:c9df91925b00f836c807beab127aac82575110eacff54d0a75187914f1bd9d8c"},
+]
+
+[package.dependencies]
+lxml = "*"
+
+[[package]]
 name = "marisa-trie"
 version = "1.3.1"
 description = "Static memory-efficient and fast Trie-like structures for Python."
@@ -5706,4 +5721,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "3c761c11b708724facaf7b7f86271a75c3a36978daea984553deb66ed76c130d"
+content-hash = "f26d18179a9f0a04a2b59d22edf80a73cf5475ccb28be641aab2234db7a76621"

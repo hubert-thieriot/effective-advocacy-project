@@ -8,18 +8,8 @@ from pathlib import Path
 import json
 import time
 
-try:
-    from newspaper import Article
-    NEWSPAPER_AVAILABLE = True
-except ImportError:
-    NEWSPAPER_AVAILABLE = False
-
-try:
-    from bs4 import BeautifulSoup
-    BEAUTIFULSOUP_AVAILABLE = True
-except ImportError:
-    BEAUTIFULSOUP_AVAILABLE = False
-
+from newspaper import Article
+from bs4 import BeautifulSoup
 
 class TextExtractor:
     """Extract text content from various document formats"""
@@ -139,74 +129,72 @@ class TextExtractor:
         extraction_attempts["html_decode"] = f"Success, length: {len(html)}"
         
         # Strategy 1: Try newspaper3k if available
-        if NEWSPAPER_AVAILABLE:
-            try:
-                article = Article(url)
-                article.download(input_html=html)
-                article.parse()
-                text = article.text
-                
-                extraction_attempts["newspaper3k"] = {
-                    "success": True,
-                    "text_length": len(text),
+        try:
+            article = Article(url)
+            article.download(input_html=html)
+            article.parse()
+            text = article.text
+            
+            extraction_attempts["newspaper3k"] = {
+                "success": True,
+                "text_length": len(text),
+                "title": article.title,
+                "authors": article.authors
+            }
+            
+            if self._is_valid_content(text):
+                return {
+                    "text": text,
                     "title": article.title,
-                    "authors": article.authors
+                    "published_at": article.publish_date.isoformat() if article.publish_date else None,
+                    "language": article.meta_lang or "en",
+                    "authors": article.authors or []
                 }
-                
-                if self._is_valid_content(text):
-                    return {
-                        "text": text,
-                        "title": article.title,
-                        "published_at": article.publish_date.isoformat() if article.publish_date else None,
-                        "language": article.meta_lang or "en",
-                        "authors": article.authors or []
-                    }
-                else:
-                    extraction_attempts["newspaper3k"]["validation_failed"] = True
-            except Exception as e:
-                extraction_attempts["newspaper3k"] = {
-                    "success": False,
-                    "error": str(e)
-                }
-                pass  # Fall back to BeautifulSoup
+            else:
+                extraction_attempts["newspaper3k"]["validation_failed"] = True
+        except Exception as e:
+            extraction_attempts["newspaper3k"] = {
+                "success": False,
+                "error": str(e)
+            }
+            pass  # Fall back to BeautifulSoup
         
         # Strategy 2: BeautifulSoup extraction
-        if BEAUTIFULSOUP_AVAILABLE:
-            try:
-                text = self._extract_with_beautifulsoup(html, url)
+        try:
+            text = self._extract_with_beautifulsoup(html, url)
+            
+            # If BeautifulSoup extraction didn't get much content, try JavaScript paywall handling
+            if not text or len(text) < 1000:
+                text = self._extract_before_javascript_paywall(html, url)
+            
+            extraction_attempts["beautifulsoup"] = {
+                "success": True,
+                "text_length": len(text)
+            }
+            
+            # If we got substantial text, return it even if validation fails
+            if text and len(text) > 500:  # Lower threshold for substantial content
+                # Try to extract published date from both HTML and JSON-LD
+                published_at = self._extract_published_date_from_html(html)
+                if not published_at and BEAUTIFULSOUP_AVAILABLE:
+                    soup = BeautifulSoup(html, 'html.parser')
+                    published_at = self._extract_published_date_from_json_ld(soup)
                 
-                # If BeautifulSoup extraction didn't get much content, try JavaScript paywall handling
-                if not text or len(text) < 1000:
-                    text = self._extract_before_javascript_paywall(html, url)
-                
-                extraction_attempts["beautifulsoup"] = {
-                    "success": True,
-                    "text_length": len(text)
+                return {
+                    "text": text,
+                    "title": self._extract_title_from_html(html),
+                    "published_at": published_at,
+                    "language": "en",  # Would need language detection
+                    "authors": []  # Would need author extraction
                 }
-                
-                # If we got substantial text, return it even if validation fails
-                if text and len(text) > 500:  # Lower threshold for substantial content
-                    # Try to extract published date from both HTML and JSON-LD
-                    published_at = self._extract_published_date_from_html(html)
-                    if not published_at and BEAUTIFULSOUP_AVAILABLE:
-                        soup = BeautifulSoup(html, 'html.parser')
-                        published_at = self._extract_published_date_from_json_ld(soup)
-                    
-                    return {
-                        "text": text,
-                        "title": self._extract_title_from_html(html),
-                        "published_at": published_at,
-                        "language": "en",  # Would need language detection
-                        "authors": []  # Would need author extraction
-                    }
-                else:
-                    extraction_attempts["beautifulsoup"]["validation_failed"] = True
-            except Exception as e:
-                extraction_attempts["beautifulsoup"] = {
-                    "success": False,
-                    "error": str(e)
-                }
-                pass
+            else:
+                extraction_attempts["beautifulsoup"]["validation_failed"] = True
+        except Exception as e:
+            extraction_attempts["beautifulsoup"] = {
+                "success": False,
+                "error": str(e)
+            }
+            pass
         
         # Strategy 3: Basic regex-based extraction
         try:

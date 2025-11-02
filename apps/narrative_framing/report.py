@@ -786,54 +786,6 @@ def _render_occurrence_by_year(
     return _render_plotly_fragment("occurrence-by-year-chart", traces, layout, export_png_path=export_png_path)
 
 
-def _plot_confusion_matrix(
-    assignments: Sequence[FrameAssignment],
-    frame_ids: List[str],
-    frame_names: Dict[str, str],
-    threshold: float = 0.5,
-    classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None,
-) -> str:
-    """Create a confusion matrix heatmap for frame predictions."""
-    # Create binary labels for each frame
-    y_true_all = []
-    y_pred_all = []
-    
-    for frame_id in frame_ids:
-        y_true = []
-        y_pred = []
-        
-        for assignment in assignments:
-            true_label = 1 if frame_id in assignment.top_frames else 0
-            if classifier_lookup is not None:
-                pred_entry = classifier_lookup.get(assignment.passage_id)
-                prob = 0.0
-                if pred_entry and isinstance(pred_entry.get("probabilities"), dict):
-                    prob = float(pred_entry["probabilities"].get(frame_id, 0.0))  # type: ignore[index]
-            else:
-                prob = assignment.probabilities.get(frame_id, 0.0)
-            pred_label = 1 if prob >= threshold else 0
-            y_true.append(true_label)
-            y_pred.append(pred_label)
-        
-        y_true_all.extend(y_true)
-        y_pred_all.extend(y_pred)
-    
-    # Create confusion matrix
-    cm = confusion_matrix(y_true_all, y_pred_all)
-    
-    # Plot heatmap
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                xticklabels=['Predicted Negative', 'Predicted Positive'],
-                yticklabels=['Actual Negative', 'Actual Positive'])
-    ax.set_title('Confusion Matrix (All Frames Combined)', fontsize=14, fontweight='bold')
-    ax.set_xlabel('Predicted Label', fontsize=12)
-    ax.set_ylabel('True Label', fontsize=12)
-    
-    plt.tight_layout()
-    return _fig_to_base64(fig)
-
-
 def _plot_roc_curves(
     assignments: Sequence[FrameAssignment],
     frame_ids: List[str],
@@ -886,78 +838,6 @@ def _plot_roc_curves(
     return _fig_to_base64(fig)
 
 
-def _plot_performance_dashboard(metrics: Dict[str, Dict[str, float]], frame_names: Dict[str, str], color_map: Dict[str, str]) -> str:
-    """Create a comprehensive performance dashboard."""
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
-    
-    frames = list(metrics.keys())
-    labels = [frame_names.get(f, f) for f in frames]
-    colors = [color_map.get(f, '#4F8EF7') for f in frames]
-    
-    # F1 scores
-    f1_scores = [metrics[f]['f1'] for f in frames]
-    bars1 = ax1.bar(range(len(frames)), f1_scores, color=colors, alpha=0.8)
-    ax1.set_xticks(range(len(frames)))
-    ax1.set_xticklabels(labels, rotation=45, ha='right')
-    ax1.set_ylabel('F1 Score', fontsize=12)
-    ax1.set_title('F1 Scores by Frame', fontsize=14, fontweight='bold')
-    ax1.set_ylim(0, 1)
-    ax1.grid(axis='y', alpha=0.3)
-    
-    # Add value labels
-    for bar, val in zip(bars1, f1_scores):
-        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01, f'{val:.2f}',
-                ha='center', va='bottom', fontsize=9, fontweight='bold')
-    
-    # AUC scores
-    auc_scores = [metrics[f]['auc'] for f in frames]
-    bars2 = ax2.bar(range(len(frames)), auc_scores, color=colors, alpha=0.8)
-    ax2.set_xticks(range(len(frames)))
-    ax2.set_xticklabels(labels, rotation=45, ha='right')
-    ax2.set_ylabel('AUC Score', fontsize=12)
-    ax2.set_title('AUC Scores by Frame', fontsize=14, fontweight='bold')
-    ax2.set_ylim(0, 1)
-    ax2.grid(axis='y', alpha=0.3)
-    
-    # Add value labels
-    for bar, val in zip(bars2, auc_scores):
-        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01, f'{val:.2f}',
-                ha='center', va='bottom', fontsize=9, fontweight='bold')
-    
-    # Precision vs Recall scatter
-    precisions = [metrics[f]['precision'] for f in frames]
-    recalls = [metrics[f]['recall'] for f in frames]
-    ax3.scatter(recalls, precisions, c=colors, s=100, alpha=0.8, edgecolors='black', linewidth=1)
-    
-    # Add frame labels
-    for i, label in enumerate(labels):
-        ax3.annotate(label, (recalls[i], precisions[i]), 
-                    xytext=(5, 5), textcoords='offset points', fontsize=9)
-    
-    ax3.set_xlabel('Recall', fontsize=12)
-    ax3.set_ylabel('Precision', fontsize=12)
-    ax3.set_title('Precision vs Recall', fontsize=14, fontweight='bold')
-    ax3.set_xlim(0, 1)
-    ax3.set_ylim(0, 1)
-    ax3.grid(alpha=0.3)
-    
-    # Support (number of positive examples)
-    supports = [metrics[f]['support'] for f in frames]
-    bars4 = ax4.bar(range(len(frames)), supports, color=colors, alpha=0.8)
-    ax4.set_xticks(range(len(frames)))
-    ax4.set_xticklabels(labels, rotation=45, ha='right')
-    ax4.set_ylabel('Support (Positive Examples)', fontsize=12)
-    ax4.set_title('Support by Frame', fontsize=14, fontweight='bold')
-    ax4.grid(axis='y', alpha=0.3)
-    
-    # Add value labels
-    for bar, val in zip(bars4, supports):
-        ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, f'{int(val)}',
-                ha='center', va='bottom', fontsize=9, fontweight='bold')
-    
-    plt.tight_layout()
-    return _fig_to_base64(fig)
-
 
 def _plot_domain_counts_bar(domain_counts: Sequence[Tuple[str, int]]) -> str:
     if not domain_counts:
@@ -986,52 +866,6 @@ def _plot_domain_counts_bar(domain_counts: Sequence[Tuple[str, int]]) -> str:
     return _fig_to_base64(fig)
 
 
-def _plot_domain_frame_facets(
-    domain_frame_summaries: Sequence[Dict[str, object]],
-    frame_lookup: Dict[str, Dict[str, str]],
-    color_map: Dict[str, str],
-) -> str:
-    if not domain_frame_summaries:
-        return ""
-
-    frame_ids = list(frame_lookup.keys())
-    frame_labels = [frame_lookup[fid]["short"] for fid in frame_ids]
-    colors = [color_map.get(fid, "#4F8EF7") for fid in frame_ids]
-
-    total_domains = len(domain_frame_summaries)
-    cols = min(5, max(1, int(math.ceil(math.sqrt(total_domains)))))
-    rows = int(math.ceil(total_domains / cols))
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3.4, rows * 2.8))
-    axes_array = np.atleast_1d(axes).flatten()
-
-    for ax in axes_array[total_domains:]:
-        ax.axis("off")
-
-    for idx, summary in enumerate(domain_frame_summaries):
-        ax = axes_array[idx]
-        shares = summary.get("shares", {})
-        values = [float(shares.get(fid, 0.0)) for fid in frame_ids]
-        ax.bar(range(len(frame_ids)), values, color=colors, alpha=0.9)
-        ymax = max(values) if values else 0.0
-        if ymax <= 0:
-            upper = 1.0
-        else:
-            upper = min(1.0, ymax * 1.15) if ymax < 1.0 else ymax * 1.05
-        upper = max(0.1, upper)
-        ax.set_ylim(0, upper)
-        ax.set_xticks(range(len(frame_ids)))
-        ax.set_xticklabels(frame_labels, rotation=45, ha="right", fontsize=7)
-        count = summary.get("count")
-        subtitle = summary.get("domain", "")
-        if count is not None:
-            subtitle = f"{subtitle}\n(n={count})"
-        ax.set_title(subtitle, fontsize=9)
-        ax.grid(axis="y", alpha=0.2)
-
-    fig.suptitle("Frame distribution across top domains", fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
-    return _fig_to_base64(fig)
-
 
 def _fig_to_base64(fig) -> str:
     """Convert matplotlib figure to base64 string."""
@@ -1041,35 +875,6 @@ def _fig_to_base64(fig) -> str:
     image_base64 = base64.b64encode(buffer.getvalue()).decode()
     plt.close(fig)
     return image_base64
-
-
-def _generate_metrics_table_rows(
-    metrics: Dict[str, Dict[str, float]],
-    frame_names: Dict[str, str],
-    *,
-    include_f1: bool = True,
-) -> str:
-    """Generate HTML table rows for metrics display."""
-    rows = []
-    for frame_id, frame_metrics in metrics.items():
-        frame_name = frame_names.get(frame_id, frame_id)
-        cells = [
-            "<tr>",
-            f"<td>{html.escape(frame_name)}</td>",
-            f"<td>{frame_metrics['precision']:.3f}</td>",
-            f"<td>{frame_metrics['recall']:.3f}</td>",
-        ]
-        if include_f1:
-            cells.append(f"<td>{frame_metrics['f1']:.3f}</td>")
-        cells.extend(
-            [
-                f"<td>{frame_metrics['auc']:.3f}</td>",
-                f"<td>{int(frame_metrics['support'])}</td>",
-                "</tr>",
-            ]
-        )
-        rows.append("".join(cells))
-    return "".join(rows)
 
 
 def _render_probability_bars(
@@ -1344,73 +1149,6 @@ def _render_plotly_timeseries_lines(
 
     return _render_plotly_fragment("time-series-lines-chart", traces, layout)
 
-
-def _render_plotly_timeseries_abs_lines(
-    records: Optional[Sequence[Dict[str, object]]],
-    frame_lookup: Dict[str, Dict[str, str]],
-    color_map: Dict[str, str],
-) -> str:
-    """Line chart using absolute (average) frame scores per day, smoothed 30-day."""
-    if not records:
-        return ""
-
-    series: Dict[str, List[Tuple[str, float]]] = {}
-    for item in records:
-        frame_id = str(item.get("frame_id"))
-        date_value = item.get("date")
-        if not frame_id or not date_value:
-            continue
-        try:
-            value = float(item.get("avg_score", 0.0))
-        except (TypeError, ValueError):
-            value = 0.0
-        series.setdefault(frame_id, []).append((str(date_value), value))
-
-    if not series:
-        return ""
-
-    traces: List[Dict[str, object]] = []
-    for frame_id, points in series.items():
-        points.sort(key=lambda entry: entry[0])
-        dates = [entry[0] for entry in points]
-        values = [entry[1] for entry in points]
-        if len(points) > 1:
-            df = pd.DataFrame({"date": dates, "value": values})
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            df = df.dropna(subset=["date"]).sort_values("date")
-            if df.empty:
-                continue
-            df["smooth"] = df["value"].rolling(window=30, min_periods=1).mean()
-            x_vals = df["date"].dt.strftime("%Y-%m-%d").tolist()
-            y_vals = df["smooth"].clip(0, 1).round(4).tolist()
-        else:
-            x_vals = dates
-            y_vals = [round(max(min(v, 1.0), 0.0), 4) for v in values]
-
-        label = frame_lookup.get(frame_id, {}).get("short") or frame_lookup.get(frame_id, {}).get("name") or frame_id
-        color = color_map.get(frame_id, "#1E3D58")
-        traces.append(
-            {
-                "type": "scatter",
-                "mode": "lines",
-                "name": label,
-                "x": x_vals,
-                "y": y_vals,
-                "line": {"color": color, "width": 2},
-                "hovertemplate": "%{x}<br>%{y:.3f}<extra>" + label + "</extra>",
-            }
-        )
-
-    layout = {
-        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
-        "yaxis": {"title": "Average Score", "range": [0, 1]},
-        "xaxis": {"title": "Date"},
-        "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
-        "hovermode": "x unified",
-        "height": 520,
-    }
-
-    return _render_plotly_fragment("time-series-abs-lines-chart", traces, layout)
 
 
 def _render_plotly_total_docs_timeseries(
@@ -2371,121 +2109,6 @@ def write_html_report(
         </section>
         """
 
-    # Classifier distribution charts (or occurrence-based shares if provided)
-    classifier_percentage_section_html = ""
-    classifier_by_year_section_html = ""
-    frames_as_dicts = [
-        {"frame_id": f.frame_id, "name": f.name, "short": f.short_name}
-        for f in schema.frames
-    ]
-    if document_aggregates_occurrence:
-        # Use occurrence document aggregates to show share of articles mentioning each frame
-        chart_title = plot_title or "Sources of air pollution mentioned in Media"
-        base_subtitle = plot_subtitle or "Share of articles that mention each source"
-        subtitle_text = (base_subtitle.format(n_articles=classified_documents) if base_subtitle else None)
-        classifier_pct_html = _render_occurrence_percentage_bars(
-            list(document_aggregates_occurrence), frames_as_dicts, color_map,
-            title=chart_title, subtitle=subtitle_text,
-            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
-            export_png_path=(export_dir / "occurrence_share.png") if export_dir else None,
-        )
-        if classifier_pct_html:
-            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
-            heading_html = (
-                f"<div class=\"chart-heading\">"
-                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
-                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
-                + "</div>"
-            )
-            explanation = '<p class="chart-explanation" style="margin-bottom: 16px;"><strong>Note:</strong> These charts show <em>occurrence</em> metrics (share of articles mentioning each frame), not weighted by content length. Each article counts equally regardless of size.</p>'
-            classifier_percentage_section_html = f"""
-        <section class=\"report-section\" id=\"classifier-percentage\">
-            <div class=\"section-body\">
-                {heading_html}
-                {explanation}
-                {classifier_pct_html}
-                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
-            </div>
-        </section>
-        """
-
-        classifier_year_html = _render_occurrence_by_year(
-            list(document_aggregates_occurrence), frames_as_dicts, color_map,
-            title=chart_title, subtitle=subtitle_text,
-            caption=(plot_note.format(n_articles=classified_documents) if plot_note else None),
-            export_png_path=(export_dir / "occurrence_by_year.png") if export_dir else None,
-        )
-        if classifier_year_html:
-            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
-            heading_html = (
-                f"<div class=\"chart-heading\">"
-                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
-                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
-                + "</div>"
-            )
-            classifier_by_year_section_html = f"""
-        <section class=\"report-section\" id=\"classifier-by-year\">
-            <div class=\"section-body\">
-                {heading_html}
-                {classifier_year_html}
-                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
-            </div>
-        </section>
-        """
-    elif assignments and classifier_lookup:
-        
-        # Chart titles and subtitles
-        chart_title = plot_title or "Sources of air pollution mentioned in Media"
-        base_subtitle = plot_subtitle or "Normalised percentage of mentions in air pollution related articles over 2020-2025 in Jakarta"
-        subtitle_text = (base_subtitle.format(n_articles=classified_documents) if base_subtitle else None)
-        
-        classifier_pct_html = _render_plotly_classifier_percentage_bars(
-            assignments, frames_as_dicts, color_map, classifier_lookup, 
-            threshold=metrics_threshold,
-            title=None,
-            subtitle=None
-        )
-        if classifier_pct_html:
-            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
-            heading_html = (
-                f"<div class=\"chart-heading\">"
-                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
-                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
-                + "</div>"
-            )
-            classifier_percentage_section_html = f"""
-        <section class=\"report-section\" id=\"classifier-percentage\">
-            <div class=\"section-body\">
-                {heading_html}
-                {classifier_pct_html}
-                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
-            </div>
-        </section>
-        """
-
-        classifier_year_html = _render_plotly_classifier_by_year(
-            assignments, frames_as_dicts, color_map, classifier_lookup, 
-            threshold=metrics_threshold,
-            title=None,
-            subtitle=None
-        )
-        if classifier_year_html:
-            chart_note = plot_note.format(n_articles=classified_documents) if plot_note else f"Note: based on the analysis of {classified_documents:,} articles."
-            heading_html = (
-                f"<div class=\"chart-heading\">"
-                f"<div class=\"chart-title\">{html.escape(chart_title)}</div>"
-                + (f"<div class=\"chart-subtitle\">{html.escape(subtitle_text)}</div>" if subtitle_text else "")
-                + "</div>"
-            )
-            classifier_by_year_section_html = f"""
-        <section class=\"report-section\" id=\"classifier-by-year\">
-            <div class=\"section-body\">
-                {heading_html}
-                {classifier_year_html}
-                <p class=\"chart-note\" style=\"margin-top: 6px; font-style: normal; color: #777;\">{chart_note}</p>
-            </div>
-        </section>
-        """
 
     # Build new aggregation charts from all_aggregates
     aggregation_charts_html = ""
@@ -2745,7 +2368,7 @@ def write_html_report(
                         heading_html += f'<div class="chart-subtitle">{html.escape(plot_subtitle)}</div>'
                     heading_html += "</div>"
                 
-                caption_html = f'<p class="chart-note">{html.escape(plot_caption)}</p>' if plot_caption else ""
+                caption_html = f'<p class="chart-note">{plot_caption}</p>' if plot_caption else ""
                 
                 custom_charts.append(
                     '<div class="chart-item">'
@@ -3175,7 +2798,7 @@ def write_html_report(
       font-size: 0.9rem;
       color: var(--ink-500);
       font-weight: 200;
-    }}
+      color: #777;    }}
     .chart-item {{
       margin: 24px 0;
     }}
@@ -3366,8 +2989,6 @@ def write_html_report(
     {aggregation_charts_html}
     {domain_analysis_html}
     {custom_section_html}
-    {classifier_percentage_section_html}
-    {classifier_by_year_section_html}
     {top_stories_section_html}
     {developer_section_html}
   </div>

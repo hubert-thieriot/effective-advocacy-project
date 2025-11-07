@@ -5,7 +5,7 @@ description: Exploring Tools for Effective Advocacy
 ---
 # Narrative Framing for **Air Pollution** and **Animal Welfare**
 
-<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. media, TV news articles, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
+<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
 
 This post includes two illustrative examples: one on air pollution in Indonesia and one on animal welfare in Canada.
 </div>
@@ -27,23 +27,61 @@ Narrative framing analyses could serve multiple purposes:
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this example, I was interested in tracking how Indonesia media talk about air pollution, especially which sources of air pollution are mentioned more than others. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies.
+In this example, I am interested in tracking how Indonesia media talk about air pollution, especially which sources of air pollution are mentioned more than others. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies.
 
 
-Using MediaCloud and Scrapy, I identified and scraped 15,000 media articles dating from January 2020 to October 2025 in Indonesian media that cover air pollution in Jakarta. Most of the articles were in Bahasa Indonesia.
+Leveraging MediaCloud and Scrapy, the tool identified and scraped 15,000 media articles dating from January 2020 to October 2025 in Indonesian media that cover air pollution in Jakarta. Most of the articles were in Bahasa Indonesia.
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">Article Volume Over Time</div>
-    <div class="chart-subtitle">Articles per day (30-day avg)</div>
+    <div class="chart-title">Varying attention to the air pollution in Jakarta</div>
+    <div class="chart-subtitle">Number of articles per day - 30-day window average</div>
   </div>
   <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/article_volume_over_time.html" style="width: 100%; height: 450px; border: none;"></iframe>
+  <p class="chart-note">
+    <strong>Data Source:</strong> Articles are collected from MediaCloud collection "Indonesia - National" using the keywords: "air pollution" OR "air quality" OR "polusi udara" OR "kualitas udara". Articles are further filtered to include only those mentioning Jakarta, DKI, ibukota, or jabodetabek.
+  </p>
+</div>
+
+We now move on to analysing how each article refers (or not) to each air pollution source. The process involves five steps (for more details, see [Methodology section below](#method-overview)):
+
+```mermaid
+flowchart LR
+    A[Chunking] --> B[Frame Induction]
+    B --> C[Frame Annotation]
+    C --> D[Model Training]
+    D --> E[Classification]
+    E --> F[Aggregation]
+    
+    style A fill:#6366f1,stroke:#4f46e5,stroke-width:1px,color:#fff
+    style B fill:#3b82f6,stroke:#1e40af,stroke-width:1px,color:#fff
+    style C fill:#10b981,stroke:#059669,stroke-width:1px,color:#fff
+    style D fill:#f59e0b,stroke:#d97706,stroke-width:1px,color:#fff
+    style E fill:#8b5cf6,stroke:#7c3aed,stroke-width:1px,color:#fff
+    style F fill:#2dd4bf,stroke:#14b8a6,stroke-width:1px,color:#fff
+```
+
+We split articles into smaller segments of approximately 200 words using linguistic models (**chunking**). This respects sentence boundaries and preserves semantic coherence, allowing us to detect multiple frames within a single article rather than treating each article as a single unit.
+
+Using an LLM, we then identify what frames exist in the corpus by examining a sample of text chunks. This is the **frame induction** step. This can be done with minimal guidance (letting the model discover frames) or with specific guidance to address a research question. For this analysis, we provided guidance focusing on air pollution sources, which led to eight frames. The LLM builds descriptions, semantic cues, and keywords for each frame to guide the following steps. After providing some minimal guidance to the Frame inducer, we obtained the following frame definitions:
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frames used for classifying air pollution sources in Indonesian media</div>
+    <div class="chart-subtitle">Definitions for each frame category as determined in model induction and applied in this analysis</div>
+  </div>
+{% include narrative_framing/indonesia_airpollution/frames_light.html %}
+<div class="chart-note">
+    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on identifying distinct air pollution sources.
+  </div>
 </div>
 
 
 
+Once we have identified the frames, we can **annotate** a training dataset using a lighter LLM (GPT4.1-mini in our case) and **train** a BERT-like classifier on it (we used [indobenchmark/indobert-base-p1](https://huggingface.co/indobenchmark/indobert-base-p1) in this example). In the final step, we **classify** each chunk of our corpus and **aggregate** per article-year-or-domain based on frames weight and chunks length.
 
-Transport emissions dominate coverage (41% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next with a score of 8.5% articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution.
+
+The results are shown in the figure below. Transport emissions dominate coverage reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -54,53 +92,88 @@ Transport emissions dominate coverage (41% of articles), reflecting Jakarta's he
   <p class="chart-note">
     <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of Indonesian media articles. Articles are included if they mention Jakarta, DKI, ibukota, or jabodetabek and contain keywords related to air pollution. Each source category (vehicles, industry, forest fires, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>
-    <strong>Data Sources:</strong> The list of articles is retrieved from Media Cloud. Content has been scraped and processed locally for analysis.
+    <strong>Data Sources:</strong> The list of articles is retrieved from MediaCloud. Content has been scraped and processed locally for analysis.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
 </div>
 
 
-### Frames
-
-| Frame | Description | Key Keywords | Share |
-|-------|-------------|--------------|-------|
-| **Transport Emissions** | Vehicle emissions from cars, motorcycles, buses, trucks, and road traffic | kendaraan bermotor, lalu lintas, emisi kendaraan, uji emisi | 41.1% |
-| **Natural Factors** | Meteorological and seasonal factors affecting air quality (weather patterns, El Niño, rainfall) | cuaca, angin, musim kemarau, El Nino, curah hujan rendah | 8.5% |
-| **Industrial Emissions** | Factory and manufacturing emissions, including smelters, steel, and cement production | pabrik, industri, smelter, industri baja, industri semen | 6.3% |
-| **Power Plant Emissions** | Coal-fired and fossil-fuel power plant emissions | PLTU, pembangkit listrik, coal-fired power plant | 3.3% |
-| **Biomass Burning** | Agricultural fires, forest fires, and land clearing through burning | pembakaran lahan, kebakaran hutan, pembakaran biomassa | 2.1% |
-| **Waste Burning** | Open burning of municipal waste and landfill fires | pembakaran sampah, open burning, landfill fire | 1.9% |
-| **Household Emissions** | Household cooking and heating using fossil fuels or biomass | pembakaran rumah tangga, kompor kayu, bahan bakar padat | 0.5% |
-| **Construction Dust** | Construction activities, roadworks, and resuspended dust | debu konstruksi, pembangunan, road dust, pekerjaan jalan | 0.4% |
-
-*Note: Percentages represent the share of articles that discuss each frame (occurrence-based, threshold ≥0.2). Articles can discuss multiple frames.*
 
 
 ### Media outlets breakdown
 
-The analysis reveals how different media outlets frame air pollution sources. Some outlets emphasize certain pollution sources more than others, which can inform advocacy targeting and messaging strategies.
+The analysis can also reveal how different media outlets frame air pollution sources. Some outlets emphasize certain pollution sources more than others, which could potentially inform advocacy targeting and messaging strategies.
 
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">Frame distribution across media outlets</div>
     <div class="chart-subtitle">Share of each pollution source frame by media outlet, weighted by content length</div>
   </div>
-  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.html" style="width: 100%; height: 900px; border: none;"></iframe>
+  {% include narrative_framing/indonesia_airpollution/domain_frame_distribution.html %}
+  <p class="chart-note">
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
+  </p>
 </div>
 
 
 
 ## Example 2: Animal welfare in Canada
 
+In this example, I am interested in tracking how Canadian media (English and French) discuss meat production and consumption, focusing on distinct ways of interpreting or evaluating the issue—what aspects of meat are being problematized, justified, or reimagined.
+
+Using an LLM, we identify what frames exist in the corpus by examining a sample of text chunks. This is the **frame induction** step. For this analysis, we provided guidance focusing on distinct angles of meat coverage (factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks), which led to six frames. The LLM builds descriptions, semantic cues, and keywords for each frame to guide the following steps. After providing guidance to the Frame inducer, we obtained the following frame definitions:
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frames used for classifying meat coverage in Canadian media</div>
+    <div class="chart-subtitle">Definitions for each frame category as determined in model induction and applied in this analysis</div>
+  </div>
+  {% include narrative_framing/canada_meat/frames_light.html %}
+  <div class="chart-note">
+    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on identifying distinct angles of meat coverage in Canadian media.
+  </div>
+</div>
+
+Once we have identified the frames, we can **annotate** a training dataset using a lighter LLM (GPT4.1-mini in our case) and **train** a BERT-like classifier on it (we used [distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased) in this example). In the final step, we **classify** each chunk of our corpus and **aggregate** per article-year-or-domain based on frames weight and chunks length.
+
+The results are shown in the figure below.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">How Canadian media frames meat production and consumption</div>
+    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2021 in Canadian media (English and French), weighted by content length.</div>
+  </div>
+  <iframe src="{{ site.baseurl }}/assets/narrative_framing/canada_meat/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
+  <p class="chart-note">
+    <strong>Note:</strong> The analysis identifies meat-related frames through natural language processing of Canadian media articles. Articles are included if they contain keywords related to meat ("meat" in English or "viande" in French). Each frame category (factory farming, animal suffering, plant-based alternatives, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each frame across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
+    <br><br>
+    <strong>Data Sources:</strong> The list of articles is retrieved from MediaCloud collection "Canada - National". Content has been scraped and processed locally for analysis.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
+  </p>
+</div>
+
+### Media outlets breakdown
+
+The analysis can also reveal how different media outlets frame meat production and consumption. Some outlets emphasize certain frames more than others, which could potentially inform advocacy targeting and messaging strategies.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frame distribution across media outlets</div>
+    <div class="chart-subtitle">Share of each frame by media outlet, weighted by content length</div>
+  </div>
+  {% include narrative_framing/canada_meat/domain_frame_distribution.html %}
+  <p class="chart-note">
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
+  </p>
+</div>
 
 
 
 ## Method overview
 
 The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible LLM exploration to discover and annotate narrative frames, then scale up with a fine-tuned transformer classifier. This balances domain adaptability (frames tailored to each question and context) with computational efficiency (fast inference over large corpora).
-
-
-
-
 
 
 
@@ -346,6 +419,7 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
   </ul>
   
   <p>Our approach uses LLMs to capture semantic meaning, then scales it with a classifier—combining the flexibility of language understanding with the efficiency needed for large-scale analysis.</p>
+
 </div>
 
 ---

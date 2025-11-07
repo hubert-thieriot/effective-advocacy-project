@@ -956,11 +956,11 @@ def _render_plotly_fragment(
                         "font": {"size": 18, "color": "#333"},
                     })
                     safe_layout["annotations"] = anns
-                # Update layout for PNG export: white background, Inter font, higher resolution
+                # Update layout for PNG export: transparent background, Inter font, higher resolution
                 export_layout = copy.deepcopy(safe_layout) if isinstance(safe_layout, dict) else dict(safe_layout)
                 export_layout.update({
-                    "plot_bgcolor": "white",
-                    "paper_bgcolor": "white",
+                    "plot_bgcolor": "rgba(0,0,0,0)",
+                    "paper_bgcolor": "rgba(0,0,0,0)",
                     "font": {
                         "family": "Inter, 'Segoe UI', sans-serif",
                         "size": 12,
@@ -1535,6 +1535,7 @@ def _render_domain_frame_distribution(
     color_map: Dict[str, str],
     *,
     export_png_path: Optional[Path] = None,
+    export_html_path: Optional[Path] = None,
 ) -> str:
     """Render frame distribution across top domains as a Plotly chart with subplots."""
     if not domain_frame_summaries:
@@ -1601,7 +1602,7 @@ def _render_domain_frame_distribution(
         rows=rows,
         cols=cols,
         subplot_titles=[domain for domain in domains],
-        vertical_spacing=0.05,
+        vertical_spacing=0.05,  # Reduced spacing between subplots
         horizontal_spacing=0.05,
         shared_xaxes=True,
         shared_yaxes=True,  # Share y-axes for easier comparison
@@ -1662,23 +1663,26 @@ def _render_domain_frame_distribution(
     
     # Update layout - smaller fonts, horizontal legend at top with more space
     fig.update_layout(
-        height=max(400, rows * 180),
-        margin={"t": 80, "b": 40, "l": 40, "r": 20},  # Extra top margin for legend
+        height=max(500, rows * 160),  # Reduced base height per row
+        margin={"t": 120, "b": 40, "l": 40, "r": 20},  # Much more top margin for legend
         showlegend=True,
+        plot_bgcolor="rgba(0,0,0,0)",  # Transparent plot background
+        paper_bgcolor="rgba(0,0,0,0)",  # Transparent paper background
         legend={
             "orientation": "h",
             "yanchor": "top",
-            "y": 1.0,
+            "y": 1.1,  # Position above the plot area
             "x": 0.5,
             "xanchor": "center",
             "font": {"size": 9},
             "itemwidth": 30,
+            "tracegroupgap": 5,
         },
         font={"size": 10},
     )
     
-    # Update subplot titles to smaller font
-    fig.update_annotations(font_size=9)
+    # Update subplot titles to smaller font and adjust position
+    fig.update_annotations(font_size=9, yshift=-10)  # Shift titles down a bit
     
     # Add y=0 line (x-axis) to all subplots and update axes
     for i in range(1, rows + 1):
@@ -1693,8 +1697,8 @@ def _render_domain_frame_distribution(
                     showgrid=True,
                     gridcolor="#eef2f9",
                     zeroline=True,
-                    zerolinecolor="#333333",
-                    zerolinewidth=1.5,
+                    zerolinecolor="#d3dce7",
+                    zerolinewidth=0.5,
                     range=[-0.05, None],  # Slight negative range to ensure zeroline is visible
                 )
                 # Update x-axis: no title, no labels, smaller font
@@ -1705,8 +1709,55 @@ def _render_domain_frame_distribution(
                     col=j,
                 )
     
+    # Export HTML for Jekyll includes if requested
+    if export_html_path and _PLOTLY_AVAILABLE:
+        try:
+            export_html_path.parent.mkdir(parents=True, exist_ok=True)
+            # Generate unique div_id from export path to avoid collisions
+            # Extract parent directory name (e.g., "indonesia_airpollution" or "canada_meat")
+            parent_dir = export_html_path.parent.name
+            unique_div_id = f"domain-frame-distribution-{parent_dir.replace('_', '-')}"
+            # Create self-supporting HTML with embedded Plotly for Jekyll include
+            html_content = fig.to_html(
+                include_plotlyjs='cdn',
+                div_id=unique_div_id,
+                config={"displayModeBar": False, "responsive": True}
+            )
+            # Inject CSS for font styling to match report
+            css_injection = """
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .plotly {
+            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+        }
+    </style>
+"""
+            # Insert CSS before closing </head> tag
+            if '</head>' in html_content:
+                html_content = html_content.replace('</head>', css_injection + '</head>')
+            else:
+                if '<body' in html_content:
+                    html_content = html_content.replace('<body', css_injection + '<body')
+                else:
+                    html_content = css_injection + html_content
+            export_html_path.write_text(html_content, encoding="utf-8")
+        except Exception as exc:
+            if not _PLOTLY_WARNED.get("html_export"):
+                print(f"⚠️ Plotly HTML export failed for domain-frame-distribution: {exc}")
+                _PLOTLY_WARNED["html_export"] = True
+    
     # Convert to HTML fragment
-    return _render_plotly_fragment_from_figure(fig, "domain-frame-distribution", export_png_path=export_png_path)
+    # Generate unique div_id for fragment rendering (use a default if no export path)
+    fragment_div_id = "domain-frame-distribution"
+    if export_html_path:
+        parent_dir = export_html_path.parent.name
+        fragment_div_id = f"domain-frame-distribution-{parent_dir.replace('_', '-')}"
+    return _render_plotly_fragment_from_figure(fig, fragment_div_id, export_png_path=export_png_path)
 
 
 def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optional[Path] = None) -> str:
@@ -1717,10 +1768,10 @@ def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optio
             export_png_path = _safe_export_path(export_png_path, div_id=div_id)
             export_png_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Update layout for PNG export: white background, Inter font, higher resolution
+            # Update layout for PNG export: transparent background, Inter font, higher resolution
             export_layout = {
-                "plot_bgcolor": "white",
-                "paper_bgcolor": "white",
+                "plot_bgcolor": "rgba(0,0,0,0)",
+                "paper_bgcolor": "rgba(0,0,0,0)",
                 "font": {
                     "family": "Inter, 'Segoe UI', sans-serif",
                     "size": 12,
@@ -1891,6 +1942,164 @@ def _collect_top_stories_by_frame(
     return top_stories
 
 
+def export_frames_html(
+    schema: FrameSchema,
+    induction_guidance: Optional[str] = None,
+    export_path: Optional[Path] = None,
+    light_mode: bool = False,
+    jekyll_format: bool = False,
+) -> None:
+    """Export frame definitions as HTML file with card styling.
+    
+    Args:
+        schema: Frame schema containing frame definitions
+        induction_guidance: Optional induction guidance text (not included in output)
+        export_path: Path where to save the HTML file
+        light_mode: If True, exclude keywords and examples from cards
+        jekyll_format: If True, output Jekyll include format (no DOCTYPE/html/head/body tags)
+    """
+    if export_path is None:
+        return
+    
+    color_map = _build_color_map(schema.frames)
+    
+    # Build frame cards HTML
+    frame_cards_html = []
+    for frame in schema.frames:
+        color = color_map.get(frame.frame_id, "#1E3D58")
+        short_label = frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id)
+        
+        keywords_html = ""
+        if not light_mode and frame.keywords:
+            keywords_html = f"""
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> {html.escape(', '.join(frame.keywords))}
+            </div>"""
+        
+        examples_html = ""
+        if not light_mode and frame.examples:
+            examples_html = f"""
+            <div class="frame-examples">
+                <strong>Examples:</strong> {html.escape('; '.join(frame.examples[:3]))}
+            </div>"""
+        
+        card_html = f"""
+        <div class="frame-card" style="--accent-color: {color};">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">{html.escape(short_label)}</h3>
+                <h4 class="frame-card-title">{html.escape(frame.name)}</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">{html.escape(frame.description)}</p>
+                {keywords_html}
+                {examples_html}
+            </div>
+        </div>"""
+        frame_cards_html.append(card_html)
+    
+    # CSS styles (same for both formats)
+    css_styles = """<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.frames-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.frame-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-color);
+    padding: 20px;
+    transition: box-shadow 0.2s ease;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.frame-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.frame-card-header {
+    margin-bottom: 12px;
+}
+
+.frame-card-name {
+    font-size: 18px;
+    font-weight: 600 !important;
+    color: var(--accent-color);
+    margin-bottom: 0 !important;
+}
+
+.frame-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.frame-card-body {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.frame-card-description {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.frame-keywords,
+.frame-examples {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.frame-keywords strong,
+.frame-examples strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+</style>"""
+    
+    # Content HTML
+    content_html = f"""<div class="frames-container">
+    <div class="frames-grid">
+        {''.join(frame_cards_html)}
+    </div>
+</div>"""
+    
+    if jekyll_format:
+        # Jekyll include format: just CSS and content, no HTML document structure
+        html_content = css_styles + "\n" + content_html
+    else:
+        # Standalone HTML format: full document
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Definitions - {html.escape(schema.domain)}</title>
+    {css_styles}
+</head>
+<body>
+    {content_html}
+</body>
+</html>"""
+    
+    export_path.parent.mkdir(parents=True, exist_ok=True)
+    export_path.write_text(html_content, encoding="utf-8")
+
+
 def write_html_report(
     schema: FrameSchema,
     assignments: Sequence[FrameAssignment],
@@ -1910,6 +2119,8 @@ def write_html_report(
     plot_note: Optional[str] = None,
     export_plotly_png_dir: Optional[Path] = None,
     custom_plots: Optional[Sequence] = None,
+    induction_guidance: Optional[str] = None,
+    export_includes_dir: Optional[Path] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
     
@@ -2030,6 +2241,34 @@ def write_html_report(
     if export_dir is None and output_path is not None:
         # Default under the run directory: <run_dir>/plots
         export_dir = output_path.parent / "plots"
+    
+    # Export frames HTML to plots directory (standalone HTML)
+    if export_dir:
+        export_frames_html(
+            schema=schema,
+            induction_guidance=induction_guidance,
+            export_path=export_dir / "frames.html",
+            light_mode=False,
+            jekyll_format=False
+        )
+        export_frames_html(
+            schema=schema,
+            induction_guidance=induction_guidance,
+            export_path=export_dir / "frames_light.html",
+            light_mode=True,
+            jekyll_format=False
+        )
+    
+    # Export frames HTML to Jekyll includes directory
+    if export_includes_dir:
+        # Export frames_light.html directly to includes directory
+        export_frames_html(
+            schema=schema,
+            induction_guidance=induction_guidance,
+            export_path=export_includes_dir / "frames_light.html",
+            light_mode=True,  # Use light mode for includes
+            jekyll_format=True
+        )
 
     # Build caption for time series
     ts_caption_parts: List[str] = []
@@ -2092,6 +2331,7 @@ def write_html_report(
                 frame_lookup,
                 color_map,
                 export_png_path=(export_dir / "domain_frame_distribution.png") if export_dir else None,
+                export_html_path=(export_includes_dir / "domain_frame_distribution.html") if export_includes_dir else None,
             )
 
     rows = []

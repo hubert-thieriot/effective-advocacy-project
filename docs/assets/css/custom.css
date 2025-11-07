@@ -156,10 +156,20 @@ h1, h2, h3, h4, h5, h6 {
 .chart-item {
     margin: 32px 0;
     padding: 24px;
-    background: #ffffff;
+    background: #f5f7fa;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-    max-width: 100%;
+    position: relative;
+}
+
+.chart-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 40px;
+    background: #1E3D58;
+    border-radius: 0 0 4px 0;
 }
 
 .chart-item:first-child {
@@ -204,4 +214,19 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
     border: none;
     margin: 16px 0;
+}
+
+/* Method overview section styling */
+.method-overview-section {
+    background: #f0f7ff;
+    padding: 24px 28px;
+    margin: 24px 0;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.method-overview-heading {
+    margin-top: 0;
 }

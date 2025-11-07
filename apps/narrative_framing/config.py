@@ -67,6 +67,8 @@ class ReportSettings:
     plot: PlotSettings = field(default_factory=PlotSettings)
     hide_empty_passages: bool = False
     custom_plots: Optional[List[CustomPlotSettings]] = None
+    export_plots_dir: Optional[Path] = None  # Optional directory to export plots to (in addition to results/plots)
+    export_includes_dir: Optional[Path] = None  # Optional directory to export Jekyll includes (e.g., docs/_includes/narrative_framing)
 
 
 @dataclass
@@ -396,6 +398,13 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                         custom_plots_list.append(custom_plot)
                 if custom_plots_list:
                     config.report.custom_plots = custom_plots_list
+            
+            # Handle export_plots_dir
+            if "export_plots_dir" in report_data:
+                config.report.export_plots_dir = _as_path(report_data["export_plots_dir"])
+            # Handle export_includes_dir
+            if "export_includes_dir" in report_data:
+                config.report.export_includes_dir = _as_path(report_data["export_includes_dir"])
 
     config.normalize()
     return config

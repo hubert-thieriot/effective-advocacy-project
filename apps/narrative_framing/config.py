@@ -54,10 +54,21 @@ class PlotSettings:
     note: Optional[str] = None
 
 @dataclass
+class CustomPlotSettings:
+    """Configuration for a custom plot in the report."""
+    type: str  # e.g., "global_occurrence_with_zeros", "year_occurrence_with_zeros"
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    caption: Optional[str] = None
+
+@dataclass
 class ReportSettings:
     """Configuration for report generation and display."""
     plot: PlotSettings = field(default_factory=PlotSettings)
     hide_empty_passages: bool = False
+    custom_plots: Optional[List[CustomPlotSettings]] = None
+    export_plots_dir: Optional[Path] = None  # Optional directory to export plots to (in addition to results/plots)
+    export_includes_dir: Optional[Path] = None  # Optional directory to export Jekyll includes (e.g., docs/_includes/narrative_framing)
 
 
 @dataclass
@@ -94,8 +105,6 @@ class NarrativeFramingConfig:
     reload_application: bool = False
     reload_classifier: bool = False
     reload_chunk_classifications: bool = False
-    reload_document_aggregates: bool = False
-    reload_time_series: bool = False
     results_dir: Optional[Path] = None
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
     report: ReportSettings = field(default_factory=ReportSettings)
@@ -307,10 +316,6 @@ def load_config(path: Path) -> NarrativeFramingConfig:
         config.reload_classifier = bool(data["reload_classifier"])
     if "reload_chunk_classifications" in data:
         config.reload_chunk_classifications = bool(data["reload_chunk_classifications"])
-    if "reload_document_aggregates" in data:
-        config.reload_document_aggregates = bool(data["reload_document_aggregates"])
-    if "reload_time_series" in data:
-        config.reload_time_series = bool(data["reload_time_series"])
     if "results_dir" in data:
         config.results_dir = _as_path(data["results_dir"])
     if "regenerate_report_only" in data:
@@ -360,10 +365,6 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.reload_classifier = True
         if "reload_chunk_classifications" not in data:
             config.reload_chunk_classifications = True
-        if "reload_document_aggregates" not in data:
-            config.reload_document_aggregates = True
-        if "reload_time_series" not in data:
-            config.reload_time_series = True
 
     # Handle report section
     if "report" in data:
@@ -382,6 +383,28 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                     config.report.plot.subtitle = str(plot_data["subtitle"]) if plot_data["subtitle"] else None
                 if "note" in plot_data:
                     config.report.plot.note = str(plot_data["note"]) if plot_data["note"] else None
+            
+            # Handle custom plots
+            if "custom_plots" in report_data and isinstance(report_data["custom_plots"], list):
+                custom_plots_list = []
+                for plot_item in report_data["custom_plots"]:
+                    if isinstance(plot_item, dict) and "type" in plot_item:
+                        custom_plot = CustomPlotSettings(
+                            type=str(plot_item["type"]),
+                            title=str(plot_item["title"]) if plot_item.get("title") else None,
+                            subtitle=str(plot_item["subtitle"]) if plot_item.get("subtitle") else None,
+                            caption=str(plot_item["caption"]) if plot_item.get("caption") else None,
+                        )
+                        custom_plots_list.append(custom_plot)
+                if custom_plots_list:
+                    config.report.custom_plots = custom_plots_list
+            
+            # Handle export_plots_dir
+            if "export_plots_dir" in report_data:
+                config.report.export_plots_dir = _as_path(report_data["export_plots_dir"])
+            # Handle export_includes_dir
+            if "export_includes_dir" in report_data:
+                config.report.export_includes_dir = _as_path(report_data["export_includes_dir"])
 
     config.normalize()
     return config

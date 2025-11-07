@@ -186,7 +186,7 @@ class FrameClassifierPipeline:
                 frame_target=self.induction_config.frame_target,
                 max_passages_per_call=max_passages_per_call,
                 max_total_passages=max_total_passages,
-                frame_guidance=self.induction_config.guidance,
+                induction_guidance=self.induction_config.guidance,
             )
             schema = inducer.induce(passages_text)
 

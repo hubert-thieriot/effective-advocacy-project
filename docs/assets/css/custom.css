@@ -151,3 +151,82 @@ h1, h2, h3, h4, h5, h6 {
 .disclaimer::after {
     margin-top: 12px;
 }
+
+/* Chart-related styles */
+.chart-item {
+    margin: 32px 0;
+    padding: 24px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    position: relative;
+}
+
+.chart-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 40px;
+    background: #1E3D58;
+    border-radius: 0 0 4px 0;
+}
+
+.chart-item:first-child {
+    margin-top: 0;
+}
+
+.chart-heading {
+    margin: 0 0 8px 0;
+}
+
+.chart-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.15;
+    margin: 0;
+}
+
+.chart-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 1rem;
+    font-weight: 300;
+    color: #334155;
+    line-height: 1.4;
+}
+
+.chart-note {
+    margin: 12px 0 0 0;
+    font-size: 0.9rem;
+    color: #475569;
+    font-weight: 200;
+    line-height: 1.5;
+}
+
+.chart-note strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+/* Chart iframe styling */
+.chart-item iframe {
+    width: 100%;
+    border: none;
+    margin: 16px 0;
+}
+
+/* Method overview section styling */
+.method-overview-section {
+    background: #f0f7ff;
+    padding: 24px 28px;
+    margin: 24px 0;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.method-overview-heading {
+    margin-top: 0;
+}

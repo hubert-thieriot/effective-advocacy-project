@@ -3,12 +3,35 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
-from typing import Dict, Iterable, List, Optional, Protocol, Sequence
-
-import pandas as pd
+from typing import Dict, List, Optional, Protocol, Sequence
 
 from efi_core.utils import normalize_date
+
+
+def _extract_domain(url: Optional[str]) -> Optional[str]:
+    """Extract base domain from URL, ignoring subdomains."""
+    if not url:
+        return None
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    netloc = parsed.netloc or parsed.path
+    if not netloc:
+        return None
+    domain = netloc.lower()
+    if domain.startswith("www."):
+        domain = domain[4:]
+    
+    # Extract base domain (ignore subdomains)
+    # e.g., kota.tribunnews.com -> tribunnews.com
+    parts = domain.split('.')
+    if len(parts) >= 2:
+        # Handle common two-part TLDs like .co.uk, .co.id, .com.au
+        if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
+            return '.'.join(parts[-3:])
+        else:
+            return '.'.join(parts[-2:])
+    
+    return domain or None
 
 
 @dataclass
@@ -21,7 +44,13 @@ class DocumentFrameAggregate:
     published_at: Optional[str] = None
     title: Optional[str] = None
     url: Optional[str] = None
+    domain: Optional[str] = field(default=None, init=False)
     top_frames: List[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Auto-extract domain from URL if not provided."""
+        if self.domain is None and self.url:
+            object.__setattr__(self, 'domain', _extract_domain(self.url))
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -31,6 +60,7 @@ class DocumentFrameAggregate:
             "published_at": self.published_at,
             "title": self.title,
             "url": self.url,
+            "domain": self.domain,
             "top_frames": self.top_frames,
         }
 
@@ -220,98 +250,10 @@ class OccurrenceFrameAggregator(FrameAggregationStrategy):
         return sorted(aggregates, key=lambda agg: (agg.published_at or "", agg.doc_id))
 
 
-def build_weighted_time_series(
-    aggregates: Sequence[DocumentFrameAggregate],
-) -> pd.DataFrame:
-    """Return a daily time series of frame importance weighted by document length."""
-
-    records: List[Dict[str, object]] = []
-    for aggregate in aggregates:
-        if not aggregate.published_at:
-            continue
-        normalized = normalize_date(aggregate.published_at)
-        if not normalized:
-            continue
-        day_value = date(normalized.year, normalized.month, normalized.day)
-        # Skip future-dated documents to avoid distorting time series
-        if day_value > date.today():
-            continue
-        weight = float(aggregate.total_weight)
-        for frame_id, score in aggregate.frame_scores.items():
-            records.append(
-                {
-                    "date": day_value,
-                    "frame_id": frame_id,
-                    "weighted_score": float(score) * weight,
-                    "weight": weight,
-                }
-            )
-
-    if not records:
-        return pd.DataFrame(columns=["date", "frame_id", "avg_score", "share"])
-
-    df = pd.DataFrame.from_records(records)
-    grouped = (
-        df.groupby(["date", "frame_id"], as_index=False)
-        .agg(weighted_score=("weighted_score", "sum"), weight=("weight", "sum"))
-    )
-    grouped["avg_score"] = grouped["weighted_score"] / grouped["weight"].where(grouped["weight"] > 0, 1.0)
-
-    def _normalize(group: pd.DataFrame) -> pd.DataFrame:
-        total = group["avg_score"].sum()
-        if total <= 0:
-            group["share"] = 0.0
-        else:
-            group["share"] = group["avg_score"] / total
-        return group
-
-    normalized = grouped.groupby("date", group_keys=False).apply(_normalize)
-    return normalized.sort_values(["date", "frame_id"]).reset_index(drop=True)
-
-
-def time_series_to_records(df: pd.DataFrame) -> List[Dict[str, object]]:
-    """Convert a time series dataframe to JSON-serializable rows."""
-
-    if df.empty:
-        return []
-    records: List[Dict[str, object]] = []
-    for row in df.itertuples(index=False):
-        day = row.date.isoformat() if isinstance(row.date, date) else str(row.date)
-        records.append(
-            {
-                "date": day,
-                "frame_id": row.frame_id,
-                "avg_score": float(row.avg_score),
-                "share": float(row.share),
-            }
-        )
-    return records
-
-
-def compute_global_frame_share(
-    aggregates: Sequence[DocumentFrameAggregate],
-) -> Dict[str, float]:
-    """Return a length-weighted average frame distribution across the corpus."""
-
-    totals: Dict[str, float] = {}
-    total_weight = 0.0
-    for aggregate in aggregates:
-        weight = float(aggregate.total_weight)
-        total_weight += weight
-        for frame_id, score in aggregate.frame_scores.items():
-            totals[frame_id] = totals.get(frame_id, 0.0) + score * weight
-
-    if total_weight <= 0:
-        return {}
-    return {frame_id: value / total_weight for frame_id, value in totals.items()}
-
-
 __all__ = [
     "DocumentFrameAggregate",
     "FrameAggregationStrategy",
     "WeightedFrameAggregator",
     "OccurrenceFrameAggregator",
-    "build_weighted_time_series",
-    "compute_global_frame_share",
-    "time_series_to_records",
 ]
+

@@ -3,7 +3,7 @@ MediaCloudCorpusBuilder - Corpus builder for MediaCloud data
 """
 
 from pathlib import Path
-from typing import Iterable, Dict, Any, List
+from typing import Iterable, Dict, Any, List, Set
 import time
 import zstandard as zstd
 from decouple import config
@@ -390,6 +390,51 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
     def list_cached_searches(self) -> List[Dict[str, Any]]:
         """List all cached MediaCloud searches"""
         return self.search_cache.list_cached_searches()
+    
+    def _get_previous_failures(self, manifest: Dict[str, Any], params: BuilderParams = None) -> Set[str]:
+        """
+        Extract URLs that failed in previous runs.
+        
+        Sources:
+        1. Manifest history (if available)
+        2. params.extra['failed_urls'] - list of URLs
+        3. params.extra['failed_urls_file'] - path to file with one URL per line
+        
+        Returns:
+            Set of URLs that previously failed
+        """
+        failed_urls = set()
+        
+        # 1. Get failed URLs from manifest history
+        history = manifest.get("history", [])
+        for entry in history:
+            failed_details = entry.get("failed_details", [])
+            if failed_details:
+                for failed in failed_details:
+                    url = failed.get("url")
+                    if url:
+                        failed_urls.add(url)
+        
+        # 2. Get failed URLs from params.extra if provided
+        if params and params.extra:
+            # Direct list of failed URLs
+            provided_failed = params.extra.get("failed_urls")
+            if isinstance(provided_failed, list):
+                failed_urls.update(provided_failed)
+            
+            # File path with failed URLs (one per line)
+            failed_urls_file = params.extra.get("failed_urls_file")
+            if failed_urls_file:
+                file_path = Path(failed_urls_file)
+                if file_path.exists():
+                    try:
+                        file_urls = [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                        failed_urls.update(file_urls)
+                        print(f"📋 Loaded {len(file_urls)} failed URLs from {failed_urls_file}")
+                    except Exception as e:
+                        print(f"⚠️  Warning: Could not read failed URLs from {failed_urls_file}: {e}")
+        
+        return failed_urls
 
     # ---------- main run method ----------
     def run(self, *, params: BuilderParams | None = None, override: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -453,6 +498,18 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         pairs = [(d.url, sid(d.url)) for d in discovered]
         frontier = [(u, s) for (u, s) in pairs if not self.corpus.has_doc(s)]
 
+        # Optionally skip URLs that failed in previous runs
+        if params.skip_previously_failed:
+            previously_failed_urls = self._get_previous_failures(manifest, params)
+            if previously_failed_urls:
+                # Canonicalize failed URLs for comparison (same canonicalization as frontier)
+                previously_failed_stable_ids = {sid(u) for u in previously_failed_urls}
+                original_frontier_size = len(frontier)
+                frontier = [(u, s) for (u, s) in frontier if s not in previously_failed_stable_ids]
+                skipped_failed = original_frontier_size - len(frontier)
+                if skipped_failed > 0:
+                    print(f"⏭️  Skipping {skipped_failed} URLs that failed in previous runs")
+
         # Choose processing strategy based on config (default to concurrent)
         use_concurrent = (params.extra or {}).get('use_concurrent_processing', True)
 
@@ -465,7 +522,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             return self._process_sequential(frontier, discovered_by_url, params, manifest, force_refresh)
 
     def _process_sequential(self, frontier, discovered_by_url, params, manifest, force_refresh: bool = False) -> Dict[str, Any]:
-        """Process items sequentially (current approach)"""
+        """Process items sequentially """
         import time
 
         # Process frontier
@@ -556,6 +613,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             "skipped_text_extraction": skipped_text_extraction,
             "skipped_duplicate": skipped_duplicate,
             "failed": len(failed_urls),
+            "failed_details": failed_urls,  # Save failed URLs for skip_previously_failed
             "date_from": params.date_from,
             "date_to": params.date_to,
             "keywords": params.keywords
@@ -659,6 +717,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             result = total_result
 
             # Update manifest with results
+            # Note: Concurrent processing doesn't track individual failed URLs,
+            # so failed_details will be empty, but this is still saved for consistency
             manifest["history"].append({
                 "run_at": time.time(),
                 "discovered": len(discovered_by_url),
@@ -667,6 +727,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 "skipped_text_extraction": result["skipped_text_extraction"],
                 "skipped_duplicate": len(discovered_by_url) - len(frontier),
                 "failed": result["failed"],
+                "failed_details": [],  # Concurrent processing doesn't track individual failures
                 "date_from": params.date_from,
                 "date_to": params.date_to,
                 "keywords": params.keywords,

@@ -6,10 +6,7 @@ import json
 from inspect import Parameter, signature
 from typing import Any, Dict, Iterable, List, Sequence, Optional
 
-try:
-    from jinja2 import Template  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    Template = None  # type: ignore
+from jinja2 import Template
 
 from .types import Frame, FrameSchema
 
@@ -38,7 +35,7 @@ class FrameInducer:
         chunk_overlap_chars: int = 80,
         max_passages_per_call: int | None = None,
         max_total_passages: int | None = None,
-        frame_guidance: str | None = None,
+        induction_guidance: str | None = None,
         system_template: Optional[str] = None,
         user_template: Optional[str] = None,
     ) -> None:
@@ -69,7 +66,7 @@ class FrameInducer:
         if max_total_passages < max_passages_per_call:
             raise ValueError("max_total_passages must be >= max_passages_per_call.")
         self.max_total_passages = max_total_passages
-        self.frame_guidance = frame_guidance.strip() if frame_guidance else ""
+        self.induction_guidance = induction_guidance.strip() if induction_guidance else ""
         # Optional Jinja templates for system/user prompts
         self._system_template = system_template
         self._user_template = user_template
@@ -113,9 +110,7 @@ class FrameInducer:
         return unique
 
     def _build_messages(self, passages: Sequence[str]) -> List[dict[str, str]]:
-        # Require Jinja templates; do not fallback to built-in strings
-        if Template is None:
-            raise RuntimeError("Jinja2 is required for template-based prompts but is not installed.")
+        
         if not (self._system_template and self._user_template):
             raise RuntimeError("Induction prompts must be provided via templates (system + user).")
 
@@ -124,7 +119,7 @@ class FrameInducer:
         ctx = {
             "domain": self.domain,
             "frame_target": self._frame_target_text,
-            "frame_guidance": self.frame_guidance,
+            "induction_guidance": self.induction_guidance,
             "passages": list(passages),
             "passages_joined": passages_joined,
             "max_passages_per_call": self.max_passages_per_call,
@@ -194,7 +189,7 @@ class FrameInducer:
         )
         schema_instruction = self._schema_instruction()
 
-        guidance_line = f"GUIDANCE: {self.frame_guidance}\n" if self.frame_guidance else ""
+        guidance_line = f"GUIDANCE: {self.induction_guidance}\n" if self.induction_guidance else ""
         frame_target_line = f"Frame target: {self._frame_target_text}\n" if self._frame_target_text else ""
 
         user_prompt = (
@@ -208,7 +203,7 @@ class FrameInducer:
             "- Decision rules must include at least one MUST, at most three SHOULD, and at least two NEVER conditions per frame.\n"
             "- Regex seeds should be robust but conservative (lower FP > higher FN).\n"
             "- Examples/counter-examples MUST be exact quotes from the provided passages when possible; if not available, construct minimal plausible snippets.\n\n"
-            + (f"Seed frames (optional):\n{self.frame_guidance}\n\n" if self.frame_guidance else "")
+            + (f"Seed frames (optional):\n{self.induction_guidance}\n\n" if self.induction_guidance else "")
             + f"Passages (≤ {self.max_passages_per_call}, sampled & deduped):\n"
             f"{sampled_passages}\n\n"
             f"Return JSON only using this schema:\n"

@@ -57,6 +57,7 @@ class BaseCorpusBuilder(ABC):
             keywords=params_cfg.get("keywords", []),
             date_from=params_cfg.get("date_from", ""),
             date_to=params_cfg.get("date_to", ""),
+            skip_previously_failed=params_cfg.get("skip_previously_failed", False),
             extra=params_cfg
         )
 

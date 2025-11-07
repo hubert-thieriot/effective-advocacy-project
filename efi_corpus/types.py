@@ -16,6 +16,7 @@ class BuilderParams:
     date_to: str
     extra: Optional[Dict[str, Any]] = None
     source_id: Optional[str] = None
+    skip_previously_failed: bool = False
 
 
 @dataclass

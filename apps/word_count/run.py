@@ -14,7 +14,7 @@ import pandas as pd
 
 from apps.word_count.config import WordCountConfig, load_config
 from apps.word_count.report import ThemeDocStat, generate_html_report
-from apps.narrative_framing.aggregation import DocumentFrameAggregate
+from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
 from efi_analyser.pipeline.word_occurrence import WordOccurrencePipeline
 from efi_corpus import CorpusHandle
 

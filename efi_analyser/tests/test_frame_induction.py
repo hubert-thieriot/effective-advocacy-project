@@ -109,7 +109,7 @@ def test_induce_accepts_textual_frame_target(sample_response):
         llm_client=llm,
         domain="energy transition",
         frame_target="between 5 and 20",
-        frame_guidance="Include a frame on overcapacity",
+        induction_guidance="Include a frame on overcapacity",
     )
 
     inducer.induce(["Passage about policy targets"])

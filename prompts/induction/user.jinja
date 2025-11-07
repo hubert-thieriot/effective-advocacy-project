@@ -8,8 +8,8 @@ Constraints
 - Use boundary_notes (1–2) to explain differences vs. close frames.
 - Do not include decision rules, regex, or long anti-trigger lists.
 
-{% if frame_guidance %}Guidance (optional):
-{{ frame_guidance }}
+{% if induction_guidance %}Guidance (optional):
+{{ induction_guidance }}
 
 {% endif %}Passages (≤ {{ max_passages_per_call }}, sampled & deduped):
 {{ passages_joined }}

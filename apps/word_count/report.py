@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
-from apps.narrative_framing.aggregation import DocumentFrameAggregate
+from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
 
 # Color palette matching narrative framing report
 _PALETTE = [

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Definitions - Meat media coverage in Canada</title>
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.frames-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.frame-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-color);
+    padding: 20px;
+    transition: box-shadow 0.2s ease;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.frame-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.frame-card-header {
+    margin-bottom: 12px;
+}
+
+.frame-card-name {
+    font-size: 18px;
+    font-weight: 600 !important;
+    color: var(--accent-color);
+    margin-bottom: 0 !important;
+}
+
+.frame-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.frame-card-body {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.frame-card-description {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.frame-keywords,
+.frame-examples {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.frame-keywords strong,
+.frame-examples strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+</style>
+</head>
+<body>
+    <div class="frames-container">
+    <div class="frames-grid">
+        
+        <div class="frame-card" style="--accent-color: #1E3D58;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Factory Farming</h3>
+                <h4 class="frame-card-title">Factory Farming and Industrial Production</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage focusing on large-scale, intensive livestock systems, their efficiency, scale, and associated social or ecological consequences, excluding animal sentience or climate unless explicitly tied to production methods.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #057D9F;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Animal Suffering</h3>
+                <h4 class="frame-card-title">Animal Suffering and Sentience</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage centered on the moral or emotional harm to animals, empathy, or recognition of animals as sentient beings, focusing on pain, rights, or welfare.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F18F01;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Alt Proteins</h3>
+                <h4 class="frame-card-title">Plant-Based and Alternative Proteins</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage promoting or assessing plant-based, cultivated, or other alternative proteins as substitutes for meat, often linked to innovation, ethics, or sustainability, but not general diet advice.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #A23B72;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Environmental Impact</h3>
+                <h4 class="frame-card-title">Environmental Impacts</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage linking meat production to climate change, deforestation, land use, water, or biodiversity, including both critical and defensive narratives, but not focused on production methods or animal welfare unless explicitly tied to ecological outcomes.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #6C63FF;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Human Health</h3>
+                <h4 class="frame-card-title">Human Health Effects</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage about health risks or benefits of meat consumption, such as cancer, cholesterol, obesity, or nutritional debates, focusing on consumer health rather than public health threats from production.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #3A7D44;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Epidemic/AMR</h3>
+                <h4 class="frame-card-title">Epidemic and Antimicrobial-Resistance Risks</h4>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Coverage linking intensive farming or meat supply chains to zoonotic disease, pandemic preparedness, or antibiotic overuse, focusing on public-health and One-Health reasoning.</p>
+                
+                
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

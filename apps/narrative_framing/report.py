@@ -593,6 +593,7 @@ def _render_plotly_classifier_by_year(
     for idx, year in enumerate(years):
         # Calculate alpha: ensure minimum opacity is not too light
         # Older years more transparent, recent years more opaque
+        # With ascending year order, higher idx = newer year = higher opacity
         alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4  # Range from 0.6 to 1.0
         
         # Get counts for this year and normalize to percentages
@@ -755,6 +756,7 @@ def _render_occurrence_by_year(
     # Create a more gradual alpha progression
     for idx, year in enumerate(years):
         # More gradual alpha range: 0.3 to 1.0
+        # With ascending year order, higher idx = newer year = higher opacity
         alpha = 0.3 + (idx / max(num_years - 1, 1)) * 0.7
         year_total = year_totals[year]
         if year_total > 0:
@@ -954,11 +956,72 @@ def _render_plotly_fragment(
                         "font": {"size": 18, "color": "#333"},
                     })
                     safe_layout["annotations"] = anns
-                fig.update_layout(**safe_layout)
+                # Update layout for PNG export: white background, Inter font, higher resolution
+                export_layout = copy.deepcopy(safe_layout) if isinstance(safe_layout, dict) else dict(safe_layout)
+                export_layout.update({
+                    "plot_bgcolor": "white",
+                    "paper_bgcolor": "white",
+                    "font": {
+                        "family": "Inter, 'Segoe UI', sans-serif",
+                        "size": 12,
+                        "color": "#1e293b"
+                    }
+                })
+                # Update axis fonts
+                if "xaxis" in export_layout:
+                    if isinstance(export_layout["xaxis"], dict):
+                        if "title" in export_layout["xaxis"]:
+                            if isinstance(export_layout["xaxis"]["title"], dict):
+                                export_layout["xaxis"]["title"].setdefault("font", {}).update({
+                                    "family": "Inter, 'Segoe UI', sans-serif", "size": 12
+                                })
+                if "yaxis" in export_layout:
+                    if isinstance(export_layout["yaxis"], dict):
+                        if "title" in export_layout["yaxis"]:
+                            if isinstance(export_layout["yaxis"]["title"], dict):
+                                export_layout["yaxis"]["title"].setdefault("font", {}).update({
+                                    "family": "Inter, 'Segoe UI', sans-serif", "size": 12
+                                })
+                fig.update_layout(**export_layout)
                 export_png_path.parent.mkdir(parents=True, exist_ok=True)
-                # Use to_image() + write to avoid any filename inference quirks
-                img_bytes = _pio.to_image(fig, format="png", scale=2)
+                # Use to_image() + write with higher resolution (scale=3 for better quality)
+                img_bytes = _pio.to_image(fig, format="png", scale=3, width=None, height=None)
                 export_png_path.write_bytes(img_bytes)
+                
+                # Also export as self-supporting HTML
+                html_path = export_png_path.with_suffix('.html')
+                fig_html = _go.Figure(data=list(data))
+                fig_html.update_layout(**export_layout)
+                # Create self-supporting HTML with embedded Plotly
+                html_content = fig_html.to_html(
+                    include_plotlyjs='cdn',
+                    div_id=div_id,
+                    config={"displayModeBar": False, "responsive": True}
+                )
+                # Inject CSS for font styling to match report
+                css_injection = """
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .plotly {
+            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+        }
+    </style>
+"""
+                # Insert CSS before closing </head> tag
+                if '</head>' in html_content:
+                    html_content = html_content.replace('</head>', css_injection + '</head>')
+                else:
+                    # If no </head> tag, insert before <body> or at the start
+                    if '<body' in html_content:
+                        html_content = html_content.replace('<body', css_injection + '<body')
+                    else:
+                        html_content = css_injection + html_content
+                html_path.write_text(html_content)
             except Exception as exc:
                 key = f"export_fail_{div_id}"
                 if not _PLOTLY_WARNED.get(key):
@@ -1017,14 +1080,8 @@ def _render_plotly_timeseries(
         if not frame_id or not date_value:
             items_skipped += 1
             continue
-        share_value = item.get("share")
-        if share_value is None:
-            share_value = item.get("avg_score", 0.0)
-        try:
-            share = float(share_value)
-        except (TypeError, ValueError):
-            share = 0.0
-        series.setdefault(frame_id, []).append((str(date_value), share))
+        share_value = item.get("value")
+        series.setdefault(frame_id, []).append((str(date_value), share_value))
         items_processed += 1
     
     print(f"   Processed {items_processed} items, skipped {items_skipped} items")
@@ -1092,16 +1149,10 @@ def _render_plotly_timeseries_lines(
     for item in records:
         frame_id = str(item.get("frame_id"))
         date_value = item.get("date")
-        if not frame_id or not date_value:
+        value = item.get("value")
+        if not frame_id or not date_value or value is None:
             continue
-        share_value = item.get("share")
-        if share_value is None:
-            share_value = item.get("avg_score", 0.0)
-        try:
-            share = float(share_value)
-        except (TypeError, ValueError):
-            share = 0.0
-        series.setdefault(frame_id, []).append((str(date_value), share))
+        series.setdefault(frame_id, []).append((str(date_value), value))
 
     if not series:
         return ""
@@ -1153,6 +1204,8 @@ def _render_plotly_timeseries_lines(
 
 def _render_plotly_total_docs_timeseries(
     aggregates: Optional[Sequence[DocumentFrameAggregate]],
+    *,
+    export_png_path: Optional[Path] = None,
 ) -> str:
     """Render total documents per day with 7-day rolling average."""
     if not aggregates:
@@ -1202,13 +1255,13 @@ def _render_plotly_total_docs_timeseries(
     }]
     
     layout = {
-        "margin": {"l": 60, "r": 30, "t": 20, "b": 60},
-        "yaxis": {"title": "Articles per day (30-day avg)"},
-        "xaxis": {"title": "Date"},
+        "margin": {"l": 60, "r": 30, "t": 30, "b": 60},
+        "yaxis": {"title": ""},
+        "xaxis": {"title": ""},
         "height": 420,
     }
     
-    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout)
+    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout, export_png_path=export_png_path)
 
 
 def _render_plotly_domain_counts(
@@ -1433,6 +1486,7 @@ def _render_yearly_bar_chart(
     num_years = len(years)
     
     for idx, year in enumerate(years):
+        # With ascending year order, higher idx = newer year = higher opacity
         alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
         scores = [frame_year_scores.get(fid, {}).get(year, 0.0) for fid in frame_ids]
         colors_with_alpha = [_hex_to_rgba(color_map.get(fid, "#057d9f"), alpha) for fid in frame_ids]
@@ -1562,6 +1616,20 @@ def _render_domain_frame_distribution(
         frame_labels.append(label)
         frame_colors.append(color_map.get(frame_id, "#057d9f"))
     
+    # Add one trace per frame (for legend) - create invisible traces for legend
+    legend_traces = []
+    for frame_id, label, color in zip(frame_ids, frame_labels, frame_colors):
+        legend_traces.append(
+            go.Bar(
+                name=label,
+                x=[None],
+                y=[None],
+                marker_color=color,
+                showlegend=True,
+                legendgroup=label,
+            )
+        )
+    
     # Add one trace per domain subplot - each trace shows all frames as bars
     for idx, domain in enumerate(domains):
         # Calculate row and column for grid layout
@@ -1577,31 +1645,65 @@ def _render_domain_frame_distribution(
         # Add one trace with all frames as bars for this domain
         fig.add_trace(
             go.Bar(
-                name=domain if idx == 0 else "",  # Only show domain name in legend for first subplot
-                x=frame_labels,  # All frame labels on x-axis
+                name="",  # Don't show in legend
+                x=frame_labels,  # All frame labels on x-axis (but we'll hide them)
                 y=y_values,  # All frame values for this domain
                 marker_color=frame_colors,  # Color per bar (frame)
-                showlegend=False,  # Don't show legend (we'll use frame labels on x-axis)
+                showlegend=False,  # Don't show in legend
+                legendgroup="",  # No legend group
             ),
             row=row,
             col=col,
         )
     
-    # Update layout - no barmode needed since each subplot has one trace
+    # Add legend traces (invisible, just for legend)
+    for trace in legend_traces:
+        fig.add_trace(trace)
+    
+    # Update layout - smaller fonts, horizontal legend at top with more space
     fig.update_layout(
         height=max(400, rows * 180),
-        showlegend=False,  # Don't need legend since frame labels are on x-axis
+        margin={"t": 80, "b": 40, "l": 40, "r": 20},  # Extra top margin for legend
+        showlegend=True,
+        legend={
+            "orientation": "h",
+            "yanchor": "top",
+            "y": 1.0,
+            "x": 0.5,
+            "xanchor": "center",
+            "font": {"size": 9},
+            "itemwidth": 30,
+        },
+        font={"size": 10},
     )
     
-    # Update y-axis for all subplots
+    # Update subplot titles to smaller font
+    fig.update_annotations(font_size=9)
+    
+    # Add y=0 line (x-axis) to all subplots and update axes
     for i in range(1, rows + 1):
         for j in range(1, cols + 1):
             if (i - 1) * cols + j <= n_domains:  # Only update axes for actual subplots
-                fig.update_yaxes(title_text="Share", tickformat=".0%", row=i, col=j)
-    
-    # Update x-axis for bottom row subplots only
-    for j in range(1, cols + 1):
-        fig.update_xaxes(title_text="Frame", row=rows, col=j)
+                # Update y-axis: no title, smaller font, with y=0 line (zeroline)
+                fig.update_yaxes(
+                    title_text="",
+                    tickformat=".0%",
+                    row=i,
+                    col=j,
+                    showgrid=True,
+                    gridcolor="#eef2f9",
+                    zeroline=True,
+                    zerolinecolor="#333333",
+                    zerolinewidth=1.5,
+                    range=[-0.05, None],  # Slight negative range to ensure zeroline is visible
+                )
+                # Update x-axis: no title, no labels, smaller font
+                fig.update_xaxes(
+                    title_text="",
+                    showticklabels=False,
+                    row=i,
+                    col=j,
+                )
     
     # Convert to HTML fragment
     return _render_plotly_fragment_from_figure(fig, "domain-frame-distribution", export_png_path=export_png_path)
@@ -1612,8 +1714,56 @@ def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optio
     # Export PNG if requested and Plotly is available
     if export_png_path and _PLOTLY_AVAILABLE:
         try:
+            export_png_path = _safe_export_path(export_png_path, div_id=div_id)
             export_png_path.parent.mkdir(parents=True, exist_ok=True)
-            fig.write_image(str(export_png_path))
+            
+            # Update layout for PNG export: white background, Inter font, higher resolution
+            export_layout = {
+                "plot_bgcolor": "white",
+                "paper_bgcolor": "white",
+                "font": {
+                    "family": "Inter, 'Segoe UI', sans-serif",
+                    "size": 12,
+                    "color": "#1e293b"
+                }
+            }
+            fig.update_layout(**export_layout)
+            
+            # Export PNG with higher resolution
+            fig.write_image(str(export_png_path), scale=3, width=None, height=None)
+            
+            # Also export as self-supporting HTML
+            html_path = export_png_path.with_suffix('.html')
+            # Create self-supporting HTML with embedded Plotly
+            html_content = fig.to_html(
+                include_plotlyjs='cdn',
+                div_id=div_id,
+                config={"displayModeBar": False, "responsive": True}
+            )
+            # Inject CSS for font styling to match report
+            css_injection = """
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .plotly {
+            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+        }
+    </style>
+"""
+            # Insert CSS before closing </head> tag
+            if '</head>' in html_content:
+                html_content = html_content.replace('</head>', css_injection + '</head>')
+            else:
+                # If no </head> tag, insert before <body> or at the start
+                if '<body' in html_content:
+                    html_content = html_content.replace('<body', css_injection + '<body')
+                else:
+                    html_content = css_injection + html_content
+            html_path.write_text(html_content)
         except Exception as exc:
             if not _PLOTLY_WARNED.get("png_export"):
                 print(f"⚠️ Plotly PNG export failed for {div_id}: {exc}")
@@ -1905,10 +2055,16 @@ def write_html_report(
     total_docs_chart_html = ""
     if document_aggregates_occurrence:
         # Use occurrence aggregates since they're simpler (one per document)
-        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_occurrence)
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(
+            document_aggregates_occurrence,
+            export_png_path=(export_dir / "article_volume_over_time.png") if export_dir else None
+        )
     elif document_aggregates_weighted:
         # Fallback to weighted aggregates if occurrence not available
-        total_docs_chart_html = _render_plotly_total_docs_timeseries(document_aggregates_weighted)
+        total_docs_chart_html = _render_plotly_total_docs_timeseries(
+            document_aggregates_weighted,
+            export_png_path=(export_dir / "article_volume_over_time.png") if export_dir else None
+        )
 
     # Prepare frames for domain counts chart
     domain_counts_chart_html = _render_plotly_domain_counts(
@@ -2073,7 +2229,10 @@ def write_html_report(
     if total_docs_chart_html:
         time_series_charts.append(
             '<div class="chart-item">'
-            '<h4>Article Volume Over Time</h4>'
+            '<div class="chart-heading">'
+            '<div class="chart-title">Article Volume Over Time</div>'
+            '<div class="chart-subtitle">Articles per day (30-day avg)</div>'
+            '</div>'
             f'{total_docs_chart_html}'
             '</div>'
         )

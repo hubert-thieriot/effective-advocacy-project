@@ -151,3 +151,57 @@ h1, h2, h3, h4, h5, h6 {
 .disclaimer::after {
     margin-top: 12px;
 }
+
+/* Chart-related styles */
+.chart-item {
+    margin: 32px 0;
+    padding: 24px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    max-width: 100%;
+}
+
+.chart-item:first-child {
+    margin-top: 0;
+}
+
+.chart-heading {
+    margin: 0 0 8px 0;
+}
+
+.chart-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.15;
+    margin: 0;
+}
+
+.chart-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 1rem;
+    font-weight: 300;
+    color: #334155;
+    line-height: 1.4;
+}
+
+.chart-note {
+    margin: 12px 0 0 0;
+    font-size: 0.9rem;
+    color: #475569;
+    font-weight: 200;
+    line-height: 1.5;
+}
+
+.chart-note strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+/* Chart iframe styling */
+.chart-item iframe {
+    width: 100%;
+    border: none;
+    margin: 16px 0;
+}

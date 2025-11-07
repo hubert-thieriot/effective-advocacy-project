@@ -1084,6 +1084,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     induction_samples: List[Tuple[str, str]] = []
     induction_reused = False
     assignments_reused = False
+    target_application_count = max(0, config.application_sample_size)
     
     # =============================================================================
     # PREPARE EMBEDDED CORPUS
@@ -1193,7 +1194,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             frame_target=config.induction_frame_target,
             max_passages_per_call=max(20, min(config.induction_sample_size, 80)),
             max_total_passages=config.induction_sample_size * 2,
-            frame_guidance=config.induction_guidance,
+            induction_guidance=config.induction_guidance,
             system_template=ind_sys_t,
             user_template=ind_usr_t,
         )

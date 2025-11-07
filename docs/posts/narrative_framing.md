@@ -3,13 +3,16 @@ layout: default
 title: Narrative Framing Analysis
 description: Exploring Tools for Effective Advocacy
 ---
-# Narrative Framing for **Air Pollution**, **Energy Transition**, **Animal Welfare**
+# Narrative Framing for **Air Pollution** and **Animal Welfare**
 
-<div class="tldr">I identify and track a set of narrative framings across text corpora—from media articles to TV news transcripts, radio programs, forums, Reddit, and other sources—on different topics using LLMs and other NLP techniques. This helps see how issues are discussed, detect trends and shifts, surface outlets/journalists to prioritize, inform advocacy and potentially gauge intermediate impact.</div>
+<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. media, TV news articles, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
+
+This post includes two illustrative examples: one on air pollution in Indonesia and one on animal welfare in Canada.
+</div>
 
 
 <div class="disclaimer">
-  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing, strategic actors mapping, and key findings dissemination.
+  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing analysis, strategic actors mapping, and key findings dissemination tracking.
 </div>
 
 ## Why narrative framing?
@@ -22,19 +25,41 @@ Narrative framing analyses could serve multiple purposes:
 - **Measure change over time**: Track how narratives evolve before, during, and after advocacy campaigns or major events. Detect whether specific frames are gaining or losing traction, measure campaign impact by comparing pre- and post-intervention coverage, and identify emerging trends early. This provides evidence-based feedback loops for grantees and helps demonstrate the effectiveness of narrative change initiatives.
 
 
+## Example 1: Air pollution causes in Jakarta, Indonesia
 
-## Examples
-
-### Jakarta — Air pollution causes
-
-**Context**: Analysis of Jan 2020– Oct 2025 Indonesian media coverage on air pollution in Jakarta, focusing on how different causes are discussed. The corpus spans 14,469 articles from major Indonesian outlets in Bahasa Indonesia, capturing how journalists frame pollution sources—from vehicle emissions to seasonal weather patterns.
-
-**Results summary**: Transport emissions dominate coverage (41% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next with a score of 8.5% articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution.
-
-![Frame share over time]({{ site.baseurl }}/assets/indonesia_airpollution_causes_20251028/plots/occurrence_by_year.png)
+In this example, I was interested in tracking how Indonesia media talk about air pollution, especially which sources of air pollution are mentioned more than others. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies.
 
 
-**Frames identified**:
+Using MediaCloud and Scrapy, I identified and scraped 15,000 media articles dating from January 2020 to October 2025 in Indonesian media that cover air pollution in Jakarta. Most of the articles were in Bahasa Indonesia.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Article Volume Over Time</div>
+    <div class="chart-subtitle">Articles per day (30-day avg)</div>
+  </div>
+  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/article_volume_over_time.html" style="width: 100%; height: 450px; border: none;"></iframe>
+</div>
+
+
+
+
+Transport emissions dominate coverage (41% of articles), reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next with a score of 8.5% articles, with notable seasonal spikes during dry periods when weather conditions exacerbate pollution.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">How Indonesian media frames the sources of the capital's pollution</div>
+    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media, weighted by content length.</div>
+  </div>
+  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
+  <p class="chart-note">
+    <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of Indonesian media articles. Articles are included if they mention Jakarta, DKI, ibukota, or jabodetabek and contain keywords related to air pollution. Each source category (vehicles, industry, forest fires, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
+    <br><br>
+    <strong>Data Sources:</strong> The list of articles is retrieved from Media Cloud. Content has been scraped and processed locally for analysis.
+  </p>
+</div>
+
+
+### Frames
 
 | Frame | Description | Key Keywords | Share |
 |-------|-------------|--------------|-------|
@@ -49,13 +74,22 @@ Narrative framing analyses could serve multiple purposes:
 
 *Note: Percentages represent the share of articles that discuss each frame (occurrence-based, threshold ≥0.2). Articles can discuss multiple frames.*
 
-### Philippines — Renewable energy
 
-<!-- To be added -->
+### Media outlets breakdown
 
-### Brazil — Animal welfare
+The analysis reveals how different media outlets frame air pollution sources. Some outlets emphasize certain pollution sources more than others, which can inform advocacy targeting and messaging strategies.
 
-<!-- To be added -->
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frame distribution across media outlets</div>
+    <div class="chart-subtitle">Share of each pollution source frame by media outlet, weighted by content length</div>
+  </div>
+  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.html" style="width: 100%; height: 900px; border: none;"></iframe>
+</div>
+
+
+
+## Example 2: Animal welfare in Canada
 
 
 
@@ -274,7 +308,12 @@ flowchart LR
 We start by defining the slice of content we care about—whether from media articles, TV news transcripts, radio programs, forums, Reddit, or other sources—in a way that is both broad enough to catch variation and precise enough to be actionable. For media analysis, using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. Similar approaches work for other platforms: TV news and radio transcripts, forum posts, Reddit threads, or other text corpora can be collected through their respective APIs or scraping tools. The intent is to bias toward recall at this stage: we would rather include a few borderline documents and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
 
 **Scrape and extract**:
-To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, “follow us” blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
+To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, "follow us" blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
+
+**Chunking**:
+We split documents into smaller chunks (~200 words) using spaCy language models. This linguistic approach respects sentence boundaries, paragraph structure, and discourse connectors (words like "however" or "therefore" that should stay attached to their preceding sentences). We use language-specific spaCy models (e.g., `en_core_web_sm` for English, `id_core_news_sm` for Bahasa Indonesia) to ensure proper sentence segmentation and preserve semantic coherence.
+
+Chunking and annotating at this granularity is essential because long documents often contain multiple frames, and classifying at the document level would bury weaker or less prominent frames. By working with smaller units, we can detect when a single article discusses both vehicle emissions and industrial pollution, even if one frame dominates the overall document.
 
 **Frame induction (LLM)**:
 We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.

@@ -16,21 +16,27 @@ This post includes two illustrative examples: one on air pollution in Indonesia 
 </div>
 
 ## Why narrative framing?
-Narrative framing analyses could serve multiple purposes:
+Part of the motivation behind this series comes from a long-standing discomfort with the phrase “shaping the narrative” often found in Theories of Change. The concept is seductive but slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair. Maybe narrative change can be a legitimate pathway to impact — but only if we can observe and measure it rigorously.
 
-- **Understand how a topic is being discussed**: Identify which narratives dominate coverage versus those that remain marginal or absent. This helps advocates understand the current discourse landscape—what frames are being amplified, which perspectives are under-represented, and where there might be opportunities to shift narratives. For example, an analysis might reveal that air pollution discussions focus heavily on individual vehicle emissions while neglecting industrial sources, pointing to potential advocacy gaps.
+That curiosity led me to treat narrative framing as a Monitoring, Evaluation, and Learning (MEL) challenge: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? But it quickly became more than a measurement problem. If we can map how narratives differ across regions or outlets, that same information could guide prioritization and strategy — revealing where certain framings already align with desired change, and where gaps in discourse might signal opportunities for leverage.
 
-- **Prioritise regions, messaging and outlets**: Use data to identify gaps and opportunities—which regions or outlets are influential but missing key narratives, or which audiences lack exposure to critical frames. For instance, an analysis might reveal that certain media outlets heavily cover industrial pollution but rarely connect it to policy solutions, indicating a clear messaging gap. This enables more targeted grantmaking and campaign design, ensuring resources go to outlets and regions where narrative shifts are most needed and feasible.
+Narrative framing analysis can serve several complementary purposes across advocacy and philanthropy. Rather than treating it as a media-monitoring tool, I see it as a way to make collective meaning formation visible and measurable — to understand how public conversations evolve, who shapes them, and where interventions might matter most.
 
-- **Measure change over time**: Track how narratives evolve before, during, and after advocacy campaigns or major events. Detect whether specific frames are gaining or losing traction, measure campaign impact by comparing pre- and post-intervention coverage, and identify emerging trends early. This provides evidence-based feedback loops for grantees and helps demonstrate the effectiveness of narrative change initiatives.
 
+- **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Jakarta overemphasizes individual behavior while neglecting industrial and energy sources, it signals not just a bias in media attention but a structural blind spot in public debate.
+
+- **Prioritise regions, messaging and outlets**: Comparing how narratives differ across outlets or regions can reveal where certain perspectives are missing — or, conversely, where the conversation already aligns with desired change. This information could eventually help advocates or funders decide where to focus their attention: in some cases by addressing narrative gaps, and in others by building on more conducive framings.
+
+- **Measure change over time**: Tracking how narratives evolve — across repeated studies or advocacy campaigns — could help observe whether certain framings gain or lose prominence. This might support both strategic reflection (for advocates seeking feedback on their efforts) and broader research on how public conversations shift around key issues.
+
+
+To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare. They’re not polished studies, but sketches of what it could mean to treat narratives themselves as objects of measurement and reflection.
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this example, I am interested in tracking how Indonesia media talk about air pollution, especially which sources of air pollution are mentioned more than others. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies.
+In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies.
 
-
-Leveraging MediaCloud and Scrapy, the tool identified and scraped 15,000 media articles dating from January 2020 to October 2025 in Indonesian media that cover air pollution in Jakarta. Most of the articles were in Bahasa Indonesia.
+Leveraging MediaCloud and scraping scripts, I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -43,7 +49,8 @@ Leveraging MediaCloud and Scrapy, the tool identified and scraped 15,000 media a
   </p>
 </div>
 
-We now move on to analysing how each article refers (or not) to each air pollution source. The process involves five steps (for more details, see [Methodology section below](#method-overview)):
+To analyse this corpus, I implemented a six-step process: chunking, frame induction, frame annotation, model training, classification and aggregation (for more details, see [Methodology section below](#method-overview)).
+
 
 ```mermaid
 flowchart LR
@@ -61,9 +68,9 @@ flowchart LR
     style F fill:#2dd4bf,stroke:#14b8a6,stroke-width:1px,color:#fff
 ```
 
-We split articles into smaller segments of approximately 200 words using linguistic models (**chunking**). This respects sentence boundaries and preserves semantic coherence, allowing us to detect multiple frames within a single article rather than treating each article as a single unit.
+First, each article was split into smaller, coherent segments called **chunks** (about 200 words) using linguistic models. This helps capture multiple frames coexisting within a single document while keeping each segment short enough for the models (both the annotator and the classifier) to interpret reliably.
 
-Using an LLM, we then identify what frames exist in the corpus by examining a sample of text chunks. This is the **frame induction** step. This can be done with minimal guidance (letting the model discover frames) or with specific guidance to address a research question. For this analysis, we provided guidance focusing on air pollution sources, which led to eight frames. The LLM builds descriptions, semantic cues, and keywords for each frame to guide the following steps. After providing some minimal guidance to the Frame inducer, we obtained the following frame definitions:
+Next comes the **frame induction** where I use an LLM to identify the main frames that appear across a sample of chunks. The idea is to let the model look across hundreds of short passages and propose a compact set of recurring ways the issue is discussed. This can be done with little or no guidance (letting the model discover patterns freely) or with light direction around a specific question. In this case, I guided it toward sources of air pollution, which resulted in eight frames. The model then generated short descriptions, examples, and keywords for each, forming the schema used in the next steps.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -76,10 +83,7 @@ Using an LLM, we then identify what frames exist in the corpus by examining a sa
   </div>
 </div>
 
-
-
-Once we have identified the frames, we can **annotate** a training dataset using a lighter LLM (GPT4.1-mini in our case) and **train** a BERT-like classifier on it (we used [indobenchmark/indobert-base-p1](https://huggingface.co/indobenchmark/indobert-base-p1) in this example). In the final step, we **classify** each chunk of our corpus and **aggregate** per article-year-or-domain based on frames weight and chunks length.
-
+Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier (IndoBERT in this case) that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length to estimate how much attention each framing received over time.
 
 The results are shown in the figure below. Transport emissions dominate coverage reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next.
 
@@ -120,9 +124,10 @@ The analysis can also reveal how different media outlets frame air pollution sou
 
 ## Example 2: Animal welfare in Canada
 
-In this example, I am interested in tracking how Canadian media (English and French) discuss meat production and consumption, focusing on distinct ways of interpreting or evaluating the issue—what aspects of meat are being problematized, justified, or reimagined.
+To test how adaptable the method is, I applied it to a very different topic: how Canadian media discuss meat production and consumption. The framing categories were developed with the animal welfare movement in mind, aiming to capture dimensions that might be strategically relevant (such as factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks). This was a first attempt, made with limited experience in that field, but intended to explore what such an analysis could reveal about the narrative landscape around meat.
 
-Using an LLM, we identify what frames exist in the corpus by examining a sample of text chunks. This is the **frame induction** step. For this analysis, we provided guidance focusing on distinct angles of meat coverage (factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks), which led to six frames. The LLM builds descriptions, semantic cues, and keywords for each frame to guide the following steps. After providing guidance to the Frame inducer, we obtained the following frame definitions:
+As in the previous example, the first step was frame induction — using a language model to identify the main ways the issue is discussed. In this case, I provided explicit guidance to focus on angles most relevant to animal welfare advocacy: factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks. The model then proposed six corresponding frames, generating short descriptions, examples, and semantic clues for each.
+
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -135,9 +140,10 @@ Using an LLM, we identify what frames exist in the corpus by examining a sample 
   </div>
 </div>
 
-Once we have identified the frames, we can **annotate** a training dataset using a lighter LLM (GPT4.1-mini in our case) and **train** a BERT-like classifier on it (we used [distilbert-base-uncased](https://huggingface.co/distilbert-base-uncased) in this example). In the final step, we **classify** each chunk of our corpus and **aggregate** per article-year-or-domain based on frames weight and chunks length.
+After defining these frames, I used a smaller model (GPT-4.1-mini) to annotate a few thousand text segments according to them, and then fine-tuned a BERT-based classifier (DistilBERT) to scale the analysis to the full corpus. Each chunk was then classified based on the likelihood of each frame and aggregated across articles, domains and years. The goal here wasn’t to produce precise statistics, but to see whether this workflow could surface meaningful patterns in how meat and animal welfare are discussed over time.
 
-The results are shown in the figure below.
+
+The results are shown in the figure below. I’ll leave it to animal welfare advocates to judge whether any interesting signal emerges from this first run. I imagine it could be interesting to compare such patterns across countries as well.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -154,20 +160,21 @@ The results are shown in the figure below.
   </p>
 </div>
 
-### Media outlets breakdown
 
-The analysis can also reveal how different media outlets frame meat production and consumption. Some outlets emphasize certain frames more than others, which could potentially inform advocacy targeting and messaging strategies.
+For brevity, I haven’t included the time-series plots or the language- and domain-level aggregations here, but I’d be happy to share them if they’re of interest.
 
-<div class="chart-item">
-  <div class="chart-heading">
-    <div class="chart-title">Frame distribution across media outlets</div>
-    <div class="chart-subtitle">Share of each frame by media outlet, weighted by content length</div>
-  </div>
-  {% include narrative_framing/canada_meat/domain_frame_distribution.html %}
-  <p class="chart-note">
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
-  </p>
-</div>
+
+## Looking ahead
+These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
+
+- Valence and stance: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
+
+- Conditional framing: Beyond tracking which frames appear, future work could look at how they co-occur/
+
+- Validation and reliability: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.
+
+## Get in touch
+I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - [reach out to me](mailto:hubert.thieriot@gmail.com).
 
 
 
@@ -423,7 +430,4 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 </div>
 
 ---
-
-## Get in touch
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - [reach out to me](mailto:hubert.thieriot@gmail.com).
 

@@ -6,13 +6,11 @@
         fill: #ffffff;
         stroke: #4f6081;
         stroke-width: 2.5;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
       }
       .highlight-box {
         fill: #fff8f0;
         stroke: #FF8C42;
         stroke-width: 3.5;
-        filter: drop-shadow(0 3px 6px rgba(255,140,66,0.2));
       }
       .text {
         font-family: 'Open Sans', Arial, sans-serif;
@@ -52,7 +50,6 @@
         stroke: #FF8C42;
         stroke-width: 4;
         marker-end: url(#arrowhead-orange);
-        filter: drop-shadow(0 1px 2px rgba(255,140,66,0.3));
       }
     </style>
     

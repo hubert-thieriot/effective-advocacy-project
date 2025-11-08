@@ -56,6 +56,7 @@ To analyse this corpus, I implemented a six-step process: chunking, frame induct
 
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#e8f1f8','primaryTextColor':'#1E3D58','primaryBorderColor':'#4f6081','lineColor':'#4f6081','secondaryColor':'#d4e3f0','tertiaryColor':'#fff','fontFamily':'Open Sans, Arial, sans-serif'}}}%%
 flowchart LR
     A[Chunking] --> B[Frame Induction]
     B --> C[Frame Annotation]
@@ -63,12 +64,14 @@ flowchart LR
     D --> E[Classification]
     E --> F[Aggregation]
     
-    style A fill:#6366f1,stroke:#4f46e5,stroke-width:1px,color:#fff
-    style B fill:#3b82f6,stroke:#1e40af,stroke-width:1px,color:#fff
-    style C fill:#10b981,stroke:#059669,stroke-width:1px,color:#fff
-    style D fill:#f59e0b,stroke:#d97706,stroke-width:1px,color:#fff
-    style E fill:#8b5cf6,stroke:#7c3aed,stroke-width:1px,color:#fff
-    style F fill:#2dd4bf,stroke:#14b8a6,stroke-width:1px,color:#fff
+    style A fill:#f7f9fc,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    style B fill:#eff4f9,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    style C fill:#e7eff6,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    style D fill:#dfe9f3,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    style E fill:#d7e4f0,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    style F fill:#cfdeed,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
+    
+    linkStyle default stroke:#4f6081,stroke-width:2.5px
 ```
 
 First, each article was split into smaller, coherent segments called **chunks** (about 200 words) using linguistic models. This helps capture multiple frames coexisting within a single document while keeping each segment short enough for the models (both the annotator and the classifier) to interpret reliably.

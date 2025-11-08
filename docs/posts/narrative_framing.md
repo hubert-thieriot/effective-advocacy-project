@@ -15,7 +15,7 @@ This post includes two illustrative examples: one on air pollution in Indonesia 
   This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing analysis, strategic actors mapping, and key findings dissemination tracking.
 </div>
 
-## Why narrative framing?
+## Why narrative framing analysis?
 Part of the motivation behind this series comes from a long-standing discomfort with the phrase “shaping the narrative” often found in Theories of Change. The concept is seductive but slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair. Maybe narrative change can be a legitimate pathway to impact — but only if we can observe and measure it rigorously.
 
 That curiosity led me to treat narrative framing as a Monitoring, Evaluation, and Learning (MEL) challenge: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? But it quickly became more than a measurement problem. If we can map how narratives differ across regions or outlets, that same information could guide prioritization and strategy — revealing where certain framings already align with desired change, and where gaps in discourse might signal opportunities for leverage.
@@ -170,11 +170,14 @@ For brevity, I haven’t included the time-series plots or the language- and dom
 ## Looking ahead
 These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
 
-- Valence and stance: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
+- **Other mediums**: both examples have focused on media articles, but the same approach could be extended to TV and radio transcripts, online forums, or social media (though with associated API costs).
 
-- Conditional framing: Beyond tracking which frames appear, future work could look at how they co-occur/
+- **Valence and stance**: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
 
-- Validation and reliability: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.
+- **Conditional framing**: Beyond tracking which frames appear, future work could look at how they co-occur/
+
+- **Validation and reliability**: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.
+
 
 ## Get in touch
 I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - [reach out to me](mailto:hubert.thieriot@gmail.com).

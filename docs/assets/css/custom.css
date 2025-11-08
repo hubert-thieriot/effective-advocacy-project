@@ -1,23 +1,46 @@
 /* Custom CSS overrides for Cayman theme */
 
-/* Import Linux Libertine font */
-@import url('https://fonts.googleapis.com/css2?family=Linux+Libertine:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-
-body {
-  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #5d5f6e;
+/* Use CSS custom property for scalable font-size */
+:root {
+  --base-font-size: 0.9;
 }
 
-/* Use Linux Libertine for body text */
+/* Scale font-size proportionally across all screen sizes */
+/* Override any media query rules that set font-size on .main-content */
+@media screen and (min-width: 42em) and (max-width: 64em) {
+  :root {
+    --base-font-size: 0.9;
+  }
+  .main-content {
+    font-size: calc(1.1rem * var(--base-font-size)) !important;
+  }
+}
+
+@media screen and (min-width: 64em) {
+  :root {
+    --base-font-size: 0.9;
+  }
+  .main-content {
+    font-size: calc(1.1rem * var(--base-font-size)) !important;
+  }
+}
+
+body {
+  font-family: "Open Sans", sans-serif;
+  font-size: calc(1rem * var(--base-font-size));
+  color: #3d3f4e;
+}
+
+/* Use Open Sans for body text */
 p, li, div, span {
-  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #5d5f6e;
+  font-family: "Open Sans", sans-serif;
+  color: #3d3f4e;
 }
 
 /* Smaller font size for tables */
 table, td, th {
-  /* font-family: "Linux Libertine", "Liberation Serif", serif; */
-  color: #5d5f6e;
+  font-family: "Open Sans", sans-serif;
+  color: #3d3f4e;
   font-size: 0.9em;
 }
 
@@ -29,6 +52,12 @@ h1, h2, h3, h4, h5, h6 {
 /* Color for headings in main-content */
 .main-content h1, .main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6 {
   color: #4f6081;
+}
+
+/* Section titles (h2) - darker blue and higher font weight */
+.main-content h2 {
+  color: #1E3D58;
+  font-weight: 700;
 }
 
 .page-header {
@@ -183,7 +212,7 @@ h1, h2, h3, h4, h5, h6 {
 .chart-title {
     font-size: 1.3rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #1E3D58;
     line-height: 1.15;
     margin: 0;
 }

@@ -22,6 +22,9 @@ That curiosity led me to treat narrative framing as a Monitoring, Evaluation, an
 
 Narrative framing analysis can serve several complementary purposes across advocacy and philanthropy. Rather than treating it as a media-monitoring tool, I see it as a way to make collective meaning formation visible and measurable — to understand how public conversations evolve, who shapes them, and where interventions might matter most.
 
+<div style="text-align: center; margin: 2em 0;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing_intervention_diagram.svg" alt="How Narrative Framing Analysis informs advocacy intervention cycles" style="max-width: 100%; height: auto;">
+</div>
 
 - **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Jakarta overemphasizes individual behavior while neglecting industrial and energy sources, it signals not just a bias in media attention but a structural blind spot in public debate.
 

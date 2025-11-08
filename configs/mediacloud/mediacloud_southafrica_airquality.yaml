@@ -1,0 +1,27 @@
+builder: mediacloud
+
+corpus:
+  base_dir: corpora/mediacloud_southafrica_airquality
+
+parameters:
+  keywords:
+    en: ["air pollution", "air quality", "PM2.5", "PM 2.5", "PM10", "PM 10", "particulate matter", "smog", "haze", "clean air", "air quality index", "air quality rating", "air quality score", "air quality forecast", "air quality warning", "air quality alert"]
+    af: ["lugbesoedeling", "lugkwaliteit", "lugkwaliteit", "lugbesoedeling"]
+    zu: ["umoya ongcolile", "ikhwalithi yomoya", "umoya omhlophe", "ikhwalithi yomoya"]
+  collections:
+    - id: 34412238
+      name: South Africa - National
+  date_from: 2010-01-01
+  date_to: 2025-10-31
+  rate_limit:
+    requests_per_minute: 3
+    min_interval: 20.0
+    enabled: true
+
+
+extra_meta:
+  country_iso3: ZAF
+  comment: National air quality corpus for South Africa
+  topic: air_quality
+
+

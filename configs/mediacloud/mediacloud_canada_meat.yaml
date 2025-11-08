@@ -1,0 +1,34 @@
+builder: mediacloud
+
+corpus:
+  base_dir: corpora/mediacloud_canada_meat
+
+parameters:
+  keywords:
+    en: ["meat"]
+    fr: ["viande"]
+  collections:
+    - id: 34411583
+      name: Canada - National
+  date_from: 2010-01-01
+  date_to: 2025-10-31
+  rate_limit:
+    requests_per_minute: 30
+    min_interval: 20.0
+    enabled: true
+  # Enable concurrent processing with Scrapy (default: true)
+  use_concurrent_processing: true
+  concurrent_requests: 16
+  download_delay: 0.1
+  # Force refresh cache to get fresh data (set to false for production)
+  force_refresh_cache: false
+
+  # Skip previously failed URLs
+  skip_previously_failed: true
+
+extra_meta:
+  country_iso3: CAN
+  comment: National meat corpus for Canada
+  topic: meat
+
+

@@ -189,11 +189,15 @@ class LLMFrameApplicator:
         for frame in schema.frames:
             keywords = ", ".join(frame.keywords) if frame.keywords else "(no keywords)"
             examples = "; ".join(frame.examples[:2]) if frame.examples else "—"
+            anti_triggers_str = ", ".join(frame.anti_triggers[:5]) if frame.anti_triggers else "(none)"
+            boundary_notes_str = "; ".join(frame.boundary_notes[:2]) if frame.boundary_notes else "(none)"
             frame_lines.append(
                 f"- {frame.frame_id}: {frame.name}\n"
                 f"  Description: {frame.description or '(none)'}\n"
                 f"  Keywords: {keywords}\n"
-                f"  Example: {examples}"
+                f"  Example: {examples}\n"
+                f"  Anti-triggers: {anti_triggers_str}\n"
+                f"  Boundary notes: {boundary_notes_str}"
             )
 
         passage_lines = []
@@ -220,6 +224,8 @@ class LLMFrameApplicator:
                 "description": f.description,
                 "keywords": list(f.keywords),
                 "examples": list(f.examples),
+                "anti_triggers": list(f.anti_triggers),
+                "boundary_notes": list(f.boundary_notes),
             }
             for f in schema.frames
         ]

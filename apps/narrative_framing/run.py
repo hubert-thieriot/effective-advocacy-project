@@ -196,6 +196,8 @@ def save_schema(path: Path, schema: FrameSchema) -> None:
                 "description": frame.description,
                 "keywords": frame.keywords,
                 "examples": frame.examples,
+                "anti_triggers": frame.anti_triggers,
+                "boundary_notes": frame.boundary_notes,
             }
             for frame in schema.frames
         ],
@@ -216,6 +218,8 @@ def load_schema(path: Path) -> FrameSchema:
                 item.get("short_name")
                 or (item.get("name", "") if item.get("name") else item.get("frame_id", ""))
             ).strip(),
+            anti_triggers=item.get("anti_triggers", []),
+            boundary_notes=item.get("boundary_notes", []),
         )
         for item in payload.get("frames", [])
     ]
@@ -1110,7 +1114,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
 
     if TextChunker is not None:
         try:
-            chunker = TextChunker(TextChunkerConfig(max_words=config.target_words))
+            chunker = TextChunker(TextChunkerConfig(
+                max_words=config.target_words,
+                spacy_model=config.chunker_model
+            ))
         except Exception as exc:
             print(
                 "⚠️ Falling back to sentence chunker because TextChunker initialization failed:",

@@ -16,6 +16,8 @@ class Frame:
     keywords: List[str]
     examples: List[str]
     short_name: str = ""
+    anti_triggers: List[str] = field(default_factory=list)  # Explicit exclusion patterns
+    boundary_notes: List[str] = field(default_factory=list)  # Human-readable disambiguation notes
 
 
 @dataclass

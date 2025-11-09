@@ -285,9 +285,24 @@ class FrameInducer:
             frame_id = entry.get("frame_id")
             name = entry.get("name")
             description = entry.get("description", "")
+            
+            # Handle keywords with backward compatibility for new field names
             keywords = entry.get("keywords", [])
+            if not keywords:
+                # Merge lexical_cues and semantic_cues into keywords field
+                lexical_cues = entry.get("lexical_cues", [])
+                semantic_cues = entry.get("semantic_cues", [])
+                keywords = list(lexical_cues) + list(semantic_cues)
+            
             examples = entry.get("examples", [])
             short_name = entry.get("short_name")
+            
+            # Handle new fields with backward compatibility
+            anti_triggers = entry.get("anti_triggers", [])
+            if not anti_triggers:
+                # Support alternative field names from LLM
+                anti_triggers = entry.get("exclusions", [])
+            boundary_notes = entry.get("boundary_notes", [])
 
             if not frame_id or not name:
                 continue
@@ -307,6 +322,8 @@ class FrameInducer:
                     keywords=[str(keyword) for keyword in keywords if isinstance(keyword, str)],
                     examples=[str(example) for example in examples if isinstance(example, str)],
                     short_name=resolved_short,
+                    anti_triggers=[str(item) for item in anti_triggers if isinstance(item, str)],
+                    boundary_notes=[str(note) for note in boundary_notes if isinstance(note, str)],
                 )
             )
 

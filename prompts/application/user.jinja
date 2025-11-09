@@ -6,8 +6,10 @@ Frames (id, name, short description, cues)
 
 TASK
 - Using only the passage text and the frames above:
-  - Infer frame by matching descriptiong and lexical cues
+  - Infer frame by matching description and lexical cues
   - Prefer frames with multiple matched lexical_cues; consider semantic_cues as secondary.
+  - **Do NOT assign a frame** if anti-triggers (exclusion patterns) are present in the passage.
+  - Use boundary_notes to distinguish between similar frames when both could apply.
   - Choose only the frames that fit; set others to 0.
   - Renormalize chosen frames so probabilities sum to 1 (round to 2 decimals).
   - If clearly out-of-scope or boilerplate, set all to 0 and leave top_frames empty.

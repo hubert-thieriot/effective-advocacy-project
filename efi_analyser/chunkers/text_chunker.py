@@ -46,6 +46,13 @@ class TextChunker:
             self.nlp = spacy.load(self.spacy_model)
         except OSError:
             raise OSError(f"spaCy model '{self.spacy_model}' not found. Install with: python -m spacy download {self.spacy_model}")
+        
+        # Ensure the model has a sentencizer for sentence boundary detection
+        # Check if any component provides sentence boundaries (parser, senter, sentencizer)
+        has_sents = any(pipe in self.nlp.pipe_names for pipe in ['parser', 'senter', 'sentencizer'])
+        if not has_sents:
+            # Add sentencizer if no sentence boundary detector is present
+            self.nlp.add_pipe('sentencizer')
 
         # Attribution patterns for quote preservation
         self.attribution_patterns = [

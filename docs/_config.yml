@@ -1,33 +1,45 @@
 title: Effective Advocacy
 description: Exploring Tools for Effective Advocacy
-theme: jekyll-theme-cayman
-markdown: kramdown
-permalink: pretty
+email: hubert.thieriot@gmail.com
+logo: "/assets/images/df_logo.jpg"
+float_logo: false
+cover: "/assets/images/soulages.jpg"
+name: Hubert Thieriot
+author: Hubert Thieriot
+author_image: "/assets/images/author.jpg"
+paginate: 5
+paginate_path: "/page:num"
 url: "https://hubert-thieriot.github.io"
 baseurl: "/efi-corpus"
+twitter_handle: "@hubert_thieriot"
+theme: null
 
-# Site owner information
-# name: Hubert Thieriot
-# email: # Add your email if desired
-# author: Hubert Thieriot
-# author_image: # Add path to author image if desired (300x300px)
-# logo: # Add path to logo if desired (300x300px)
-# cover: # Add path to cover image for index page if desired
+markdown: kramdown
+permalink: pretty
+encoding: "utf-8"
 
-# Navigation
-header_pages:
-  - index.md
-  - posts/narrative_framing.md
+plugins:
+  - jemoji
+  - jekyll-paginate
 
-    
-# Disqus (optional - uncomment and add your shortname if you want comments)
-# disqus: your-disqus-shortname
+social:
+  - icon: github
+    url: https://github.com/hubert-thieriot
+    desc: GitHub
+    share_url: https://github.com/hubert-thieriot
+    share_title: "Check out this post: "
+    share_link: ""
+  - icon: linkedin
+    url: https://www.linkedin.com/in/hubertthieriot/
+    desc: LinkedIn
+    share_url: https://www.linkedin.com/sharing/share-offsite/?url=
+    share_title: ""
+    share_link: ""
 
-# Social links (optional - uncomment and configure as needed)
-# social:
-#   - icon: github
-#     url: https://github.com/hubert-thieriot
-#     desc: GitHub
-#     share_url: https://github.com/hubert-thieriot
-#     share_title: "Check out this post: "
-#     share_link: ""
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      author: "Hubert Thieriot"

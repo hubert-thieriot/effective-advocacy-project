@@ -1,261 +1,297 @@
-/* Custom CSS overrides for Cayman theme */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
 
-/* Use CSS custom property for scalable font-size */
-:root {
-  --base-font-size: 0.9;
+/* Custom CSS overrides for Mediator theme.
+   Previous Cayman-specific rules backed up in custom.css.cayman.bak */
+
+.landing-intro {
+  max-width: 900px;
+  margin: 3rem auto 2rem;
+  text-align: center;
+  padding: 0 1.5rem;
 }
 
-/* Scale font-size proportionally across all screen sizes */
-/* Override any media query rules that set font-size on .main-content */
-@media screen and (min-width: 42em) and (max-width: 64em) {
-  :root {
-    --base-font-size: 0.9;
-  }
-  .main-content {
-    font-size: calc(1.1rem * var(--base-font-size)) !important;
-  }
+.landing-intro__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
-@media screen and (min-width: 64em) {
-  :root {
-    --base-font-size: 0.9;
-  }
-  .main-content {
-    font-size: calc(1.1rem * var(--base-font-size)) !important;
-  }
+.landing-intro__copy {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.75);
 }
 
-body {
-  font-family: "Open Sans", sans-serif;
-  font-size: calc(1rem * var(--base-font-size));
-  color: #3d3f4e;
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin: 0 auto 3rem;
+  padding: 0 1.5rem;
+  max-width: 960px;
 }
 
-/* Use Open Sans for body text */
-p, li, div, span {
-  font-family: "Open Sans", sans-serif;
-  color: #3d3f4e;
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 10px 30px rgba(20, 20, 30, 0.08);
+  border: 1px solid rgba(20, 25, 40, 0.06);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  color: inherit;
 }
 
-/* Smaller font size for tables */
-table, td, th {
-  font-family: "Open Sans", sans-serif;
-  color: #3d3f4e;
-  font-size: 0.9em;
+.landing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 38px rgba(20, 20, 30, 0.12);
 }
 
-/* Use Open Sans for all headings */
-h1, h2, h3, h4, h5, h6 {
-  font-family: "Open Sans", sans-serif;
+.landing-card__title {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
 }
 
-/* Color for headings in main-content */
-.main-content h1, .main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6 {
-  color: #4f6081;
+.landing-card__copy {
+  flex: 1;
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
 }
 
-/* Section titles (h2) - darker blue and higher font weight */
-.main-content h2 {
-  color: #1E3D58;
-  font-weight: 700;
+.landing-card__cta {
+  font-weight: 600;
+  color: #3564d4;
 }
 
-.page-header {
-    background-image: linear-gradient(120deg, #1E3D58, #1E3D58)
+.landing-card--disabled {
+  cursor: not-allowed;
+  background: rgba(240, 242, 247, 0.8);
+  color: rgba(0, 0, 0, 0.45);
+  box-shadow: none;
 }
 
-/* Text box style */
-.text-box {
-    border: 1px solid #d3dce7;
-    border-radius: 6px;
-    background: #f7f9fc;
-    padding: 16px 20px;
-    margin: 1.5em 0;
-    color: #393a3f;
+.landing-card--disabled .landing-card__cta {
+  color: rgba(0, 0, 0, 0.4);
 }
 
-.text-box strong {
-    color: #4f6081;
+.landing-card--disabled:hover {
+  transform: none;
 }
 
-/* Link box/card style */
-.link-box {
-    border: 1px solid #d3dce7;
-    border-radius: 6px;
-    background: #f7f9fc;
-    padding: 20px 24px;
-    margin: 1em 0;
-    color: #4f6081;
-    text-decoration: none;
-    display: block;
-    transition: all 0.2s ease;
+.landing-empty {
+  text-align: center;
+  font-size: 1.05rem;
+  padding: 2rem 0 3rem;
+  color: rgba(0, 0, 0, 0.55);
 }
 
-.link-box:hover {
-    background: #eef2f9;
-    border-color: #1E3D58;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(79, 96, 129, 0.15);
-    text-decoration: none;
-}
-
-.link-box h3 {
-    margin: 0 0 8px 0;
-    color: #1E3D58;
-    font-family: "Open Sans", sans-serif;
-}
-
-.link-box p {
-    margin: 0;
-    color: #393a3f;
-}
-
-.link-box.coming-soon {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.link-box.coming-soon:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-
-.site-footer-credits {
-    display: none;
-}
-
-.site-footer-owner {
-    display: none;
-}
-
-.site-footer {
-    text-align: center;
-    color: #8a8d95;
-    margin-top: 3em;
-    padding: 1em 0;
-}
-
-/* TL;DR style */
 .tldr {
-    border-left: 4px solid #1E3D58;
-    background: #f0f4f8;
-    padding: 16px 20px;
-    margin: 1.5em 0;
-    border-radius: 4px;
-    color: #393a3f;
+  border-left: 4px solid rgba(53, 100, 212, 0.9);
+  background: rgba(53, 100, 212, 0.08);
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0 1.5rem;
+  border-radius: 6px;
 }
 
 .tldr::before {
-    content: "TL;DR: ";
-    font-weight: 700;
-    color: #1E3D58;
-    font-family: "Open Sans", sans-serif;
+  content: "TL;DR";
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.03em;
 }
 
-/* Disclaimer/note style with bars */
 .disclaimer {
-    font-style: italic;
-    color: #8a8d95;
-    margin: 1.5em 0;
-    padding: 12px 0;
-    position: relative;
-    text-align: center;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 2rem 0 1.5rem;
+  padding: 1.25rem;
+  text-align: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.disclaimer::before,
-.disclaimer::after {
-    content: "";
-    display: block;
-    height: 1px;
-    background: #d3dce7;
-    width: 60px;
-    margin: 0 auto;
+.content,
+.post,
+.post-content {
+  max-width: 880px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.disclaimer::before {
-    margin-bottom: 12px;
+.post-content h2 {
+  margin-bottom: 1.5rem !important;
 }
 
-.disclaimer::after {
-    margin-top: 12px;
+
+
+.post-meta {
+  left: 25% !important;
+  right: 25% !important;
 }
 
-/* Chart-related styles */
 .chart-item {
-    margin: 32px 0;
-    padding: 24px;
-    background: #f5f7fa;
-    border-radius: 8px;
-    position: relative;
+  position: relative;
+  margin: 2.5rem auto;
+  padding: 2.4rem 2.6rem 2.4rem;
+  max-width: 1120px;
+  background: rgba(247, 249, 253, 0.92);
+  border-radius: 0;
+  border: 1px solid rgba(20, 25, 40, 0.08);
+  box-shadow: 0 16px 42px rgba(20, 25, 40, 0.12);
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
 }
 
 .chart-item::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 40px;
-    background: #1E3D58;
-    border-radius: 0 0 4px 0;
-}
-
-.chart-item:first-child {
-    margin-top: 0;
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 52px;
+  background: #274b9f;
+  border-bottom-right-radius: 12px;
 }
 
 .chart-heading {
-    margin: 0 0 8px 0;
+  margin-bottom: 1rem;
 }
 
 .chart-title {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: #1E3D58;
-    line-height: 1.15;
-    margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
 }
 
 .chart-subtitle {
-    margin: 2px 0 0 0;
-    font-size: 1rem;
-    font-weight: 300;
-    color: #334155;
-    line-height: 1.4;
+  margin: 0.2rem 0 0;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 1.2rem;
 }
 
 .chart-note {
-    margin: 12px 0 0 0;
-    font-size: 0.9rem;
-    color: #475569;
-    font-weight: 200;
-    line-height: 1.5;
+  margin-top: 1rem;
+  font-size: 1rem !important;
+  color: rgba(0, 0, 0, 0.55) !important;
+  line-height: 1.3 !important;
+
 }
 
-.chart-note strong {
-    color: #1e293b;
-    font-weight: 600;
-}
-
-/* Chart iframe styling */
 .chart-item iframe {
-    width: 100%;
-    border: none;
-    margin: 16px 0;
+  width: 100%;
+  border: none;
+  margin: 1rem 0;
 }
 
-/* Method overview section styling */
-.method-overview-section {
-    background: #f0f7ff;
-    padding: 24px 28px;
-    margin: 24px 0;
-    border-radius: 8px;
-    border-left: 4px solid #3b82f6;
-    width: 100%;
-    box-sizing: border-box;
+.text-box {
+  position: relative;
+  border-radius: 0;
+  border: 1px solid rgba(20, 25, 40, 0.08);
+  background: rgba(247, 249, 253, 0.92);
+  padding: 2.4rem 2.6rem 2.4rem;
+  margin: 2.3rem auto;
+  max-width: 1120px;
+  box-shadow: 0 16px 42px rgba(20, 25, 40, 0.12);
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
 }
 
-.method-overview-heading {
-    margin-top: 0;
+.text-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 52px;
+  background: #274b9f;
+  border-bottom-right-radius: 12px;
+}
+
+.text-box h2,
+.text-box h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+}
+
+.text-box strong {
+  color: rgba(20, 25, 40, 0.85);
+}
+
+.frame-card-description {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: rgba(28, 36, 52, 0.85);
+}
+
+.landing-intro,
+.landing-card {
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* .article-image {
+  height: 500px;
+  max-height: 500px;
+} */
+
+/* .article-image .post-meta {
+  top: 80px;
+  bottom: unset;
+} 
+ */
+
+/*
+.article-image .post-image-image,
+.article-image .post-image-image2 {
+  height: 340px;
+  max-height: 340px;
+  background-position: center;
+  background-size: cover;
+}
+
+.article-image .post-meta {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 4rem);
+  max-width: 760px;
+} */
+
+.noarticleimage .post-meta {
+  margin-top: 1.5rem;
+}
+
+
+.post-subtitle {
+  margin: 1rem 0;
+  font-size: 2.5rem;
+  font-weight: 500;
+  color: white;
+  letter-spacing: 0.01em;
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+}
+
+.post-image-caption {
+  position: absolute;
+  bottom: 14px;
+  right: 24px;
+  margin: 0;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.isLeft p, .isLeft h4 {
+    padding-left: 0 !important;
+}
+
+.published {
+    margin-top: 20px !important;
 }

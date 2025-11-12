@@ -1,8 +1,17 @@
 ---
-layout: default
+layout: post
+permalink: /posts/narrative_framing/
 title: Narrative Framing Analysis
-description: Exploring Tools for Effective Advocacy
+subtitle: Exploring tools for Effective Advocacy
+description: Exploring narrative framing workflows across air pollution and animal welfare corpora
+image_caption: "Peinture (2012), by Pierre Soulages"
+date: 2024-10-15 09:00:00 +0000
+author: Hubert Thieriot
+author_image: /assets/images/author.jpg
+image: /assets/images/soulages.jpg
+tags: [narrative-framing]
 ---
+
 # Narrative Framing for **Air Pollution** and **Animal Welfare**
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
@@ -439,4 +448,3 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 </div>
 
 ---
-

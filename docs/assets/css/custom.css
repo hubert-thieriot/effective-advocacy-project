@@ -157,10 +157,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 16px;
+  width: 8px;
   height: 52px;
-  background: #274b9f;
-  border-bottom-right-radius: 12px;
+  background: #1E3D58;
 }
 
 .chart-heading {
@@ -243,6 +242,10 @@
 .landing-intro,
 .landing-card {
   font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+}
+
+.post .post-content img {
+  margin: 0 auto;
 }
 
 /* .article-image {

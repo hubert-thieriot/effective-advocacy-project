@@ -1544,18 +1544,21 @@ def _render_domain_frame_distribution(
     if not isinstance(domain_frame_summaries, list):
         return ""
     
-    # Extract domain frame scores
+    # Extract domain frame scores and counts
     domain_frame_scores: Dict[str, Dict[str, float]] = {}
+    domain_counts: Dict[str, int] = {}
     
     for entry in domain_frame_summaries:
         if not isinstance(entry, dict):
             continue
         domain = entry.get("domain", "")
         shares = entry.get("shares", {})
+        count = entry.get("count", 0)
         if not isinstance(shares, dict):
             continue
         if domain:
             domain_frame_scores[domain] = shares
+            domain_counts[domain] = count if isinstance(count, int) else 0
     
     if not domain_frame_scores:
         return ""
@@ -1598,10 +1601,18 @@ def _render_domain_frame_distribution(
     cols = min(4, max(2, int((n_domains ** 0.5) * 1.2)))  # Slightly more columns for wider layout
     rows = (n_domains + cols - 1) // cols  # Ceiling division
     
+    # Create subplot titles with bold domain names and (n=x)
+    subplot_titles = []
+    for domain in domains:
+        count = domain_counts.get(domain, 0)
+        # Format: <b>domain</b> (n=x) - domain in bold, count not bold
+        title = f"<b>{domain}</b> (n={count})"
+        subplot_titles.append(title)
+    
     fig = make_subplots(
         rows=rows,
         cols=cols,
-        subplot_titles=[domain for domain in domains],
+        subplot_titles=subplot_titles,
         vertical_spacing=0.05,  # Reduced spacing between subplots
         horizontal_spacing=0.05,
         shared_xaxes=True,
@@ -1682,6 +1693,7 @@ def _render_domain_frame_distribution(
     )
     
     # Update subplot titles to smaller font and adjust position
+    # Note: HTML formatting in titles requires setting text to the formatted string
     fig.update_annotations(font_size=9, yshift=-10)  # Shift titles down a bit
     
     # Add y=0 line (x-axis) to all subplots and update axes
@@ -1714,7 +1726,7 @@ def _render_domain_frame_distribution(
         try:
             export_html_path.parent.mkdir(parents=True, exist_ok=True)
             # Generate unique div_id from export path to avoid collisions
-            # Extract parent directory name (e.g., "indonesia_airpollution" or "canada_meat")
+            # Extract parent directory name (e.g., "indonesia_airpollution" or "meat_canada")
             parent_dir = export_html_path.parent.name
             unique_div_id = f"domain-frame-distribution-{parent_dir.replace('_', '-')}"
             # Create self-supporting HTML with embedded Plotly for Jekyll include

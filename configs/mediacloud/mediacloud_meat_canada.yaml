@@ -1,7 +1,7 @@
 builder: mediacloud
 
 corpus:
-  base_dir: corpora/mediacloud_canada_meat
+  base_dir: corpora/mediacloud_meat_canada
 
 parameters:
   keywords:

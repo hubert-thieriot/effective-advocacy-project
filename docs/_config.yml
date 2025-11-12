@@ -22,7 +22,6 @@ plugins:
   - jemoji
   - jekyll-paginate
   - jekyll-remote-theme
-  - jekyll-remote-theme
 
 social:
   - icon: github

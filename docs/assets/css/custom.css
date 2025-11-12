@@ -202,8 +202,10 @@
   margin: 2.3rem auto;
   max-width: 1120px;
   box-shadow: 0 16px 42px rgba(20, 25, 40, 0.12);
-  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+  font-size: 22px !important;
 }
+
+
 
 .text-box::before {
   content: "";
@@ -226,6 +228,10 @@
 
 .text-box strong {
   color: rgba(20, 25, 40, 0.85);
+}
+
+.text-box li{
+  font-size: 22px !important;
 }
 
 .frame-card-description {

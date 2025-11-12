@@ -424,7 +424,7 @@ We classify content at the chunk level (typically sentences or short spans) to a
 Finally, we aggregate chunk‑level predictions to document‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within a document (article, post, thread, etc.); an occurrence view answers a different question—what share of documents mention a frame at all.
 
 <div class="text-box">
-  <strong>Why not simply use keywords?</strong>
+  <h3>Why not simply use keywords?</h3>
   
   <p>Keyword-based approaches have significant limitations for narrative analysis:</p>
   

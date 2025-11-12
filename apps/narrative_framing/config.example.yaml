@@ -32,6 +32,7 @@ report:
 # filter_exclude_regex:
 #   - '(?i)(STOCKS & SCREENERS|Top Calculators|Stock Screener)'
 target_words: 200
+# chunker_model: en_core_web_sm  # spaCy model for text chunking (default: en_core_web_sm). Use id_core_news_sm for Indonesian, etc.
 induction_sample_size: 100
 application_sample_size: 1200
 application_batch_size: 8

@@ -4,9 +4,9 @@ Goal: Induce a compact, non-overlapping set of frames that covers these passages
 Constraints
 - Keep descriptions short (≤ 2 sentences).
 - Provide 5–8 lexical_cues (quoted triggers) and 2–4 semantic_cues per frame.
+- Provide 3–6 anti_triggers (exclusion patterns that should NOT match this frame).
 - Provide 1–2 short examples when possible.
 - Use boundary_notes (1–2) to explain differences vs. close frames.
-- Do not include decision rules, regex, or long anti-trigger lists.
 
 {% if induction_guidance %}Guidance (optional):
 {{ induction_guidance }}
@@ -25,6 +25,7 @@ Return JSON only (schema must be valid):
       "description": "...",
       "lexical_cues": ["...", "..."],
       "semantic_cues": ["...", "..."],
+      "anti_triggers": ["...", "..."],
       "examples": ["..."],
       "boundary_notes": ["..."]
     }

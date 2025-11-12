@@ -96,6 +96,7 @@ class NarrativeFramingConfig:
     filter_exclude_min_hits: Optional[Dict[str, int]] = None  # e.g., {"share price": 3}
     filter_trim_after_markers: Optional[List[str]] = None  # strings after which to trim tail
     target_words: int = DEFAULT_TARGET_WORDS
+    chunker_model: str = "en_core_web_sm"  # spaCy model for text chunking
     induction_sample_size: int = DEFAULT_INDUCTION_SAMPLE
     application_sample_size: int = DEFAULT_APPLICATION_SAMPLE
     application_batch_size: int = DEFAULT_APPLICATION_BATCH
@@ -298,6 +299,8 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.filter_trim_after_markers = [str(item) for item in markers]
     if "target_words" in data:
         config.target_words = int(data["target_words"])
+    if "chunker_model" in data:
+        config.chunker_model = str(data["chunker_model"])
     if "induction_sample_size" in data:
         config.induction_sample_size = int(data["induction_sample_size"])
     if "application_sample_size" in data:

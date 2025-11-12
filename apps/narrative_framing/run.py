@@ -196,6 +196,8 @@ def save_schema(path: Path, schema: FrameSchema) -> None:
                 "description": frame.description,
                 "keywords": frame.keywords,
                 "examples": frame.examples,
+                "anti_triggers": frame.anti_triggers,
+                "boundary_notes": frame.boundary_notes,
             }
             for frame in schema.frames
         ],
@@ -216,6 +218,8 @@ def load_schema(path: Path) -> FrameSchema:
                 item.get("short_name")
                 or (item.get("name", "") if item.get("name") else item.get("frame_id", ""))
             ).strip(),
+            anti_triggers=item.get("anti_triggers", []),
+            boundary_notes=item.get("boundary_notes", []),
         )
         for item in payload.get("frames", [])
     ]
@@ -1110,7 +1114,10 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
 
     if TextChunker is not None:
         try:
-            chunker = TextChunker(TextChunkerConfig(max_words=config.target_words))
+            chunker = TextChunker(TextChunkerConfig(
+                max_words=config.target_words,
+                spacy_model=config.chunker_model
+            ))
         except Exception as exc:
             print(
                 "⚠️ Falling back to sentence chunker because TextChunker initialization failed:",
@@ -1737,6 +1744,22 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             }
         
         include_classifier_plots = True if classifier_predictions else False
+
+        # Count total number of classified passages (chunks) from chunk_classifications
+        classified_passages_count = 0
+        for doc_record in chunk_classifications:
+            chunks = doc_record.get("chunks", [])
+            if isinstance(chunks, Sequence):
+                classified_passages_count += len(chunks)
+
+        usage_stats = {
+            "frames": len(schema.frames),
+            "corpus_documents": len(total_doc_ids),
+            "induction_passages": len(induction_samples) if induction_samples else (config.induction_sample_size or 0),
+            "annotation_passages": len(assignments),
+            "classifier_documents": len(chunk_classifications),
+            "classifier_passages": classified_passages_count,
+        }
         
         write_html_report(
             schema=schema,
@@ -1757,6 +1780,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             export_plotly_png_dir=(paths.html.parent / "plots"),
             induction_guidance=config.induction_guidance,
             export_includes_dir=config.report.export_includes_dir,
+            usage_stats=usage_stats,
         )
         
         # Publish PNGs and HTML to docs for GitHub Pages

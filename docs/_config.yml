@@ -12,7 +12,7 @@ paginate_path: "/page:num"
 url: "https://hubert-thieriot.github.io"
 baseurl: "/efi-corpus"
 twitter_handle: "@hubert_thieriot"
-theme: null
+remote_theme: dirkfabisch/mediator
 
 markdown: kramdown
 permalink: pretty
@@ -21,6 +21,7 @@ encoding: "utf-8"
 plugins:
   - jemoji
   - jekyll-paginate
+  - jekyll-remote-theme
 
 social:
   - icon: github

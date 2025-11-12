@@ -5,14 +5,13 @@ title: Narrative Framing Analysis
 subtitle: Exploring tools for Effective Advocacy
 description: Exploring narrative framing workflows across air pollution and animal welfare corpora
 image_caption: "Peinture (2012), by Pierre Soulages"
-date: 2024-10-15 09:00:00 +0000
+date: 2025-11-12 09:00:00 +0000
 author: Hubert Thieriot
 author_image: /assets/images/author.jpg
 image: /assets/images/soulages.jpg
 tags: [narrative-framing]
 ---
 
-# Narrative Framing for **Air Pollution** and **Animal Welfare**
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
 
@@ -20,16 +19,12 @@ This post includes two illustrative examples: one on air pollution in Indonesia 
 </div>
 
 
-<div class="disclaimer">
-  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing analysis, strategic actors mapping, and key findings dissemination tracking.
-</div>
 
 ## Why narrative framing analysis?
-Part of the motivation behind this series comes from a long-standing discomfort with the phrase “shaping the narrative” often found in Theories of Change. The concept is seductive but slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair. Maybe narrative change can be a legitimate pathway to impact — but only if we can observe and measure it rigorously.
+Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
 
-That curiosity led me to treat narrative framing as a Monitoring, Evaluation, and Learning (MEL) challenge: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? But it quickly became more than a measurement problem. If we can map how narratives differ across regions or outlets, that same information could guide prioritization and strategy — revealing where certain framings already align with desired change, and where gaps in discourse might signal opportunities for leverage.
+That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
 
-Narrative framing analysis can serve several complementary purposes across advocacy and philanthropy. Rather than treating it as a media-monitoring tool, I see it as a way to make collective meaning formation visible and measurable — to understand how public conversations evolve, who shapes them, and where interventions might matter most.
 
 <div style="text-align: center; margin: 2em 0;">
   <img src="{{ site.baseurl }}/assets/narrative_framing_intervention_diagram.svg" alt="How Narrative Framing Analysis informs advocacy intervention cycles" style="max-width: 100%; height: auto;">
@@ -42,13 +37,13 @@ Narrative framing analysis can serve several complementary purposes across advoc
 - **Measure change over time**: Tracking how narratives evolve — across repeated studies or advocacy campaigns — could help observe whether certain framings gain or lose prominence. This might support both strategic reflection (for advocates seeking feedback on their efforts) and broader research on how public conversations shift around key issues.
 
 
-To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare. They’re not polished studies, but sketches of what it could mean to treat narratives themselves as objects of measurement and reflection.
+To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare.
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies.
+In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with different techniques.
 
-Leveraging MediaCloud and scraping scripts, I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
+I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -163,7 +158,7 @@ The results are shown in the figure below. I’ll leave it to animal welfare adv
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">How Canadian media frames meat production and consumption</div>
-    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2021 in Canadian media (English and French), weighted by content length.</div>
+    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2025 in Canadian media (English and French), weighted by content length.</div>
   </div>
   <iframe src="{{ site.baseurl }}/assets/narrative_framing/canada_meat/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
   <p class="chart-note">

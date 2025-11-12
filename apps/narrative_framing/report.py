@@ -2942,7 +2942,6 @@ def write_html_report(
             "Corpus",
             [
                 (stats.get("corpus_documents"), "articles"),
-                (stats.get("corpus_passages"), "passages"),
             ],
             accent="var(--accent-1)"
         )

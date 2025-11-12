@@ -88,19 +88,24 @@
 }
 
 .tldr {
-  border-left: 4px solid rgba(53, 100, 212, 0.9);
-  background: rgba(53, 100, 212, 0.08);
-  padding: 1.25rem 1.5rem;
   margin: 2rem 0 1.5rem;
-  border-radius: 6px;
+  padding: 0 0 0.75rem 0;
+  color: rgba(30, 35, 45, 0.75);
+  font-style: italic;
+  border: none;
+  background: none;
+  line-height: 1.4;
+  font-size: 1.2rem;
 }
 
 .tldr::before {
   content: "TL;DR";
   display: block;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   letter-spacing: 0.03em;
+  font-style: normal;
+  color: rgba(23, 28, 38, 0.78);
 }
 
 .disclaimer {
@@ -125,6 +130,9 @@
   margin-bottom: 1.5rem !important;
 }
 
+.post-title {
+  line-height: 1.2 !important;
+}
 
 
 .post-meta {
@@ -264,6 +272,9 @@
   margin-top: 1.5rem;
 }
 
+.post .post-content li p {
+  padding: 0 !important;
+}
 
 .post-subtitle {
   margin: 1rem 0;
@@ -272,6 +283,7 @@
   color: white;
   letter-spacing: 0.01em;
   font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+  line-height: 1.2 !important;
 }
 
 .post-image-caption {
@@ -285,7 +297,11 @@
   text-transform: uppercase;
   font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
   padding: 5px 10px;
-  border-radius: 4px;
+  border: none;
+}
+
+.figcaption {
+  font-size: 1.1rem;
 }
 
 .isLeft p, .isLeft h4 {
@@ -294,4 +310,8 @@
 
 .published {
     margin-top: 20px !important;
+}
+
+code.language-plaintext {
+  font-size: 18px;
 }

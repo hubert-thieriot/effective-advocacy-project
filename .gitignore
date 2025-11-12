@@ -1,5 +1,6 @@
 # website
 docs/_includes_cayman/
+docs/_sass/bourbon
 
 # Cache and corpus
 cache/

@@ -5,7 +5,7 @@ corpus:
 
 parameters:
   keywords:
-    en: ["air pollution", "air quality", "PM2.5", "PM 2.5", "PM10", "PM 10", "particulate matter", "smog", "haze", "clean air", "air quality index", "air quality rating", "air quality score", "air quality forecast", "air quality warning", "air quality alert"]
+    en: ["air pollution", "air quality", "PM2.5", "PM 2.5", "PM10", "PM 10", "particulate matter", "smog", "haze", "clean air", "air quality"]
     af: ["lugbesoedeling", "lugkwaliteit", "lugkwaliteit", "lugbesoedeling"]
     zu: ["umoya ongcolile", "ikhwalithi yomoya", "umoya omhlophe", "ikhwalithi yomoya"]
   collections:

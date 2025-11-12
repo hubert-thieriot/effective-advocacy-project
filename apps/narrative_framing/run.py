@@ -484,6 +484,19 @@ def _list_global_doc_ids(corpora: Mapping[str, EmbeddedCorpus]) -> List[str]:
     return doc_ids
 
 
+def _count_corpus_passages(corpora: Mapping[str, EmbeddedCorpus]) -> int:
+    """Estimate total number of passages (chunks) across all corpora."""
+    total = 0
+    for embedded in corpora.values():
+        for local_doc_id in embedded.corpus.list_ids():
+            chunks = embedded.get_chunks(local_doc_id, materialize_if_necessary=False)
+            if chunks is None:
+                chunks = embedded.get_chunks(local_doc_id, materialize_if_necessary=True)
+            if chunks:
+                total += len(chunks)
+    return total
+
+
 def save_chunk_classification(directory: Path, payload: Dict[str, object]) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     doc_id = str(payload.get("doc_id"))
@@ -1744,6 +1757,16 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             }
         
         include_classifier_plots = True if classifier_predictions else False
+
+        usage_stats = {
+            "frames": len(schema.frames),
+            "corpus_documents": len(total_doc_ids),
+            "corpus_passages": _count_corpus_passages(corpora_map),
+            "induction_passages": len(induction_samples) if induction_samples else (config.induction_sample_size or 0),
+            "annotation_passages": len(assignments),
+            "classifier_documents": len(chunk_classifications),
+            "classifier_passages": len(classifier_predictions),
+        }
         
         write_html_report(
             schema=schema,
@@ -1764,6 +1787,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             export_plotly_png_dir=(paths.html.parent / "plots"),
             induction_guidance=config.induction_guidance,
             export_includes_dir=config.report.export_includes_dir,
+            usage_stats=usage_stats,
         )
         
         # Publish PNGs and HTML to docs for GitHub Pages

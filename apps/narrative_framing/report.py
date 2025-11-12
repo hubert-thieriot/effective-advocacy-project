@@ -1986,8 +1986,7 @@ def export_frames_html(
         card_html = f"""
         <div class="frame-card" style="--accent-color: {color};">
             <div class="frame-card-header">
-                <h3 class="frame-card-name">{html.escape(short_label)}</h3>
-                <h4 class="frame-card-title">{html.escape(frame.name)}</h4>
+                <h3 class="frame-card-name">{html.escape(frame.name)}</h3>
             </div>
             <div class="frame-card-body">
                 <p class="frame-card-description">{html.escape(frame.description)}</p>
@@ -2054,7 +2053,8 @@ def export_frames_html(
 
 .frame-card-description {
     margin-bottom: 10px;
-    line-height: 1.5;
+    line-height: 1.5 ! important;
+    font-size: unset ! important;
 }
 
 .frame-keywords,
@@ -2121,6 +2121,7 @@ def write_html_report(
     custom_plots: Optional[Sequence] = None,
     induction_guidance: Optional[str] = None,
     export_includes_dir: Optional[Path] = None,
+    usage_stats: Optional[Dict[str, int]] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
     
@@ -2911,12 +2912,85 @@ def write_html_report(
     # Coverage text for report header
     coverage_text = f"Analysis of {classified_documents:,} classified documents"
     
+    stats = usage_stats or {}
+    def _fmt(number: Optional[int]) -> Optional[str]:
+        if number is None:
+            return None
+        return f"{int(number):,}"
+
+    def _metric_card(title: str, lines: Sequence[Tuple[Optional[int], str]], accent: str = "var(--accent-2)") -> str:
+        valid_lines = [(value, label) for value, label in lines if value is not None]
+        if not valid_lines:
+            return ""
+        line_html = "".join(
+            f"<div class=\"metric-line\"><span class=\"metric-number\">{_fmt(value)}</span><span class=\"metric-unit\">{html.escape(label)}</span></div>"
+            for value, label in valid_lines
+            if _fmt(value) is not None
+        )
+        if not line_html:
+            return ""
+        return (
+            f"<div class=\"metric-card\" style=\"--metric-accent:{accent};\">"
+            f"<div class=\"metric-title\">{html.escape(title)}</div>"
+            f"{line_html}"
+            "</div>"
+        )
+
+    metric_cards: List[str] = []
+    metric_cards.append(
+        _metric_card(
+            "Corpus",
+            [
+                (stats.get("corpus_documents"), "articles"),
+                (stats.get("corpus_passages"), "passages"),
+            ],
+            accent="var(--accent-1)"
+        )
+    )
+    metric_cards.append(
+        _metric_card(
+            "Induction Sample",
+            [
+                (stats.get("induction_passages"), "passages"),
+            ],
+            accent="var(--accent-3)"
+        )
+    )
+    metric_cards.append(
+        _metric_card(
+            "Annotation (LLM)",
+            [
+                (stats.get("annotation_passages"), "passages"),
+            ],
+            accent="var(--accent-2)"
+        )
+    )
+    metric_cards.append(
+        _metric_card(
+            "Classifier",
+            [
+                (stats.get("classifier_documents"), "documents"),
+                (stats.get("classifier_passages"), "passages"),
+            ],
+            accent="var(--accent-4)"
+        )
+    )
+    metric_cards.append(
+        _metric_card(
+            "Frames",
+            [
+                (stats.get("frames", len(schema.frames)), "total"),
+            ],
+            accent="var(--success)"
+        )
+    )
+    metric_cards = [card for card in metric_cards if card]
+    header_metrics = ""
+    if metric_cards:
+        header_metrics = f"<div class=\"header-metrics\">{''.join(metric_cards)}</div>"
+    
     header_metrics = (
-        "<div class=\"header-metrics\">"
-        f"<div class=\"metric\"><span class=\"metric-value\">{len(schema.frames)}</span><span class=\"metric-label\">Frames</span></div>"
-        f"<div class=\"metric\"><span class=\"metric-value\">{classified_documents}</span><span class=\"metric-label\">Documents</span></div>"
-        f"<div class=\"metric\"><span class=\"metric-value\">{len(assignments)}</span><span class=\"metric-label\">Passages</span></div>"
-        "</div>"
+        header_metrics
     )
     timeline_html = f"<p class=\"timeline-note\">{html.escape(timeseries_note)}</p>" if timeseries_note else ""
     header_html = f"""
@@ -3015,21 +3089,55 @@ def write_html_report(
       opacity: 0.85;
     }}
     .header-metrics {{
-      display: flex;
-      align-items: center;
-      gap: 28px;
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      align-items: stretch;
     }}
-    .metric {{ text-align: right; }}
-    .metric-value {{
-      display: block;
-      font-size: 1.9rem;
+    .metric-card {{
+      position: relative;
+      padding: 18px 20px 18px 28px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }}
+    .metric-card::before {{
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 10px;
+      height: 42px;
+      background: var(--metric-accent, var(--accent-2));
+      border-bottom-right-radius: 8px;
+    }}
+    .metric-title {{
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-500);
       font-weight: 600;
     }}
-    .metric-label {{
+    .metric-line {{
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }}
+    .metric-number {{
+      font-size: 1.45rem;
+      font-weight: 600;
+      color: var(--ink-900);
+      line-height: 1.1;
+    }}
+    .metric-unit {{
       font-size: 0.85rem;
-      opacity: 0.85;
+      color: var(--ink-500);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
     }}
     .report-section {{ margin-bottom: 52px; }}
     .report-section:last-of-type {{ margin-bottom: 0; }}
@@ -3075,9 +3183,25 @@ def write_html_report(
       color: var(--ink-600);
     }}
     .chart-card {{
+      position: relative;
       min-height: fit-content;
       height: auto;
       overflow: visible;
+      border-radius: 0;
+      background: #ffffff;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+      padding-top: 26px;
+    }}
+    .chart-card::before {{
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 14px;
+      height: 46px;
+      background: var(--accent-2);
+      border-bottom-right-radius: 10px;
     }}
     .frame-card {{
       position: relative;
@@ -3136,7 +3260,7 @@ def write_html_report(
       margin: 0 0 12px 0;
       color: var(--ink-600);
       line-height: 1.5;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }}
     .frame-card-meta {{
       position: relative;
@@ -3194,10 +3318,10 @@ def write_html_report(
     }}
     .chart-note {{
       margin: 12px 0 0 0;
-      font-size: 0.9rem;
-      color: var(--ink-500);
-      font-weight: 200;
-      color: #777;    }}
+      font-size: 0.78rem;
+      color: var(--ink-400);
+      font-weight: 400;
+    }}
     .chart-item {{
       margin: 24px 0;
     }}
@@ -3227,7 +3351,7 @@ def write_html_report(
     }}
     .chart-title {{
       font-size: 1.3rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--ink-800);
       line-height: 1.15;
       margin: 0;

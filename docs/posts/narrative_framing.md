@@ -1,9 +1,17 @@
 ---
-layout: default
+layout: post
+permalink: /posts/narrative_framing/
 title: Narrative Framing Analysis
-description: Exploring Tools for Effective Advocacy
+subtitle: Exploring tools for Effective Advocacy
+description: Exploring narrative framing workflows across air pollution and animal welfare corpora
+image_caption: "Peinture (2012), by Pierre Soulages"
+date: 2025-11-12 09:00:00 +0000
+author: Hubert Thieriot
+author_image: /assets/images/author.jpg
+image: /assets/images/soulages.jpg
+tags: [narrative-framing]
 ---
-# Narrative Framing for **Air Pollution** and **Animal Welfare**
+
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
 
@@ -11,22 +19,19 @@ This post includes two illustrative examples: one on air pollution in Indonesia 
 </div>
 
 
-<div class="disclaimer">
-  This post is part of a series of technical explorations for <strong>Effective Advocacy</strong>. The goal is to devise practical tools that help advocacy better inform their strategy and measure their impact. Anticipated applications include narrative framing analysis, strategic actors mapping, and key findings dissemination tracking.
-</div>
 
 ## Why narrative framing analysis?
-Part of the motivation behind this series comes from a long-standing discomfort with the phrase “shaping the narrative” often found in Theories of Change. The concept is seductive but slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair. Maybe narrative change can be a legitimate pathway to impact — but only if we can observe and measure it rigorously.
+Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
 
-That curiosity led me to treat narrative framing as a Monitoring, Evaluation, and Learning (MEL) challenge: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? But it quickly became more than a measurement problem. If we can map how narratives differ across regions or outlets, that same information could guide prioritization and strategy — revealing where certain framings already align with desired change, and where gaps in discourse might signal opportunities for leverage.
+That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
 
-Narrative framing analysis can serve several complementary purposes across advocacy and philanthropy. Rather than treating it as a media-monitoring tool, I see it as a way to make collective meaning formation visible and measurable — to understand how public conversations evolve, who shapes them, and where interventions might matter most.
 
 <div style="text-align: center; margin: 2em 0;">
   <img src="{{ site.baseurl }}/assets/narrative_framing_intervention_diagram.svg" alt="How Narrative Framing Analysis informs advocacy intervention cycles" style="max-width: 100%; height: auto;">
 </div>
 
 ### What can narrative framing help with?
+
 
 - **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Jakarta overemphasizes individual behavior while neglecting industrial and energy sources, it signals not just a bias in media attention but a structural blind spot in public debate.
 
@@ -39,75 +44,21 @@ Narrative framing analysis can serve several complementary purposes across advoc
 Narrative framing analysis focuses on **media content** — how issues are discussed in newspapers, TV, radio, forums, and social media. It does not directly track how these narratives influence advisors, experts, citizens, or decision makers, nor does it measure the impact of interventions on those downstream actors.
 
 <div style="text-align: center; margin: 2em 0;">
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#e8f1f8','primaryTextColor':'#1E3D58','primaryBorderColor':'#4f6081','lineColor':'#4f6081','secondaryColor':'#d4e3f0','tertiaryColor':'#fff','fontFamily':'Open Sans, Arial, sans-serif'}}}%%
-flowchart LR
-    subgraph Intervention["Intervention"]
-        direction TB
-        I1["Research"]
-        I2["Campaign"]
-        I1 --- I2
-    end
-    
-    subgraph Media["Media"]
-        direction TB
-        M1["Newspapers"]
-        M2["TV"]
-        M3["Radio"]
-        M4["Forums"]
-        M5["Social Media"]
-        M1 --- M2
-        M2 --- M3
-        M3 --- M4
-        M4 --- M5
-    end
-    
-    subgraph Influencers["Advisors, Experts, Citizens"]
-        direction TB
-        E1["Advisors"]
-        E2["Experts"]
-        E3["Citizens"]
-        E1 --- E2
-        E2 --- E3
-    end
-    
-    subgraph DecisionMakers["Decision Makers"]
-        direction TB
-        D1["Corporates"]
-        D2["Policy makers"]
-        D3["Courts"]
-        D1 --- D2
-        D2 --- D3
-    end
-    
-    Intervention -->|"feeds into"| Media
-    Media -.->|"influences"| Influencers
-    Influencers -.->|"influences"| DecisionMakers
-    
-    style Intervention fill:#f0f0f0,stroke:#666,stroke-width:2px,stroke-dasharray: 0
-    style Media fill:#e8f1f8,stroke:#1E3D58,stroke-width:3px,stroke-dasharray: 8 4
-    style Influencers fill:#f0f0f0,stroke:#666,stroke-width:2px,stroke-dasharray: 0
-    style DecisionMakers fill:#f0f0f0,stroke:#666,stroke-width:2px,stroke-dasharray: 0
-    
-    classDef mediaNode fill:#e8f1f8,stroke:#1E3D58,stroke-width:2px
-    classDef otherNode fill:#ffffff,stroke:#999,stroke-width:1.5px
-    
-    class M1,M2,M3,M4,M5 mediaNode
-    class I1,I2,E1,E2,E3,D1,D2,D3 otherNode
-```
+  <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" alt="What narrative framing analysis covers and what it doesn't" style="max-width: 100%; height: auto;">
 </div>
 
+
 <p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: -1em; margin-bottom: 2em;">
-The dashed box highlights what narrative framing analysis covers: media content. The dotted arrows indicate influence pathways that are not directly measured by this method.
+The dashed box highlights what narrative framing analysis covers i.e. media content. The influence pathways are not directly measured by this method.
 </p>
 
-To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare. They’re not polished studies, but sketches of what it could mean to treat narratives themselves as objects of measurement and reflection.
+To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare.
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies.
+In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with different techniques.
 
-Leveraging MediaCloud and scraping scripts, I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
+I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -222,7 +173,7 @@ The results are shown in the figure below. I’ll leave it to animal welfare adv
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">How Canadian media frames meat production and consumption</div>
-    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2021 in Canadian media (English and French), weighted by content length.</div>
+    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2025 in Canadian media (English and French), weighted by content length.</div>
   </div>
   <iframe src="{{ site.baseurl }}/assets/narrative_framing/meat_canada/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
   <p class="chart-note">
@@ -488,7 +439,7 @@ We classify content at the chunk level (typically sentences or short spans) to a
 Finally, we aggregate chunk‑level predictions to document‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within a document (article, post, thread, etc.); an occurrence view answers a different question—what share of documents mention a frame at all.
 
 <div class="text-box">
-  <strong>Why not simply use keywords?</strong>
+  <h3>Why not simply use keywords?</h3>
   
   <p>Keyword-based approaches have significant limitations for narrative analysis:</p>
   
@@ -507,4 +458,3 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 </div>
 
 ---
-

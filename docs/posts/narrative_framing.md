@@ -13,7 +13,7 @@ tags: [narrative-framing]
 ---
 
 
-<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, forums). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
+<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
 
 This post includes two illustrative examples: one on air pollution in Indonesia and one on animal welfare in Canada.
 </div>
@@ -21,9 +21,9 @@ This post includes two illustrative examples: one on air pollution in Indonesia 
 
 
 ## Why narrative framing analysis?
-Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
+Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery to me — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
 
-That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move them? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
+That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move the needle? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
 
 
 <div style="text-align: center; margin: 2em 0;">
@@ -31,7 +31,6 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 </div>
 
 ### What can narrative framing help with?
-
 
 - **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Jakarta overemphasizes individual behavior while neglecting industrial and energy sources, it signals not just a bias in media attention but a structural blind spot in public debate.
 
@@ -41,22 +40,22 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 ### What it can't (yet) do?
 
-Narrative framing analysis focuses on **media content** — how issues are discussed in newspapers, TV, radio, forums, and social media. It does not directly track how these narratives influence advisors, experts, citizens, or decision makers, nor does it measure the impact of interventions on those downstream actors.
+Narrative framing analysis focuses on content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it’s a way to observe the stories circulating in public space.
 
-<div style="text-align: center; margin: 2em 0;">
+<div style="text-align: center; margin: 2em 0 0 0;">
   <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" style="max-width: 100%; height: auto;">
 </div>
 
 
-<p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: -1em; margin-bottom: 2em;">
+<p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: -2em; margin-bottom: 2em;">
 The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
 </p>
 
-To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare.
+To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in three countries: Canada, the United Kingdom and Australia.
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used for instance to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with different techniques.
+In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with different techniques.
 
 I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
 
@@ -65,7 +64,7 @@ I collected around 15,000 media articles published between January 2020 and Octo
     <div class="chart-title">Varying attention to the air pollution in Jakarta</div>
     <div class="chart-subtitle">Number of articles per day - 30-day window average</div>
   </div>
-  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/article_volume_over_time.html" style="width: 100%; height: 450px; border: none;"></iframe>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/article_volume_over_time.svg" alt="Article volume over time" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Data Source:</strong> Articles are collected from MediaCloud collection "Indonesia - National" using the keywords: "air pollution" OR "air quality" OR "polusi udara" OR "kualitas udara". Articles are further filtered to include only those mentioning Jakarta, DKI, ibukota, or jabodetabek.
   </p>
@@ -117,7 +116,7 @@ The results are shown in the figure below. Transport emissions dominate coverage
     <div class="chart-title">How Indonesian media frames the sources of the capital's pollution</div>
     <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media, weighted by content length.</div>
   </div>
-  <iframe src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.svg" alt="Yearly weighted frame distribution" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of Indonesian media articles. Articles are included if they mention Jakarta, DKI, ibukota, or jabodetabek and contain keywords related to air pollution. Each source category (vehicles, industry, forest fires, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>
@@ -128,9 +127,7 @@ The results are shown in the figure below. Transport emissions dominate coverage
 </div>
 
 
-
-
-### Media outlets breakdown
+Unsurprisingly, transport dominates public conversations about air quality: Jakarta’s traffic problems are highly visible and easy to blame. But research by the Centre for Research on Energy and Clean Air has [shown](https://energyandcleanair.org/work-from-home-wfh-and-other-gimmicks-cannot-clear-jakartas-air/) that this prominence, including in the measures proposed to address pollution, tend to downplay the role played by the power generation sector and regional sources. Such a framing analysis could help organisations gauge whether their work is starting to change how the issue is discussed.
 
 The analysis can also reveal how different media outlets frame air pollution sources. Some outlets emphasize certain pollution sources more than others, which could potentially inform advocacy targeting and messaging strategies.
 
@@ -186,17 +183,15 @@ The results are shown in the figure below. I’ll leave it to animal welfare adv
 </div>
 
 
-For brevity, I haven’t included the time-series plots or the language- and domain-level aggregations here, but I’d be happy to share them if they’re of interest.
 
-
-## Looking ahead
+## Looking forward
 These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
 
-- **Other mediums**: both examples have focused on media articles, but the same approach could be extended to TV and radio transcripts, online forums, or social media (though with associated API costs).
+- **Other mediums**: both examples have focused on media articles, but the same approach could be extended to TV and radio transcripts, social media, parliamentary debates and court decisions.
 
 - **Valence and stance**: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
 
-- **Conditional framing**: Beyond tracking which frames appear, future work could look at how they co-occur/
+- **Conditional framing**: Beyond tracking which frames appear, future work could look at how they co-occur.
 
 - **Validation and reliability**: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.
 
@@ -330,79 +325,9 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
   })();
 </script>
 
-```mermaid
-flowchart LR
-    subgraph Collection["1. Data Collection & Preparation"]
-        direction TB
-        subgraph CollectionSub[ ]
-        direction TB
-        A["Content discovery<br/>(media, TV, radio, forums, etc.)"] 
-        A2["Scrape & extract text<br/>(using Scrapy)"]
-        B["Chunk text<br/>(using SpaCy language model)"]
-        A --> A2 --> B
-        end
-    end
-    
-    subgraph Discovery["2. Frame Induction & Annotation"]
-        direction TB
-        subgraph DiscoverySub[ ]
-        direction TB
-        C["LLM: Induce frames<br/>(with or without user guidance)"]
-        D["LLM: Label samples<br/>(multi-label distributions)"]
-        C --> D
-        end
-    end
-    
-    
-
-    subgraph Classification["3. Scalable Classification"]
-        direction TB
-        subgraph ClassificationSub[ ]
-        direction TB
-        E["Train transformer classifier<br/>(fine-tune on LLM labels)"]
-        F["Classify all chunks<br/>(fast inference)"]
-        E --> F
-        end
-    end
-    
-    subgraph Analysis["4. Aggregation & Reporting"]
-        direction TB
-        subgraph AnalysisSub[ ]
-        direction TB
-        G["Aggregate to document level<br/>(length-weighted attention)"]
-        H["Results analysis<br/>(e.g. time series & outlets breakdowns)"]
-        I["Generate reports<br/>(interactive HTML + static plots)"]
-        G --> H --> I
-        end
-    end
-    
-    Collection --> Discovery
-    Discovery --> Classification
-    Classification --> Analysis
-    
-    classDef nodeBox fill:#ffffff33,stroke:#333,stroke-width:1px
-    classDef somePaddingClass padding-bottom:5em
-    classDef transparent fill:#ffffff00,stroke-width:0
-    
-    Collection:::somePaddingClass
-    CollectionSub:::transparent
-    Discovery:::discoveryStyle
-    Discovery:::somePaddingClass
-    DiscoverySub:::transparent
-    Classification:::somePaddingClass
-    ClassificationSub:::transparent
-    Analysis:::analysisStyle
-    Analysis:::somePaddingClass
-    AnalysisSub:::transparent
-
-    
-    class A,A2,B,C,D,E,F,G,H,I nodeBox
-    style Collection fill:#e1f5ff,stroke:#0277bd,stroke-width:2px
-    style Discovery fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    style Classification fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style Analysis fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    
-```
+<div style="text-align: center; margin: 2em 0;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing_method_overview.svg" alt="Method overview: Data Collection, Frame Induction, Classification, and Aggregation" style="max-width: 100%; height: auto;">
+</div>
 
 
 
@@ -441,20 +366,25 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 <div class="text-box">
   <h3>Why not simply use keywords?</h3>
   
-  <p>Keyword-based approaches have significant limitations for narrative analysis:</p>
+  <p>Keyword-based approaches are the simplest starting point for narrative analysis, and they can work reasonably well in some cases. In fact, quick comparisons suggested that a keyword-based approach might have produced broadly similar results for the Indonesia example.</p>
+
+  <p>That said, keywords come with several limitations that become more noticeable as the analysis grows in scope or complexity:</p>
   
   <ul>
-    <li><strong>Paraphrases and semantic variations</strong>: Journalists describe the same concept in many ways. An article discussing "road dust resuspension from heavy traffic" contains the same frame as one mentioning "vehicle emissions," but keyword matching would miss this connection.</li>
-    
-    <li><strong>Language evolution</strong>: Terms change over time and across regions. What counts as "construction pollution" in Jakarta might be discussed as "infrastructure development impacts" elsewhere, requiring constant keyword list updates.</li>
-    
-    <li><strong>Implied meaning</strong>: Media often conveys frames through context rather than explicit terms. A passage describing "stagnant air during the dry season" implies natural factors affecting pollution, even without using keywords like "El Niño" or "low rainfall."</li>
-    
-    <li><strong>Cross-language nuance</strong>: In multilingual contexts, keywords must be translated carefully, but semantic understanding captures equivalent concepts across languages automatically.</li>
+    <li><strong>Paraphrases and semantic variations</strong>: the same idea can be described using different wording. A passage describing “pollution from manufacturing hubs on the city’s outskirts” belongs in the same frame as one mentioning “industrial emissions,” but simple keyword lists might miss one of those. Training a classifier with a large-enough sample size would tend to better capture such semantic variations and implied meaning.</li>
+
+    <li><strong>Distinction of closely-related frames</strong>: Keywords may struggle to separate closely related frames (e.g., “factory farming” vs. “animal suffering,” or “natural factors” vs. “seasonal haze”) when such frames share important keywords. By better capturing the context in which these keywords are used, semantic models can better discriminate such frames.</li>
+
+    <li><strong>Cross-language nuance</strong>: In multilingual settings, keywords require maintaining separate—and often imperfect—lists for each language. Semantic models are better at capturing equivalent ideas across languages and phrasing variations without manual translation work.</li>
+
+    <li><strong>Extensibility</strong>: Semantic models also enable deeper analyses such as named-entity recognition (to identify actors), sentiment or valence (the emotional tone or intensity of coverage), and stance detection (whether the text supports, opposes, or remains neutral toward a specific actor or proposal). These layers are difficult or brittle to implement with keyword rules alone.</li>
   </ul>
   
-  <p>Our approach uses LLMs to capture semantic meaning, then scales it with a classifier—combining the flexibility of language understanding with the efficiency needed for large-scale analysis.</p>
+  <p>In short, keyword approaches are simple and sometimes effective, but semantic methods scale better, generalize across phrasing and languages, and create a base for more granular analyses.</p>
+
 
 </div>
+
+
 
 ---

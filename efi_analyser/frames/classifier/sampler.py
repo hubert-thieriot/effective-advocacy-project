@@ -9,6 +9,7 @@ import re
 
 from efi_core.types import Chunk
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
+from efi_core.utils import normalize_date
 
 from ..identifiers import make_global_passage_id, split_passage_id
 
@@ -25,6 +26,8 @@ class SamplerConfig:
     exclude_regex: Optional[Sequence[str]] = None
     exclude_min_hits: Optional[Dict[str, int]] = None  # e.g., {"share price": 3}
     trim_after_markers: Optional[Sequence[str]] = None
+    # Optional publication date lower bound (YYYY-MM-DD). Only docs on/after this date are considered.
+    date_from: Optional[str] = None
 
 
 class CorpusSampler:
@@ -41,6 +44,30 @@ class CorpusSampler:
         if not doc_ids:
             raise ValueError("Corpus is empty; no documents available for sampling.")
 
+        # Optional filtering by publication date
+        if config.date_from:
+            try:
+                df_norm = str(config.date_from).strip()
+            except Exception:
+                df_norm = None
+            if df_norm:
+                original_count = len(doc_ids)
+                filtered: List[str] = []
+                for _doc_id in doc_ids:
+                    try:
+                        meta = self.embedded_corpus.corpus.get_metadata(_doc_id)
+                        pub = meta['published_at']
+                        dt = normalize_date(pub)
+                        if not dt:
+                            continue  # skip docs without parseable date
+                        if dt.date().isoformat() >= df_norm:
+                            filtered.append(_doc_id)
+                    except Exception:
+                        continue
+                doc_ids = filtered
+                if not doc_ids:
+                    print(f"ℹ️  Date filter {df_norm} removed all documents (was {original_count}).")
+        
         rng = random.Random(config.seed)
         rng.shuffle(doc_ids)
 
@@ -226,6 +253,7 @@ class CompositeCorpusSampler:
                     exclude_regex=config.exclude_regex,
                     exclude_min_hits=config.exclude_min_hits,
                     trim_after_markers=config.trim_after_markers,
+                    date_from=config.date_from,
                 ),
                 allow_partial=True,
             )
@@ -254,6 +282,7 @@ class CompositeCorpusSampler:
                     exclude_regex=config.exclude_regex,
                     exclude_min_hits=config.exclude_min_hits,
                     trim_after_markers=config.trim_after_markers,
+                    date_from=config.date_from,
                 ),
                 allow_partial=True,
             )

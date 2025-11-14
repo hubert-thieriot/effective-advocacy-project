@@ -12,8 +12,9 @@ layout: default
     {% if site.logo %}
       <a class="blog-logo" href="{{site.url}}{{site.baseurl}}" style="background-image: url('{{ site.logo | prepend: site.baseurl }}')">{{ site.title }}</a>
     {% endif %}
-    <h1 class="blog-title">{{ site.title }}</h1>
-    <h2 class="blog-description">{{ site.description }}</h2>
+    <!-- <h1 class="blog-title">{{ site.title }}</h1> -->
+    <!-- <h2 class="blog-description">{{ site.description }}</h2> -->
+     <h1 class="blog-title" style="font-weight: 400;">Exploring tools for<br/><span  style="font-weight:700;">effective advocacy</span></h1>
     <div class="custom-links">
       {% for social in site.social %}
         {% if social.url %}

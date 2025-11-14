@@ -3,6 +3,18 @@
 /* Custom CSS overrides for Mediator theme.
    Previous Cayman-specific rules backed up in custom.css.cayman.bak */
 
+a {
+  color: #1E3D58 !important;
+}
+
+.blog-title {
+  line-height: 1.2 !important;
+}
+
+.blog-header .blog-logo {
+  box-shadow: none !important;
+}
+
 .landing-intro {
   max-width: 900px;
   margin: 3rem auto 2rem;
@@ -62,7 +74,7 @@
 
 .landing-card__cta {
   font-weight: 600;
-  color: #3564d4;
+  color: #1E3D58;
 }
 
 .landing-card--disabled {
@@ -204,17 +216,14 @@
   font-size: 22px !important;
 }
 
-
-
 .text-box::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
-  width: 16px;
+  width: 8px;
   height: 52px;
-  background: #274b9f;
-  border-bottom-right-radius: 12px;
+  background: #1E3D58;
 }
 
 .text-box h2,
@@ -323,4 +332,10 @@
 
 code.language-plaintext {
   font-size: 18px;
+}
+
+.bottom-closer .inner .btn {
+  background: #1E3D58 !important;
+  color: white !important;
+  border-radius: 5px !important;
 }

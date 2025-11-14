@@ -1504,14 +1504,14 @@ def _render_yearly_bar_chart(
     # Add grey-scale legend entries
     for idx, year in enumerate(years):
         alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
-        intensity = int(min(255, max(60, round(255 * (0.5 + 0.5 * alpha)))))
-        grey_rgba = f"rgba({intensity}, {intensity}, {intensity}, 1.0)"
+        color_neutral = "#666666"
+        color_with_alpha = _hex_to_rgba(color_neutral, alpha)
         traces.append({
             "type": "scatter",
             "mode": "markers",
             "x": [None],
             "y": [None],
-            "marker": {"size": 10, "color": grey_rgba},
+            "marker": {"size": 10, "color": color_with_alpha},
             "name": str(year),
             "showlegend": True,
             "hoverinfo": "skip",

@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="1000" height="500">
+  <!-- Define styles -->
+  <defs>
+    <style>
+      .box {
+        fill: #f0f0f0;
+        stroke: #666;
+        stroke-width: 2;
+      }
+      .media-box {
+        fill: #e8f1f8;
+        stroke: #1E3D58;
+        stroke-width: 3;
+        stroke-dasharray: 8,4;
+      }
+      .text {
+        font-family: 'Open Sans', Arial, sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        fill: #1E3D58;
+        text-anchor: middle;
+      }
+      .subtext {
+        font-family: 'Open Sans', Arial, sans-serif;
+        font-size: 14px;
+        fill: #4f6081;
+        text-anchor: middle;
+      }
+      .title-text {
+        font-family: 'Open Sans', Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        fill: #1E3D58;
+        text-anchor: middle;
+      }
+      .item-text {
+        font-family: 'Open Sans', Arial, sans-serif;
+        font-size: 14px;
+        fill: #333;
+        text-anchor: middle;
+      }
+      .arrow {
+        fill: none;
+        stroke: #4f6081;
+        stroke-width: 2.5;
+        marker-end: url(#arrowhead);
+      }
+      .dotted-arrow {
+        fill: none;
+        stroke: #8a8d95;
+        stroke-width: 2;
+        stroke-dasharray: 6,4;
+        marker-end: url(#arrowhead-light);
+      }
+    </style>
+    
+    <!-- Arrow markers -->
+    <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
+      <polygon points="0 0, 6 2, 0 4" fill="#4f6081" />
+    </marker>
+    <marker id="arrowhead-light" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
+      <polygon points="0 0, 6 2, 0 4" fill="#8a8d95" />
+    </marker>
+  </defs>
+  
+  <!-- Intervention block -->
+  <rect x="40" y="180" width="180" height="140" rx="8" class="box"/>
+  <text x="130" y="210" class="title-text">Intervention</text>
+  <text x="130" y="240" class="item-text">Research</text>
+  <text x="130" y="265" class="item-text">Campaign</text>
+  <text x="130" y="290" class="item-text">Lobbying</text>
+  
+  <!-- Corpora block (highlighted with dashed border) -->
+  <rect x="280" y="80" width="200" height="310" rx="8" class="media-box"/>
+  <text x="380" y="115" class="title-text">Corpora</text>
+  <text x="380" y="150" class="item-text">Newspapers</text>
+  <text x="380" y="180" class="item-text">TV</text>
+  <text x="380" y="210" class="item-text">Radio</text>
+  <text x="380" y="240" class="item-text">Forums</text>
+  <text x="380" y="270" class="item-text">Social Media</text>
+  <text x="380" y="300" class="item-text">Parliamentary debates</text>
+  <text x="380" y="330" class="item-text">Technical committees</text>
+  <text x="380" y="360" class="item-text">Court decisions</text>
+  
+  <!-- Influencers block -->
+  <rect x="540" y="180" width="200" height="140" rx="8" class="box"/>
+  <text x="640" y="210" class="title-text">Influencers</text>
+  <text x="640" y="240" class="item-text">Advisors</text>
+  <text x="640" y="265" class="item-text">Experts</text>
+  <text x="640" y="290" class="item-text">Citizens</text>
+  
+  <!-- Decision Makers block -->
+  <rect x="790" y="180" width="180" height="140" rx="8" class="box"/>
+  <text x="880" y="210" class="title-text">Decision Makers</text>
+  <text x="880" y="240" class="item-text">Corporates</text>
+  <text x="880" y="265" class="item-text">Policy makers</text>
+  <text x="880" y="290" class="item-text">Courts</text>
+  
+  <!-- Arrows -->
+  <!-- Intervention -> Corpora -->
+  <path d="M 220 250 L 280 250" class="arrow"/>
+  
+  <!-- Corpora -> Influencers (dotted) -->
+  <path d="M 480 250 L 540 250" class="dotted-arrow"/>
+  
+  <!-- Influencers -> Decision Makers (dotted) -->
+  <path d="M 740 250 L 800 250" class="dotted-arrow"/>
+</svg>
+

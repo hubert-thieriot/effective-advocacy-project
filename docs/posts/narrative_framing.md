@@ -44,12 +44,12 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 Narrative framing analysis focuses on **media content** — how issues are discussed in newspapers, TV, radio, forums, and social media. It does not directly track how these narratives influence advisors, experts, citizens, or decision makers, nor does it measure the impact of interventions on those downstream actors.
 
 <div style="text-align: center; margin: 2em 0;">
-  <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" alt="What narrative framing analysis covers and what it doesn't" style="max-width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" style="max-width: 100%; height: auto;">
 </div>
 
 
 <p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: -1em; margin-bottom: 2em;">
-The dashed box highlights what narrative framing analysis covers i.e. media content. The influence pathways are not directly measured by this method.
+The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
 </p>
 
 To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how Canadian outlets frame meat and animal welfare.

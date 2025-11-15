@@ -2224,6 +2224,16 @@ def export_frames_html(
     color: #1e293b;
     font-weight: 500;
 }
+
+@media (max-width: 768px) {
+    .frames-container {
+        padding: 40px 0;
+    }
+    
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
 </style>"""
     
     # Content HTML

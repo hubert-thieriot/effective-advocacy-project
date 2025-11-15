@@ -47,7 +47,7 @@ Narrative framing analysis focuses on content — how issues are discussed in me
 </div>
 
 
-<p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: -2em; margin-bottom: 2em;">
+<p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: 0; margin-bottom: 2em;">
 The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
 </p>
 
@@ -116,7 +116,7 @@ The results are shown in the figure below. Transport emissions dominate coverage
     <div class="chart-title">How Indonesian media frames the sources of the capital's pollution</div>
     <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media, weighted by content length.</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.svg" alt="Yearly weighted frame distribution" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of Indonesian media articles. Articles are included if they mention Jakarta, DKI, ibukota, or jabodetabek and contain keywords related to air pollution. Each source category (vehicles, industry, forest fires, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>
@@ -172,7 +172,7 @@ The results are shown in the figure below. I’ll leave it to animal welfare adv
     <div class="chart-title">How Canadian media frames meat production and consumption</div>
     <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2025 in Canadian media (English and French), weighted by content length.</div>
   </div>
-  <iframe src="{{ site.baseurl }}/assets/narrative_framing/meat_canada/yearly_weighted_wz.html" style="width: 100%; height: 500px; border: none;"></iframe>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/meat_canada/yearly_weighted_wz.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Note:</strong> The analysis identifies meat-related frames through natural language processing of Canadian media articles. Articles are included if they contain keywords related to meat ("meat" in English or "viande" in French). Each frame category (factory farming, animal suffering, plant-based alternatives, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each frame across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>

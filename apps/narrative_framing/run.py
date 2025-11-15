@@ -58,6 +58,7 @@ from efi_analyser.frames.identifiers import (
     split_global_doc_id,
     split_passage_id,
 )
+from efi_core.utils import normalize_date
 
 try:  # Prefer spaCy-based chunker when available.
     from efi_analyser.chunkers import TextChunker, TextChunkerConfig  # type: ignore
@@ -107,9 +108,9 @@ def resolve_result_paths(results_dir: Optional[Path]) -> ResultPaths:
 
 
 def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path], export_plots_dir: Optional[Path] = None) -> None:
-    """Copy exported Plotly PNGs and HTML files into docs/ for GitHub Pages.
+    """Copy exported Plotly PNGs, SVGs, and HTML files into docs/ for GitHub Pages.
 
-    - PNGs and HTMLs are expected in results/<run_name>/plots
+    - PNGs, SVGs, and HTMLs are expected in results/<run_name>/plots
     - Files copied to docs/assets/narrative_framing/<run_name>/ (or export_plots_dir if specified)
     - HTML report copied to docs/reports/<run_name>/frame_report.html
     """
@@ -129,8 +130,10 @@ def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path], exp
         
         if plots_src and plots_src.exists():
             plots_dst.mkdir(parents=True, exist_ok=True)
-            # Copy both PNG and HTML files
+            # Copy PNG, SVG, and HTML files
             for file_path in sorted(plots_src.glob("*.png")):
+                shutil.copy2(file_path, plots_dst / file_path.name)
+            for file_path in sorted(plots_src.glob("*.svg")):
                 shutil.copy2(file_path, plots_dst / file_path.name)
             for file_path in sorted(plots_src.glob("*.html")):
                 shutil.copy2(file_path, plots_dst / file_path.name)
@@ -379,6 +382,91 @@ def build_all_aggregates(
             domain_frame_summaries
         )
         aggregates[f"domain_weighted_{key_suffix}"] = domain_frame_summaries
+
+    print("Building corpus aggregates...")
+    # Per-corpus aggregates (weighted) - with/without zeros
+    def _compute_corpus_aggregates(
+        doc_aggs: List[DocumentFrameAggregate],
+        *,
+        keep_documents_with_no_frames: bool,
+        weight_by_document_weight: bool,
+    ) -> List[Dict[str, object]]:
+        if not doc_aggs:
+            return []
+        # Build DataFrame including 'corpus'
+        df = pd.DataFrame([agg.to_dict() for agg in doc_aggs])
+        # Ensure expected columns exist
+        for col in ['frame_scores', 'total_weight', 'doc_id']:
+            if col not in df.columns:
+                return []
+        # Extract corpus from stored field or doc_id prefix
+        if 'corpus' not in df.columns:
+            df['corpus'] = None
+        # Fill missing corpus by splitting doc_id when needed
+        from efi_analyser.frames.identifiers import split_global_doc_id
+        df['corpus'] = df.apply(
+            lambda r: (r['corpus'] if pd.notna(r['corpus']) and r['corpus'] else split_global_doc_id(str(r['doc_id']))[0]),
+            axis=1,
+        )
+        # If still missing, label as 'default'
+        df['corpus'] = df['corpus'].apply(lambda x: x if isinstance(x, str) and x.strip() else 'default')
+
+        # Indicator for documents with any frame present
+        df['has_frames'] = df['frame_scores'].apply(lambda x: any(float(v or 0.0) > 0.0 for v in x.values()))
+        if not keep_documents_with_no_frames:
+            df = df[df['has_frames']]
+        if df.empty:
+            return []
+
+        # Weight per document
+        if weight_by_document_weight:
+            df['weight'] = df['total_weight']
+        else:
+            df['weight'] = 1.0
+
+        # Explode frames to long format
+        x = pd.DataFrame(pd.json_normalize(df['frame_scores']).stack()).reset_index(level=1)
+        x.columns = ['frame', 'value']
+        df_long = df.drop(columns=['frame_scores']).join(x)
+
+        # Multiply by document weight
+        df_long['weighted_value'] = df_long['value'] * df_long['weight']
+
+        # We want an average per corpus. To be consistent with DomainAggregator,
+        # we normalize by the mean doc weight per corpus.
+        mean_weight_per_corpus = (
+            df_long.drop_duplicates(subset=['corpus', 'doc_id']).groupby('corpus')['weight'].mean()
+        )
+        grouped = df_long.groupby(['corpus', 'frame'])['weighted_value'].mean()
+        # Divide by mean weight per corpus
+        grouped = grouped / mean_weight_per_corpus
+        # Reshape back to corpus x frame table
+        results_df = grouped.unstack(fill_value=0.0)
+
+        # Document counts per corpus (after filtering)
+        doc_counts = df.groupby('corpus')['doc_id'].nunique().to_dict()
+
+        results: List[Dict[str, object]] = []
+        for corpus_name, row in results_df.iterrows():
+            frame_scores = {str(col): float(row[col]) for col in row.index}
+            results.append({
+                'corpus': str(corpus_name),
+                'frame_scores': frame_scores,
+                'document_count': int(doc_counts.get(corpus_name, 0)),
+            })
+        return results
+
+    # Weighted per-corpus
+    for keep_zeros in [True, False]:
+        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+        corpus_weighted = _compute_corpus_aggregates(
+            document_aggregates_weighted,
+            keep_documents_with_no_frames=keep_zeros,
+            weight_by_document_weight=True,
+        )
+        if corpus_weighted:
+            save_aggregates_json(aggregates_dir / f"corpus_weighted_{key_suffix}.json", corpus_weighted)
+            aggregates[f"corpus_weighted_{key_suffix}"] = corpus_weighted
     
     print("Building global aggregates...")
     # Global aggregates - with/without zeros
@@ -447,6 +535,17 @@ def build_all_aggregates(
                 ]
             )
             aggregates[f"year_occurrence_{key_suffix}"] = yearly_result
+        # Per-corpus occurrence aggregates (documents counted equally)
+        for keep_zeros in [True, False]:
+            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
+            corpus_occ = _compute_corpus_aggregates(
+                document_aggregates_occurrence,
+                keep_documents_with_no_frames=keep_zeros,
+                weight_by_document_weight=False,
+            )
+            if corpus_occ:
+                save_aggregates_json(aggregates_dir / f"corpus_occurrence_{key_suffix}.json", corpus_occ)
+                aggregates[f"corpus_occurrence_{key_suffix}"] = corpus_occ
     
     print("Building time series with 30-day rolling average...")
     # 30-day running average time series
@@ -482,6 +581,34 @@ def _list_global_doc_ids(corpora: Mapping[str, EmbeddedCorpus]) -> List[str]:
         for local_doc_id in embedded.corpus.list_ids():
             doc_ids.append(make_global_doc_id(corpus_name if len(corpora) > 1 else None, local_doc_id))
     return doc_ids
+
+def _filter_global_doc_ids_by_date(
+    corpora: Mapping[str, EmbeddedCorpus],
+    global_doc_ids: Sequence[str],
+    *,
+    date_from: Optional[str] = None,
+) -> List[str]:
+    if not date_from:
+        return list(global_doc_ids)
+    df_norm = str(date_from).strip()
+    if not df_norm:
+        return list(global_doc_ids)
+    keep: List[str] = []
+    single = len(corpora) == 1
+    for gid in global_doc_ids:
+        try:
+            corpus_name, local_id = split_global_doc_id(gid)
+            embedded = _get_embedded_corpus(corpora, corpus_name)
+            meta = embedded.corpus.get_metadata(local_id)
+            pub = meta.get("published_at")
+            dt = normalize_date(pub)
+            if not dt:
+                continue
+            if dt.date().isoformat() >= df_norm:
+                keep.append(gid)
+        except Exception:
+            continue
+    return keep
 
 
 def save_chunk_classification(directory: Path, payload: Dict[str, object]) -> None:
@@ -1202,6 +1329,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 exclude_regex=config.filter_exclude_regex,
                 exclude_min_hits=config.filter_exclude_min_hits,
                 trim_after_markers=config.filter_trim_after_markers,
+                date_from=config.date_from,
             )
         )
         print(f"Collected {len(induction_samples)} passages for induction.")
@@ -1233,7 +1361,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         raise RuntimeError("Frame schema is required to proceed. Ensure induction completes successfully.")
 
     # ============================================================================
-    # FRAME APPLICATION (OR RELOAD FROM CACHE)
+    # FRAME ANNOTATION (OR RELOAD FROM CACHE)
     # ============================================================================
     assignment_map: Dict[str, FrameAssignment] = {}
     assignment_list: List[FrameAssignment] = []
@@ -1295,6 +1423,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                         exclude_regex=config.filter_exclude_regex,
                         exclude_min_hits=config.filter_exclude_min_hits,
                         trim_after_markers=config.filter_trim_after_markers,
+                        date_from=config.date_from,
                     )
                 )
             except ValueError as exc:
@@ -1373,6 +1502,7 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 seed=config.seed + 1,
                 keywords=keywords,
                 exclude_passage_ids=None,
+                date_from=config.date_from,
             )
         )
         applicator_client = OpenAIInterface(name="frame_application", config=applicator_config)
@@ -1527,6 +1657,16 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
     
     display_assignments = list(assignments)
+    # Optional: filter displayed assignments by date_from
+    if config.date_from and display_assignments:
+        df_norm = str(config.date_from).strip()
+        filtered_da: List[FrameAssignment] = []
+        for a in display_assignments:
+            pub = a.metadata.get("published_at") if isinstance(a.metadata, dict) else None
+            dt = normalize_date(pub)
+            if dt and dt.date().isoformat() >= df_norm:
+                filtered_da.append(a)
+        display_assignments = filtered_da
     if schema and application_samples:
         existing_ids = {assignment.passage_id for assignment in display_assignments}
         zero_probs_template = {frame.frame_id: 0.0 for frame in schema.frames}
@@ -1549,6 +1689,8 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     # ============================================================================
 
     total_doc_ids = _list_global_doc_ids(corpora_map)
+    # Apply optional date filter to the document universe
+    total_doc_ids = _filter_global_doc_ids_by_date(corpora_map, total_doc_ids, date_from=config.date_from)
     desired_doc_total = config.classifier_corpus_sample_size or len(total_doc_ids)
     desired_doc_total = max(0, min(desired_doc_total, len(total_doc_ids)))
 
@@ -1562,6 +1704,12 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
                 doc_id = str(payload.get("doc_id", "")).strip()
                 if not doc_id or doc_id in chunk_classification_map:
                     continue
+                # Optional date filter for cached payloads
+                if config.date_from:
+                    pub = payload.get("published_at")
+                    dt = normalize_date(pub)
+                    if not dt or dt.date().isoformat() < str(config.date_from).strip():
+                        continue
                 chunk_classification_map[doc_id] = payload
             if chunk_classification_map:
                 print(
@@ -1595,6 +1743,12 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             doc_id = str(payload.get("doc_id", "")).strip()
             if not doc_id or doc_id in chunk_classification_map:
                 continue
+            # Optional date filter for cached payloads
+            if config.date_from:
+                pub = payload.get("published_at")
+                dt = normalize_date(pub)
+                if not dt or dt.date().isoformat() < str(config.date_from).strip():
+                    continue
             chunk_classification_map[doc_id] = payload
         if chunk_classification_map:
             print(
@@ -1673,7 +1827,54 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     
     document_aggregates_occurrence: List[DocumentFrameAggregate] = []
 
-    if schema and chunk_classifications and not document_aggregates_weighted:
+    # Try to load document aggregates from cache if they exist
+    if paths.aggregates_dir:
+        weighted_path = paths.aggregates_dir / "documents_weighted.json"
+        occurrence_path = paths.aggregates_dir / "documents_occurrence.json"
+        
+        # Always try to load from cache if file exists and we don't have aggregates yet
+        # Check: empty list is falsy, so this condition works correctly
+        if len(document_aggregates_weighted) == 0 and weighted_path.exists():
+            try:
+                loaded_aggregates = load_document_aggregates(weighted_path)
+                if loaded_aggregates:
+                    document_aggregates_weighted = loaded_aggregates
+                    mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
+                    print(f"✅ Reloaded {len(document_aggregates_weighted)} weighted document aggregates from cache{mode_msg}.")
+                else:
+                    print(f"⚠️ Cache file {weighted_path} exists but is empty.")
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached weighted aggregates from {weighted_path}: {exc}")
+                import traceback
+                traceback.print_exc()
+        elif len(document_aggregates_weighted) == 0 and not weighted_path.exists():
+            # Only print if we're in regenerate mode (to avoid noise in normal runs)
+            if config.regenerate_report_only:
+                print(f"⚠️ Cache file {weighted_path} does not exist (regenerate mode).")
+        
+        if len(document_aggregates_occurrence) == 0 and occurrence_path.exists():
+            try:
+                loaded_occurrence = load_document_aggregates(occurrence_path)
+                if loaded_occurrence:
+                    document_aggregates_occurrence = loaded_occurrence
+                    mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
+                    print(f"✅ Reloaded {len(document_aggregates_occurrence)} occurrence document aggregates from cache{mode_msg}.")
+                else:
+                    print(f"⚠️ Cache file {occurrence_path} exists but is empty.")
+            except Exception as exc:
+                print(f"⚠️ Failed to load cached occurrence aggregates from {occurrence_path}: {exc}")
+                import traceback
+                traceback.print_exc()
+
+    # Create document aggregates if not already loaded from cache and we have chunk classifications
+    # In regenerate mode, allow creation if aggregates file doesn't exist (fallback)
+    can_create_aggregates = (
+        schema 
+        and chunk_classifications 
+        and len(document_aggregates_weighted) == 0
+        and (not config.regenerate_report_only or (paths.aggregates_dir and not (paths.aggregates_dir / "documents_weighted.json").exists()))
+    )
+    if can_create_aggregates:
         # Weighted aggregates (length-weighted, threshold, normalize per config)
         weighted_agg = WeightedFrameAggregator(
             [frame.frame_id for frame in schema.frames],
@@ -1711,11 +1912,30 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             )
         )
 
+        # Ensure corpus field is populated for single-corpus runs
+        if len(corpus_names) == 1:
+            single_corpus = corpus_names[0]
+            for agg in document_aggregates_weighted:
+                try:
+                    if getattr(agg, 'corpus', None) is None:
+                        object.__setattr__(agg, 'corpus', single_corpus)
+                except Exception:
+                    pass
+            for agg in document_aggregates_occurrence:
+                try:
+                    if getattr(agg, 'corpus', None) is None:
+                        object.__setattr__(agg, 'corpus', single_corpus)
+                except Exception:
+                    pass
+
     # ============================================================================
     # BUILD ALL AGGREGATES
     # ============================================================================
     
-    if schema and document_aggregates_weighted and paths.aggregates_dir:
+    # Check if we have document aggregates to build aggregates from
+    has_doc_aggregates_for_build = document_aggregates_weighted and len(document_aggregates_weighted) > 0
+    
+    if schema and has_doc_aggregates_for_build and paths.aggregates_dir:
         frame_ids = [frame.frame_id for frame in schema.frames]
         all_aggregates = build_all_aggregates(
             paths.aggregates_dir,
@@ -1724,16 +1944,34 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             frame_ids
         )
     else:
+        all_aggregates = {}
         if not schema:
-            print("⚠️ Skipping corpus classification because no schema is available.")
-        elif not classifier_model:
-            print("⚠️ Skipping corpus classification because the classifier model is missing.")
+            print("⚠️ Skipping aggregate building because no schema is available.")
+        elif not has_doc_aggregates_for_build:
+            print(f"⚠️ Skipping aggregate building: document aggregates are missing (count: {len(document_aggregates_weighted) if document_aggregates_weighted else 0}).")
+        elif not paths.aggregates_dir:
+            print("⚠️ Skipping aggregate building: aggregates directory is not configured.")
 
     # ============================================================================
     # GENERATE REPORT
     # ============================================================================
     
-    if schema and paths.html and document_aggregates_weighted:
+    # Apply optional date filter to assignments used in report
+    if config.date_from and assignments:
+        df_norm = str(config.date_from).strip()
+        filtered_as: List[FrameAssignment] = []
+        for a in assignments:
+            pub = a.metadata.get("published_at") if isinstance(a.metadata, dict) else None
+            dt = normalize_date(pub)
+            if dt and dt.date().isoformat() >= df_norm:
+                filtered_as.append(a)
+        assignments = filtered_as
+
+    # Check if we have document aggregates (either loaded from cache or newly created)
+    # Use len() check to handle empty lists correctly
+    has_document_aggregates = document_aggregates_weighted and len(document_aggregates_weighted) > 0
+    
+    if schema and paths.html and has_document_aggregates:
         # Build classifier lookup for report
         classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None
         if classifier_predictions:
@@ -1746,18 +1984,23 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
         include_classifier_plots = True if classifier_predictions else False
 
         # Count total number of classified passages (chunks) from chunk_classifications
+        # If chunk_classifications is empty (e.g., in regenerate mode), use document count as fallback
         classified_passages_count = 0
-        for doc_record in chunk_classifications:
-            chunks = doc_record.get("chunks", [])
-            if isinstance(chunks, Sequence):
-                classified_passages_count += len(chunks)
+        if chunk_classifications:
+            for doc_record in chunk_classifications:
+                chunks = doc_record.get("chunks", [])
+                if isinstance(chunks, Sequence):
+                    classified_passages_count += len(chunks)
+        elif document_aggregates_weighted:
+            # Fallback: estimate passages from document count (rough estimate)
+            classified_passages_count = len(document_aggregates_weighted) * 3  # Rough estimate: 3 chunks per doc
 
         usage_stats = {
             "frames": len(schema.frames),
             "corpus_documents": len(total_doc_ids),
             "induction_passages": len(induction_samples) if induction_samples else (config.induction_sample_size or 0),
             "annotation_passages": len(assignments),
-            "classifier_documents": len(chunk_classifications),
+            "classifier_documents": len(chunk_classifications) if chunk_classifications else len(document_aggregates_weighted),
             "classifier_passages": classified_passages_count,
         }
         
@@ -1778,9 +2021,13 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             plot_subtitle=config.report.plot.subtitle,
             plot_note=config.report.plot.note,
             export_plotly_png_dir=(paths.html.parent / "plots"),
+            export_plot_formats=config.report.export_plot_formats,
             induction_guidance=config.induction_guidance,
             export_includes_dir=config.report.export_includes_dir,
             usage_stats=usage_stats,
+            n_min_per_media=config.report.n_min_per_media,
+            domain_mapping_max_domains=config.report.domain_mapping_max_domains,
+            corpus_aliases=config.corpus_aliases,
         )
         
         # Publish PNGs and HTML to docs for GitHub Pages
@@ -1795,14 +2042,41 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             print("⚠️ Cannot generate report: schema is missing.")
         elif not paths.html:
             print("⚠️ Cannot generate report: HTML output path is not configured.")
-        elif not document_aggregates_weighted:
-            print("⚠️ Cannot generate report: document aggregates are missing.")
+        elif not has_document_aggregates:
+            print(f"⚠️ Cannot generate report: document aggregates are missing (loaded: {bool(document_aggregates_weighted)}, count: {len(document_aggregates_weighted) if document_aggregates_weighted else 0}).")
+            if config.regenerate_report_only:
+                print("   Hint: In regenerate mode, ensure documents_weighted.json exists in the aggregates directory.")
+                weighted_path = paths.aggregates_dir / "documents_weighted.json" if paths.aggregates_dir else None
+                if weighted_path and not weighted_path.exists():
+                    print(f"   The file {weighted_path} does not exist.")
+                    # Check if chunk classifications exist as an alternative
+                    if paths.chunk_classifications_dir and paths.chunk_classifications_dir.exists():
+                        chunk_files = list(paths.chunk_classifications_dir.glob("*.json"))
+                        if chunk_files:
+                            print(f"   Found {len(chunk_files)} chunk classification files. You can either:")
+                            print(f"   1. Run without 'regenerate_report_only' to create aggregates from chunk classifications, or")
+                            print(f"   2. Manually create aggregates from existing chunk classifications.")
+                        else:
+                            print(f"   No chunk classifications found in {paths.chunk_classifications_dir}.")
+                            print(f"   Run the full workflow (without 'regenerate_report_only') to create chunk classifications and aggregates.")
+                    else:
+                        print(f"   No chunk classifications directory found at {paths.chunk_classifications_dir}.")
+                        print(f"   Run the full workflow (without 'regenerate_report_only') to create chunk classifications and aggregates.")
+            elif not chunk_classifications:
+                print("   Hint: No chunk classifications available. Run classification first.")
+            else:
+                print("   Hint: Document aggregates could not be created from chunk classifications.")
     
     # ============================================================================
     # WORKFLOW COMPLETE
     # ============================================================================
     
-    print(f"\n✅ Workflow complete. Aggregates computed and saved to {paths.aggregates_dir}")
+    if has_doc_aggregates_for_build and paths.aggregates_dir:
+        print(f"\n✅ Workflow complete. Aggregates computed and saved to {paths.aggregates_dir}")
+    else:
+        print(f"\n✅ Workflow complete.")
+        if not has_doc_aggregates_for_build:
+            print(f"   Note: No document aggregates available (count: {len(document_aggregates_weighted) if document_aggregates_weighted else 0}).")
 
 
 def apply_overrides(config: NarrativeFramingConfig, args: argparse.Namespace) -> NarrativeFramingConfig:

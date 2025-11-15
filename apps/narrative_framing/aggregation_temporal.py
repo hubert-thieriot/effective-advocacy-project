@@ -109,6 +109,10 @@ class TemporalAggregator:
         if not self.keep_documents_with_no_frames:
             df = df[df['has_frames']]
         
+        # Handle empty DataFrame (no documents with frames after filtering)
+        if df.empty:
+            return []
+        
         # weight_by_document or not
         if self.weight_by_document_weight:
             df.loc[:, 'weight'] = df['total_weight']

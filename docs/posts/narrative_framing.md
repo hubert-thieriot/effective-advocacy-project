@@ -51,7 +51,7 @@ Narrative framing analysis focuses on content — how issues are discussed in me
 The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
 </p>
 
-To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in three countries: Canada, the United Kingdom and Australia.
+To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in Canada.
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 

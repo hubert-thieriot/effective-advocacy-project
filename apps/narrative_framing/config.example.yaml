@@ -25,6 +25,8 @@ report:
   subtitle: "Analysis of media framing around air pollution sources"  # Optional: custom subtitle
   note: "This analysis covers {n_articles} articles from Indonesian media sources"  # Optional: custom note with {n_articles} placeholder
   hide_empty_passages: false  # Hide passages with no frame assignments
+# Optional: consider only articles on/after this date (YYYY-MM-DD)
+# date_from: "2023-01-01"
 #   - End of Article
 #   - FOLLOW US ON SOCIAL MEDIA
 # filter_exclude_min_hits:
@@ -71,3 +73,15 @@ classifier:
   model_name: distilbert-base-uncased
   batch_size: 8
   inference_batch_size: 1
+
+# ---
+# Example: multi-corpus with aliases shown in report legends
+#
+# corpus:
+#   - mediacloud_meat_canada
+#   - mediacloud_meat_uk
+#   - mediacloud_meat_australia
+# corpus_aliases:
+#   mediacloud_meat_canada: "Canada"
+#   mediacloud_meat_uk: "UK"
+#   mediacloud_meat_australia: "Australia"

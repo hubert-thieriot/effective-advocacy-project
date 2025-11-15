@@ -207,7 +207,8 @@ class FrameInducer:
             + f"Passages (≤ {self.max_passages_per_call}, sampled & deduped):\n"
             f"{sampled_passages}\n\n"
             f"Return JSON only using this schema:\n"
-            f"{schema_instruction}"
+            f"{schema_instruction}\n"
+            "Do not include regular expression or anything that could lead to JSONDecodeError."
         )
 
         return [

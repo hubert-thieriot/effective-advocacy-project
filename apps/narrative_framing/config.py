@@ -69,6 +69,9 @@ class ReportSettings:
     custom_plots: Optional[List[CustomPlotSettings]] = None
     export_plots_dir: Optional[Path] = None  # Optional directory to export plots to (in addition to results/plots)
     export_includes_dir: Optional[Path] = None  # Optional directory to export Jekyll includes (e.g., docs/_includes/narrative_framing)
+    export_plot_formats: List[str] = field(default_factory=lambda: ["png"])  # List of formats to export: ["png"], ["svg"], ["png", "svg"], etc. HTML is always exported.
+    n_min_per_media: Optional[int] = None  # Minimum number of articles per media/domain to show in domain mapping
+    domain_mapping_max_domains: int = 20  # Maximum number of domains to show in domain mapping chart
 
 
 @dataclass
@@ -112,6 +115,10 @@ class NarrativeFramingConfig:
     induction_guidance: Optional[str] = None
     classifier_corpus_sample_size: Optional[int] = None
     sampling_policy: str = "equal"
+    # Optional mapping to display human-friendly labels for corpora in reports
+    corpus_aliases: Optional[Dict[str, str]] = None
+    # Optional lower bound date filter (YYYY-MM-DD). Only articles on/after this date are considered.
+    date_from: Optional[str] = None
     # Utility: when true, skip analysis and rebuild report from cached artifacts only
     regenerate_report_only: bool = False
     # Aggregation controls
@@ -153,6 +160,18 @@ class NarrativeFramingConfig:
             self.corpora = [str(item).strip() for item in self.corpora if str(item).strip()]
             if not self.corpora:
                 self.corpora = None
+        # Normalize corpus_aliases mapping (strip keys/values)
+        if self.corpus_aliases:
+            cleaned_aliases: Dict[str, str] = {}
+            for k, v in self.corpus_aliases.items():
+                key = str(k).strip()
+                val = str(v).strip()
+                if key and val:
+                    cleaned_aliases[key] = val
+            self.corpus_aliases = cleaned_aliases or None
+        # Normalize date_from
+        if self.date_from is not None:
+            self.date_from = str(self.date_from).strip() or None
         self.sampling_policy = (self.sampling_policy or "equal").strip().lower()
         if self.sampling_policy not in {"equal", "proportional"}:
             raise ValueError(
@@ -358,6 +377,12 @@ def load_config(path: Path) -> NarrativeFramingConfig:
         config.classifier_corpus_sample_size = int(value) if value is not None else None
     if "sampling_policy" in data:
         config.sampling_policy = str(data["sampling_policy"]).strip().lower()
+    if "corpus_aliases" in data and isinstance(data["corpus_aliases"], dict):
+        # Map from corpus folder name to human-friendly alias for charts
+        config.corpus_aliases = {str(k): str(v) for k, v in data["corpus_aliases"].items()}
+    if "date_from" in data:
+        val = data["date_from"]
+        config.date_from = str(val).strip() if val is not None else None
 
     if config.reload_results:
         if "reload_induction" not in data:
@@ -408,6 +433,28 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             # Handle export_includes_dir
             if "export_includes_dir" in report_data:
                 config.report.export_includes_dir = _as_path(report_data["export_includes_dir"])
+            # Handle export_plot_formats
+            if "export_plot_formats" in report_data:
+                formats = report_data["export_plot_formats"]
+                if isinstance(formats, (list, tuple)):
+                    config.report.export_plot_formats = [str(f).strip().lower() for f in formats if str(f).strip()]
+                elif isinstance(formats, str):
+                    # Allow comma-separated string
+                    config.report.export_plot_formats = [f.strip().lower() for f in formats.split(",") if f.strip()]
+                else:
+                    config.report.export_plot_formats = ["png"]  # Default fallback
+            # Handle n_min_per_media
+            if "n_min_per_media" in report_data:
+                try:
+                    config.report.n_min_per_media = int(report_data["n_min_per_media"]) if report_data["n_min_per_media"] is not None else None
+                except Exception:
+                    config.report.n_min_per_media = None
+            # Handle domain_mapping_max_domains
+            if "domain_mapping_max_domains" in report_data:
+                try:
+                    config.report.domain_mapping_max_domains = int(report_data["domain_mapping_max_domains"]) if report_data["domain_mapping_max_domains"] is not None else 20
+                except Exception:
+                    config.report.domain_mapping_max_domains = 20
 
     config.normalize()
     return config

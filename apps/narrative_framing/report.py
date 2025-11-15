@@ -124,6 +124,13 @@ def _build_color_map(frames) -> Dict[str, str]:
         color_map[frame.frame_id] = _PALETTE[idx % len(_PALETTE)]
     return color_map
 
+def _build_corpus_color_map(corpora: Sequence[str]) -> Dict[str, str]:
+    """Assign distinct colors to each corpus name using the global palette."""
+    color_map: Dict[str, str] = {}
+    for idx, name in enumerate(corpora):
+        color_map[str(name)] = _PALETTE[idx % len(_PALETTE)]
+    return color_map
+
 
 def _compute_classifier_metrics(
     assignments: Sequence[FrameAssignment],
@@ -908,6 +915,7 @@ def _render_plotly_fragment(
     *,
     config: Optional[Dict[str, object]] = None,
     export_png_path: Optional[Path] = None,
+    export_svg: bool = False,
 ) -> str:
     if not data:
         return ""
@@ -988,6 +996,18 @@ def _render_plotly_fragment(
                 img_bytes = _pio.to_image(fig, format="png", scale=3, width=None, height=None)
                 export_png_path.write_bytes(img_bytes)
                 
+                # Export SVG if requested
+                if export_svg:
+                    try:
+                        export_svg_path = export_png_path.with_suffix('.svg')
+                        svg_bytes = _pio.to_image(fig, format="svg", width=None, height=None)
+                        export_svg_path.write_bytes(svg_bytes)
+                    except Exception as exc:
+                        key = f"svg_export_fail_{div_id}"
+                        if not _PLOTLY_WARNED.get(key):
+                            print(f"⚠️ Plotly SVG export failed for {div_id}: {exc}")
+                            _PLOTLY_WARNED[key] = True
+                
                 # Also export as self-supporting HTML
                 html_path = export_png_path.with_suffix('.html')
                 fig_html = _go.Figure(data=list(data))
@@ -1064,6 +1084,7 @@ def _render_plotly_timeseries(
     subtitle: Optional[str] = None,
     caption: Optional[str] = None,
     export_png_path: Optional[Path] = None,
+    export_svg: bool = False,
 ) -> str:
     if not records:
         print(f"⚠️ _render_plotly_timeseries: No records provided (records={records})")
@@ -1134,7 +1155,7 @@ def _render_plotly_timeseries(
         "height": 520,
     }
 
-    return _render_plotly_fragment("time-series-chart", traces, layout, export_png_path=export_png_path)
+    return _render_plotly_fragment("time-series-chart", traces, layout, export_png_path=export_png_path, export_svg=export_svg)
 
 
 def _render_plotly_timeseries_lines(
@@ -1206,6 +1227,7 @@ def _render_plotly_total_docs_timeseries(
     aggregates: Optional[Sequence[DocumentFrameAggregate]],
     *,
     export_png_path: Optional[Path] = None,
+    export_svg: bool = False,
 ) -> str:
     """Render total documents per day with 7-day rolling average."""
     if not aggregates:
@@ -1261,7 +1283,7 @@ def _render_plotly_total_docs_timeseries(
         "height": 420,
     }
     
-    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout, export_png_path=export_png_path)
+    return _render_plotly_fragment("total-docs-timeseries-chart", data=data, layout=layout, export_png_path=export_png_path, export_svg=export_svg)
 
 
 def _render_plotly_domain_counts(
@@ -1340,6 +1362,7 @@ def _render_global_bar_chart(
     *,
     export_png_path: Optional[Path] = None,
     chart_id: str = "global-bar-chart",
+    export_svg: bool = False,
 ) -> str:
     """Render a bar chart from global aggregate data."""
     if not aggregates_data:
@@ -1409,7 +1432,7 @@ def _render_global_bar_chart(
         "height": 500,
     }
     
-    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path)
+    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path, export_svg=export_svg)
 
 
 def _render_yearly_bar_chart(
@@ -1419,6 +1442,7 @@ def _render_yearly_bar_chart(
     *,
     export_png_path: Optional[Path] = None,
     chart_id: str = "yearly-bar-chart",
+    export_svg: bool = False,
 ) -> str:
     """Render a grouped bar chart from yearly aggregate data."""
     if not aggregates_data:
@@ -1484,49 +1508,160 @@ def _render_yearly_bar_chart(
     
     traces: List[Dict[str, object]] = []
     num_years = len(years)
+    min_year = min(years)
+    max_year = max(years)
     
+    # Use solid colors for bars (no transparency variation)
     for idx, year in enumerate(years):
-        # With ascending year order, higher idx = newer year = higher opacity
-        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
         scores = [frame_year_scores.get(fid, {}).get(year, 0.0) for fid in frame_ids]
-        colors_with_alpha = [_hex_to_rgba(color_map.get(fid, "#057d9f"), alpha) for fid in frame_ids]
+        # Use frame colors directly (no alpha variation)
+        colors = [color_map.get(fid, "#057d9f") for fid in frame_ids]
         
         traces.append({
             "type": "bar",
             "name": str(year),
             "x": labels,
             "y": scores,
-            "marker": {"color": colors_with_alpha},
+            "marker": {"color": colors},
             "hovertemplate": f"%{{x}}<br>Year: {year}<br>%{{y:.2f}}<extra></extra>",
             "showlegend": False,
         })
     
-    # Add grey-scale legend entries
-    for idx, year in enumerate(years):
-        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
-        color_neutral = "#666666"
-        color_with_alpha = _hex_to_rgba(color_neutral, alpha)
-        traces.append({
-            "type": "scatter",
-            "mode": "markers",
-            "x": [None],
-            "y": [None],
-            "marker": {"size": 10, "color": color_with_alpha},
-            "name": str(year),
-            "showlegend": True,
-            "hoverinfo": "skip",
+    # Create annotations for year labels (only min and max years)
+    # Position them below the x-axis at the leftmost and rightmost bar groups
+    annotations = []
+    if num_years > 0 and len(labels) > 0:
+        # For grouped bars, bars are centered at categorical positions (0, 1, 2, ...)
+        # We'll position labels at the first and last frame positions
+        # Since bars are grouped, we offset slightly to align with leftmost/rightmost bars in the group
+        
+        # Calculate offset for grouped bars (approximately -0.3 for leftmost bar in group)
+        group_offset = -0.25 if num_years > 1 else 0
+        
+        # Annotation for min year (at first frame, aligned with leftmost bar)
+        annotations.append({
+            "text": str(min_year),
+            "xref": "x",
+            "yref": "paper",
+            "x": 0 + group_offset,  # Position at first frame, offset to leftmost bar
+            "y": -0.12,  # Below the x-axis labels
+            "showarrow": False,
+            "xanchor": "center",
+            "yanchor": "top",
+            "font": {"size": 9, "color": "#666666"},
         })
+        
+        # Annotation for max year (at last frame, aligned with rightmost bar)
+        if len(labels) > 1:
+            annotations.append({
+                "text": str(max_year),
+                "xref": "x",
+                "yref": "paper",
+                "x": len(labels) - 1 - group_offset,  # Position at last frame, offset to rightmost bar
+                "y": -0.12,  # Below the x-axis labels
+                "showarrow": False,
+                "xanchor": "center",
+                "yanchor": "top",
+                "font": {"size": 9, "color": "#666666"},
+            })
     
+    layout = {
+        "barmode": "group",
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 50},  # Increased bottom margin for year labels
+        "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
+        "yaxis": {"title": "", "tickformat": ".0%"},
+        "height": 500,
+        "showlegend": False,  # No legend
+        "annotations": annotations,
+    }
+    
+    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path, export_svg=export_svg)
+
+def _render_corpus_bar_chart(
+    aggregates_data: object,
+    frame_lookup: Dict[str, Dict[str, str]],
+    *,
+    corpus_aliases: Optional[Dict[str, str]] = None,
+    export_png_path: Optional[Path] = None,
+    chart_id: str = "corpus-bar-chart",
+    export_svg: bool = False,
+) -> str:
+    """Render a grouped bar chart from per-corpus aggregate data.
+
+    Expected input format: List[{
+        'corpus': str,
+        'frame_scores': {frame_id: float},
+        'document_count': int,
+    }]
+    """
+    if not isinstance(aggregates_data, list) or not aggregates_data:
+        return ""
+
+    # Collect unique corpora and frame scores
+    corpora: List[str] = []
+    frame_scores_by_corpus: Dict[str, Dict[str, float]] = {}
+    for entry in aggregates_data:
+        if not isinstance(entry, dict):
+            continue
+        corpus_name = str(entry.get('corpus', ''))
+        scores = entry.get('frame_scores', {})
+        if not corpus_name or not isinstance(scores, dict):
+            continue
+        corpora.append(corpus_name)
+        frame_scores_by_corpus[corpus_name] = {str(fid): float(val) for fid, val in scores.items()}
+
+    if not frame_scores_by_corpus:
+        return ""
+
+    # Deduplicate corpora in original order
+    seen = set()
+    corpora = [c for c in corpora if not (c in seen or seen.add(c))]
+
+    # Determine frame order by overall average across corpora
+    all_frame_ids: List[str] = []
+    for scores in frame_scores_by_corpus.values():
+        all_frame_ids.extend(list(scores.keys()))
+    frame_ids = sorted(set(all_frame_ids))
+    frame_avg_scores: Dict[str, float] = {}
+    for fid in frame_ids:
+        vals = [frame_scores_by_corpus[c].get(fid, 0.0) for c in corpora]
+        frame_avg_scores[fid] = sum(vals) / len(vals) if vals else 0.0
+    frame_ids = sorted(frame_ids, key=lambda f: frame_avg_scores.get(f, 0.0), reverse=True)
+
+    # Labels from frame_lookup
+    labels = []
+    for fid in frame_ids:
+        meta = frame_lookup.get(fid, {})
+        label = meta.get("short") or meta.get("name") or fid
+        labels.append(_wrap_label_html(label, max_len=16))
+
+    # Colors per corpus
+    color_map = _build_corpus_color_map(corpora)
+
+    # Create traces: one per corpus
+    traces: List[Dict[str, object]] = []
+    for corpus_name in corpora:
+        series = [frame_scores_by_corpus.get(corpus_name, {}).get(fid, 0.0) for fid in frame_ids]
+        legend_name = corpus_aliases.get(corpus_name, corpus_name) if corpus_aliases else corpus_name
+        traces.append({
+            "type": "bar",
+            "name": legend_name,
+            "x": labels,
+            "y": series,
+            "marker": {"color": color_map.get(corpus_name, "#057d9f")},
+            "hovertemplate": f"%{{x}}<br>{html.escape(legend_name)}<br>%{{y:.2f}}<extra></extra>",
+        })
+
     layout = {
         "barmode": "group",
         "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 500,
-        "legend": {"orientation": "h", "yanchor": "top", "y": 1.08, "x": 0.5, "xanchor": "center"},
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.02, "x": 0, "xanchor": "left"},
     }
-    
-    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path)
+
+    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path, export_svg=export_svg)
 
 
 def _render_domain_frame_distribution(
@@ -1536,6 +1671,9 @@ def _render_domain_frame_distribution(
     *,
     export_png_path: Optional[Path] = None,
     export_html_path: Optional[Path] = None,
+    n_min_per_media: Optional[int] = None,
+    max_domains: int = 20,
+    export_svg: bool = False,
 ) -> str:
     """Render frame distribution across top domains as a Plotly chart with subplots."""
     if not domain_frame_summaries:
@@ -1563,9 +1701,24 @@ def _render_domain_frame_distribution(
     if not domain_frame_scores:
         return ""
     
-    # Sort domains by total score and take top 20
-    domain_totals = {domain: sum(scores.values()) for domain, scores in domain_frame_scores.items()}
-    top_domains = sorted(domain_totals.items(), key=lambda kv: kv[1], reverse=True)[:20]
+    # Filter domains by n_min_per_media if specified
+    if n_min_per_media is not None and n_min_per_media > 0:
+        domain_frame_scores = {
+            domain: scores 
+            for domain, scores in domain_frame_scores.items()
+            if domain_counts.get(domain, 0) >= n_min_per_media
+        }
+        domain_counts = {
+            domain: count
+            for domain, count in domain_counts.items()
+            if count >= n_min_per_media
+        }
+    
+    if not domain_frame_scores:
+        return ""
+    
+    # Sort domains by count (descending) and take top N
+    top_domains = sorted(domain_counts.items(), key=lambda kv: kv[1], reverse=True)[:max_domains]
     
     if not top_domains:
         return ""
@@ -1581,8 +1734,8 @@ def _render_domain_frame_distribution(
             for domain in domains
         )
     
-    # Sort frames by total score (descending) - most represented at bottom
-    frame_ids = sorted(all_frame_ids, key=lambda fid: frame_totals.get(fid, 0.0), reverse=False)  # reverse=False = lowest at top, highest at bottom
+    # Sort frames by total score (descending) - most represented on the left
+    frame_ids = sorted(all_frame_ids, key=lambda fid: frame_totals.get(fid, 0.0), reverse=True)  # reverse=True = highest on left, lowest on right
     
     # Create subplots - one per domain
     if not _PLOTLY_AVAILABLE:
@@ -1675,14 +1828,14 @@ def _render_domain_frame_distribution(
     # Update layout - smaller fonts, horizontal legend at top with more space
     fig.update_layout(
         height=max(500, rows * 160),  # Reduced base height per row
-        margin={"t": 120, "b": 40, "l": 40, "r": 20},  # Much more top margin for legend
+        margin={"t": 20, "b": 40, "l": 40, "r": 20}, 
         showlegend=True,
         plot_bgcolor="rgba(0,0,0,0)",  # Transparent plot background
         paper_bgcolor="rgba(0,0,0,0)",  # Transparent paper background
         legend={
             "orientation": "h",
             "yanchor": "top",
-            "y": 1.1,  # Position above the plot area
+            "y": 1.15,  # Position above the plot area with more space
             "x": 0.5,
             "xanchor": "center",
             "font": {"size": 9},
@@ -1769,10 +1922,10 @@ def _render_domain_frame_distribution(
     if export_html_path:
         parent_dir = export_html_path.parent.name
         fragment_div_id = f"domain-frame-distribution-{parent_dir.replace('_', '-')}"
-    return _render_plotly_fragment_from_figure(fig, fragment_div_id, export_png_path=export_png_path)
+    return _render_plotly_fragment_from_figure(fig, fragment_div_id, export_png_path=export_png_path, export_svg=export_svg)
 
 
-def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optional[Path] = None) -> str:
+def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optional[Path] = None, export_svg: bool = False) -> str:
     """Render a Plotly figure as an HTML fragment."""
     # Export PNG if requested and Plotly is available
     if export_png_path and _PLOTLY_AVAILABLE:
@@ -1794,6 +1947,17 @@ def _render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Optio
             
             # Export PNG with higher resolution
             fig.write_image(str(export_png_path), scale=3, width=None, height=None)
+            
+            # Export SVG if requested
+            if export_svg:
+                try:
+                    export_svg_path = export_png_path.with_suffix('.svg')
+                    fig.write_image(str(export_svg_path), format='svg', width=None, height=None)
+                except Exception as exc:
+                    key = f"svg_export_fail_{div_id}"
+                    if not _PLOTLY_WARNED.get(key):
+                        print(f"⚠️ Plotly SVG export failed for {div_id}: {exc}")
+                        _PLOTLY_WARNED[key] = True
             
             # Also export as self-supporting HTML
             html_path = export_png_path.with_suffix('.html')
@@ -1859,6 +2023,7 @@ def _render_domain_bar_chart(
     top_n: int = 20,
     export_png_path: Optional[Path] = None,
     chart_id: str = "domain-bar-chart",
+    export_svg: bool = False,
 ) -> str:
     """Render a faceted bar chart from domain aggregate data."""
     if not aggregates_data:
@@ -1918,7 +2083,7 @@ def _render_domain_bar_chart(
         "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
     }
     
-    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path)
+    return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path, export_svg=export_svg)
 
 
 def _collect_top_stories_by_frame(
@@ -2130,12 +2295,23 @@ def write_html_report(
     plot_subtitle: Optional[str] = None,
     plot_note: Optional[str] = None,
     export_plotly_png_dir: Optional[Path] = None,
+    export_plot_formats: Optional[List[str]] = None,
     custom_plots: Optional[Sequence] = None,
     induction_guidance: Optional[str] = None,
     export_includes_dir: Optional[Path] = None,
     usage_stats: Optional[Dict[str, int]] = None,
+    n_min_per_media: Optional[int] = None,
+    domain_mapping_max_domains: int = 20,
+    corpus_aliases: Optional[Dict[str, str]] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
+    
+    # Normalize export_plot_formats
+    if export_plot_formats is None:
+        export_plot_formats = ["png"]  # Default
+    export_plot_formats = [f.lower() for f in export_plot_formats]
+    export_svg = "svg" in export_plot_formats
+    export_png = "png" in export_plot_formats
     
     # Extract data from all_aggregates if provided
     global_frame_share: Dict[str, float] = {}
@@ -2249,9 +2425,9 @@ def write_html_report(
             else:
                 timeseries_note = f"Data covers {html.escape(start)} to {html.escape(end)}."
 
-    # Decide export directory for PNGs if requested
+    # Decide export directory for plots if requested
     export_dir = export_plotly_png_dir
-    if export_dir is None and output_path is not None:
+    if export_dir is None and output_path is not None and (export_png or export_svg):
         # Default under the run directory: <run_dir>/plots
         export_dir = output_path.parent / "plots"
     
@@ -2299,7 +2475,8 @@ def write_html_report(
         timeseries_records, frame_lookup, color_map,
         title=plot_title, subtitle=(plot_subtitle.format(n_articles=classified_documents) if plot_subtitle else None),
         caption=ts_caption,
-        export_png_path=(export_dir / "time_series_area.png") if export_dir else None,
+        export_png_path=(export_dir / "time_series_area.png") if (export_dir and export_png) else None,
+        export_svg=export_svg,
     )
     timeseries_lines_html = _render_plotly_timeseries_lines(timeseries_records, frame_lookup, color_map)
     
@@ -2309,13 +2486,15 @@ def write_html_report(
         # Use occurrence aggregates since they're simpler (one per document)
         total_docs_chart_html = _render_plotly_total_docs_timeseries(
             document_aggregates_occurrence,
-            export_png_path=(export_dir / "article_volume_over_time.png") if export_dir else None
+            export_png_path=(export_dir / "article_volume_over_time.png") if (export_dir and export_png) else None,
+            export_svg=export_svg,
         )
     elif document_aggregates_weighted:
         # Fallback to weighted aggregates if occurrence not available
         total_docs_chart_html = _render_plotly_total_docs_timeseries(
             document_aggregates_weighted,
-            export_png_path=(export_dir / "article_volume_over_time.png") if export_dir else None
+            export_png_path=(export_dir / "article_volume_over_time.png") if (export_dir and export_png) else None,
+            export_svg=export_svg,
         )
 
     # Prepare frames for domain counts chart
@@ -2343,8 +2522,11 @@ def write_html_report(
                 ordered_domain_frames,
                 frame_lookup,
                 color_map,
-                export_png_path=(export_dir / "domain_frame_distribution.png") if export_dir else None,
+                export_png_path=(export_dir / "domain_frame_distribution.png") if (export_dir and export_png) else None,
                 export_html_path=(export_includes_dir / "domain_frame_distribution.html") if export_includes_dir else None,
+                n_min_per_media=n_min_per_media,
+                max_domains=domain_mapping_max_domains,
+                export_svg=export_svg,
             )
 
     rows = []
@@ -2534,8 +2716,9 @@ def write_html_report(
             global_woz_html = _render_global_bar_chart(
                 global_woz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "global_weighted_woz.png") if export_dir else None,
-                chart_id="global-weighted-woz"
+                export_png_path=(export_dir / "global_weighted_woz.png") if (export_dir and export_png) else None,
+                chart_id="global-weighted-woz",
+                export_svg=export_svg,
             )
             if global_woz_html:
                 chart_sections.append(
@@ -2553,8 +2736,9 @@ def write_html_report(
             global_wz_html = _render_global_bar_chart(
                 global_wz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "global_weighted_wz.png") if export_dir else None,
-                chart_id="global-weighted-wz"
+                export_png_path=(export_dir / "global_weighted_wz.png") if (export_dir and export_png) else None,
+                chart_id="global-weighted-wz",
+                export_svg=export_svg,
             )
             if global_wz_html:
                 chart_sections.append(
@@ -2571,8 +2755,9 @@ def write_html_report(
             global_occ_woz_html = _render_global_bar_chart(
                 global_occ_woz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "global_occurrence_woz.png") if export_dir else None,
-                chart_id="global-occurrence-woz"
+                export_png_path=(export_dir / "global_occurrence_woz.png") if (export_dir and export_png) else None,
+                chart_id="global-occurrence-woz",
+                export_svg=export_svg,
             )
             if global_occ_woz_html:
                 chart_sections.append(
@@ -2589,8 +2774,9 @@ def write_html_report(
             global_occ_wz_html = _render_global_bar_chart(
                 global_occ_wz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "global_occurrence_wz.png") if export_dir else None,
-                chart_id="global-occurrence-wz"
+                export_png_path=(export_dir / "global_occurrence_wz.png") if (export_dir and export_png) else None,
+                chart_id="global-occurrence-wz",
+                export_svg=export_svg,
             )
             if global_occ_wz_html:
                 chart_sections.append(
@@ -2607,8 +2793,9 @@ def write_html_report(
             yearly_woz_html = _render_yearly_bar_chart(
                 yearly_woz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_weighted_woz.png") if export_dir else None,
-                chart_id="yearly-weighted-woz"
+                export_png_path=(export_dir / "yearly_weighted_woz.png") if (export_dir and export_png) else None,
+                chart_id="yearly-weighted-woz",
+                export_svg=export_svg,
             )
             if yearly_woz_html:
                 chart_sections.append(
@@ -2625,8 +2812,9 @@ def write_html_report(
             yearly_wz_html = _render_yearly_bar_chart(
                 yearly_wz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_weighted_wz.png") if export_dir else None,
-                chart_id="yearly-weighted-wz"
+                export_png_path=(export_dir / "yearly_weighted_wz.png") if (export_dir and export_png) else None,
+                chart_id="yearly-weighted-wz",
+                export_svg=export_svg,
             )
             if yearly_wz_html:
                 chart_sections.append(
@@ -2643,8 +2831,9 @@ def write_html_report(
             yearly_occ_woz_html = _render_yearly_bar_chart(
                 yearly_occ_woz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_occurrence_woz.png") if export_dir else None,
-                chart_id="yearly-occurrence-woz"
+                export_png_path=(export_dir / "yearly_occurrence_woz.png") if (export_dir and export_png) else None,
+                chart_id="yearly-occurrence-woz",
+                export_svg=export_svg,
             )
             if yearly_occ_woz_html:
                 chart_sections.append(
@@ -2661,8 +2850,9 @@ def write_html_report(
             yearly_occ_wz_html = _render_yearly_bar_chart(
                 yearly_occ_wz,
                 frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_occurrence_wz.png") if export_dir else None,
-                chart_id="yearly-occurrence-wz"
+                export_png_path=(export_dir / "yearly_occurrence_wz.png") if (export_dir and export_png) else None,
+                chart_id="yearly-occurrence-wz",
+                export_svg=export_svg,
             )
             if yearly_occ_wz_html:
                 chart_sections.append(
@@ -2688,6 +2878,93 @@ def write_html_report(
         </section>
         """
     
+    # Per Corpus section (grouped bars by corpus per frame)
+    corpus_section_html = ""
+    if all_aggregates:
+        corpus_sections: List[str] = []
+        corpus_weighted_woz = all_aggregates.get("corpus_weighted_without_zeros")
+        if corpus_weighted_woz:
+            chart_html = _render_corpus_bar_chart(
+                corpus_weighted_woz, frame_lookup,
+                corpus_aliases=corpus_aliases,
+                export_png_path=(export_dir / "corpus_weighted_woz.png") if (export_dir and export_png) else None,
+                chart_id="corpus-weighted-woz",
+                export_svg=export_svg,
+            )
+            if chart_html:
+                corpus_sections.append(
+                    '<div class="chart-item">'
+                    '<h4>Per Corpus - Weighted - Excluding empty</h4>'
+                    '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are excluded.</p>'
+                    f'{chart_html}'
+                    '</div>'
+                )
+        corpus_weighted_wz = all_aggregates.get("corpus_weighted_with_zeros")
+        if corpus_weighted_wz:
+            chart_html = _render_corpus_bar_chart(
+                corpus_weighted_wz, frame_lookup,
+                corpus_aliases=corpus_aliases,
+                export_png_path=(export_dir / "corpus_weighted_wz.png") if (export_dir and export_png) else None,
+                chart_id="corpus-weighted-wz",
+                export_svg=export_svg,
+            )
+            if chart_html:
+                corpus_sections.append(
+                    '<div class="chart-item">'
+                    '<h4>Per Corpus - Weighted - Including empty</h4>'
+                    '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are included.</p>'
+                    f'{chart_html}'
+                    '</div>'
+                )
+        corpus_occ_woz = all_aggregates.get("corpus_occurrence_without_zeros")
+        if corpus_occ_woz:
+            chart_html = _render_corpus_bar_chart(
+                corpus_occ_woz, frame_lookup,
+                corpus_aliases=corpus_aliases,
+                export_png_path=(export_dir / "corpus_occurrence_woz.png") if (export_dir and export_png) else None,
+                chart_id="corpus-occurrence-woz",
+                export_svg=export_svg,
+            )
+            if chart_html:
+                corpus_sections.append(
+                    '<div class="chart-item">'
+                    '<h4>Per Corpus - Occurrence - Excluding empty</h4>'
+                    '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are excluded.</p>'
+                    f'{chart_html}'
+                    '</div>'
+                )
+        corpus_occ_wz = all_aggregates.get("corpus_occurrence_with_zeros")
+        if corpus_occ_wz:
+            chart_html = _render_corpus_bar_chart(
+                corpus_occ_wz, frame_lookup,
+                corpus_aliases=corpus_aliases,
+                export_png_path=(export_dir / "corpus_occurrence_wz.png") if (export_dir and export_png) else None,
+                chart_id="corpus-occurrence-wz",
+                export_svg=export_svg,
+            )
+            if chart_html:
+                corpus_sections.append(
+                    '<div class="chart-item">'
+                    '<h4>Per Corpus - Occurrence - Including empty</h4>'
+                    '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are included.</p>'
+                    f'{chart_html}'
+                    '</div>'
+                )
+        if corpus_sections:
+            corpus_section_html = f"""
+        <section class=\"report-section\" id=\"per-corpus\">
+            <header class=\"section-heading\">
+                <h2>Per Corpus</h2>
+                <p>Frame distribution by corpus. Colors distinguish corpora; X axis lists frames.</p>
+            </header>
+            <div class=\"section-body\">
+                <div class=\"card chart-card\">
+                    {''.join(corpus_sections)}
+                </div>
+            </div>
+        </section>
+        """
+
     # Domain Analysis section
     domain_analysis_html = ""
     domain_charts = []
@@ -2744,16 +3021,18 @@ def write_html_report(
                     aggregate_data,
                     frame_lookup,
                     color_map,
-                    export_png_path=(export_dir / f"{plot_type}.png") if export_dir else None,
-                    chart_id=f"custom-{plot_type}"
+                    export_png_path=(export_dir / f"{plot_type}.png") if (export_dir and export_png) else None,
+                    chart_id=f"custom-{plot_type}",
+                    export_svg=export_svg,
                 )
             elif plot_type.startswith("year_"):
                 chart_html = _render_yearly_bar_chart(
                     aggregate_data,
                     frame_lookup,
                     color_map,
-                    export_png_path=(export_dir / f"{plot_type}.png") if export_dir else None,
-                    chart_id=f"custom-{plot_type}"
+                    export_png_path=(export_dir / f"{plot_type}.png") if (export_dir and export_png) else None,
+                    chart_id=f"custom-{plot_type}",
+                    export_svg=export_svg,
                 )
             
             if chart_html:
@@ -3520,6 +3799,7 @@ def write_html_report(
     {llm_coverage_section_html}
     {llm_binned_section_html}
     {time_series_section_html}
+    {corpus_section_html}
     {aggregation_charts_html}
     {domain_analysis_html}
     {custom_section_html}

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Protocol, Sequence
 
 from efi_core.utils import normalize_date
+from efi_analyser.frames.identifiers import split_global_doc_id
 
 
 def _extract_domain(url: Optional[str]) -> Optional[str]:
@@ -45,6 +46,8 @@ class DocumentFrameAggregate:
     title: Optional[str] = None
     url: Optional[str] = None
     domain: Optional[str] = field(default=None, init=False)
+    # Optional: source corpus name (filled from global doc id when available)
+    corpus: Optional[str] = field(default=None, init=False)
     top_frames: List[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -61,6 +64,7 @@ class DocumentFrameAggregate:
             "title": self.title,
             "url": self.url,
             "domain": self.domain,
+            "corpus": self.corpus,
             "top_frames": self.top_frames,
         }
 
@@ -159,17 +163,22 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
             ordered = sorted(frame_scores.items(), key=lambda item: item[1], reverse=True)
             top_frames = [frame_id for frame_id, _ in ordered[: self._top_k]]
 
-            aggregates.append(
-                DocumentFrameAggregate(
-                    doc_id=doc_id,
-                    frame_scores=frame_scores,
-                    total_weight=weight,
-                    published_at=state.get("published_at"),  # type: ignore[arg-type]
-                    title=state.get("title"),
-                    url=state.get("url"),
-                    top_frames=top_frames,
-                )
+            agg = DocumentFrameAggregate(
+                doc_id=doc_id,
+                frame_scores=frame_scores,
+                total_weight=weight,
+                published_at=state.get("published_at"),  # type: ignore[arg-type]
+                title=state.get("title"),
+                url=state.get("url"),
+                top_frames=top_frames,
             )
+            try:
+                corpus_name, _ = split_global_doc_id(doc_id)
+                if corpus_name:
+                    object.__setattr__(agg, 'corpus', corpus_name)
+            except Exception:
+                pass
+            aggregates.append(agg)
 
         return sorted(aggregates, key=lambda agg: (agg.published_at or "", agg.doc_id))
 
@@ -236,17 +245,22 @@ class OccurrenceFrameAggregator(FrameAggregationStrategy):
             presence = {fid: (1.0 if val >= self._min_threshold and val > 0.0 else 0.0) for fid, val in scores.items()}
             ordered = sorted(presence.items(), key=lambda item: item[1], reverse=True)
             top_frames = [frame_id for frame_id, v in ordered if v > 0.0][: self._top_k]
-            aggregates.append(
-                DocumentFrameAggregate(
-                    doc_id=doc_id,
-                    frame_scores=presence,
-                    total_weight=1.0,  # count each document equally
-                    published_at=state.get("published_at"),  # type: ignore[arg-type]
-                    title=state.get("title"),
-                    url=state.get("url"),
-                    top_frames=top_frames,
-                )
+            agg = DocumentFrameAggregate(
+                doc_id=doc_id,
+                frame_scores=presence,
+                total_weight=1.0,  # count each document equally
+                published_at=state.get("published_at"),  # type: ignore[arg-type]
+                title=state.get("title"),
+                url=state.get("url"),
+                top_frames=top_frames,
             )
+            try:
+                corpus_name, _ = split_global_doc_id(doc_id)
+                if corpus_name:
+                    object.__setattr__(agg, 'corpus', corpus_name)
+            except Exception:
+                pass
+            aggregates.append(agg)
         return sorted(aggregates, key=lambda agg: (agg.published_at or "", agg.doc_id))
 
 
@@ -256,4 +270,3 @@ __all__ = [
     "WeightedFrameAggregator",
     "OccurrenceFrameAggregator",
 ]
-

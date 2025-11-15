@@ -1838,7 +1838,20 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             try:
                 loaded_aggregates = load_document_aggregates(weighted_path)
                 if loaded_aggregates:
-                    document_aggregates_weighted = loaded_aggregates
+                    # Apply optional date filter to loaded aggregates
+                    if config.date_from:
+                        df_norm = str(config.date_from).strip()
+                        filtered_aggregates = []
+                        for agg in loaded_aggregates:
+                            pub = agg.published_at
+                            dt = normalize_date(pub)
+                            if dt and dt.date().isoformat() >= df_norm:
+                                filtered_aggregates.append(agg)
+                        document_aggregates_weighted = filtered_aggregates
+                        if len(filtered_aggregates) < len(loaded_aggregates):
+                            print(f"   Filtered to {len(filtered_aggregates)} aggregates matching date_from={config.date_from} (from {len(loaded_aggregates)} total).")
+                    else:
+                        document_aggregates_weighted = loaded_aggregates
                     mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
                     print(f"✅ Reloaded {len(document_aggregates_weighted)} weighted document aggregates from cache{mode_msg}.")
                 else:
@@ -1856,7 +1869,20 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
             try:
                 loaded_occurrence = load_document_aggregates(occurrence_path)
                 if loaded_occurrence:
-                    document_aggregates_occurrence = loaded_occurrence
+                    # Apply optional date filter to loaded aggregates
+                    if config.date_from:
+                        df_norm = str(config.date_from).strip()
+                        filtered_occurrence = []
+                        for agg in loaded_occurrence:
+                            pub = agg.published_at
+                            dt = normalize_date(pub)
+                            if dt and dt.date().isoformat() >= df_norm:
+                                filtered_occurrence.append(agg)
+                        document_aggregates_occurrence = filtered_occurrence
+                        if len(filtered_occurrence) < len(loaded_occurrence):
+                            print(f"   Filtered to {len(filtered_occurrence)} occurrence aggregates matching date_from={config.date_from} (from {len(loaded_occurrence)} total).")
+                    else:
+                        document_aggregates_occurrence = loaded_occurrence
                     mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
                     print(f"✅ Reloaded {len(document_aggregates_occurrence)} occurrence document aggregates from cache{mode_msg}.")
                 else:

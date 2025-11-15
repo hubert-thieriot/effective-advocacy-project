@@ -1504,75 +1504,53 @@ def _render_yearly_bar_chart(
     for fid in frame_ids:
         meta = frame_lookup.get(fid, {})
         label = meta.get("short") or meta.get("name") or fid
-        labels.append(_wrap_label_html(label, max_len=16))
+        labels.append(_wrap_label_html(label, max_len=10))
     
     traces: List[Dict[str, object]] = []
     num_years = len(years)
-    min_year = min(years)
-    max_year = max(years)
     
-    # Use solid colors for bars (no transparency variation)
+    # Use transparency variation to distinguish years (older = more transparent)
     for idx, year in enumerate(years):
+        # With ascending year order, higher idx = newer year = higher opacity
+        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4  # Range from 0.6 to 1.0
         scores = [frame_year_scores.get(fid, {}).get(year, 0.0) for fid in frame_ids]
-        # Use frame colors directly (no alpha variation)
-        colors = [color_map.get(fid, "#057d9f") for fid in frame_ids]
+        # Apply transparency to frame colors
+        colors_with_alpha = [_hex_to_rgba(color_map.get(fid, "#057d9f"), alpha) for fid in frame_ids]
         
         traces.append({
             "type": "bar",
             "name": str(year),
             "x": labels,
             "y": scores,
-            "marker": {"color": colors},
+            "marker": {"color": colors_with_alpha},
             "hovertemplate": f"%{{x}}<br>Year: {year}<br>%{{y:.2f}}<extra></extra>",
-            "showlegend": False,
+            "showlegend": False,  # Hide legend for bars; use grey-scale legend below
         })
     
-    # Create annotations for year labels (only min and max years)
-    # Position them below the x-axis at the leftmost and rightmost bar groups
-    annotations = []
-    if num_years > 0 and len(labels) > 0:
-        # For grouped bars, bars are centered at categorical positions (0, 1, 2, ...)
-        # We'll position labels at the first and last frame positions
-        # Since bars are grouped, we offset slightly to align with leftmost/rightmost bars in the group
-        
-        # Calculate offset for grouped bars (approximately -0.3 for leftmost bar in group)
-        group_offset = -0.25 if num_years > 1 else 0
-        
-        # Annotation for min year (at first frame, aligned with leftmost bar)
-        annotations.append({
-            "text": str(min_year),
-            "xref": "x",
-            "yref": "paper",
-            "x": 0 + group_offset,  # Position at first frame, offset to leftmost bar
-            "y": -0.12,  # Below the x-axis labels
-            "showarrow": False,
-            "xanchor": "center",
-            "yanchor": "top",
-            "font": {"size": 9, "color": "#666666"},
+    # Add grey-scale legend entries for years (legend-only traces)
+    # Use progressively darker greys for more recent years to mirror alpha progression
+    for idx, year in enumerate(years):
+        alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
+        color_with_alpha = _hex_to_rgba("#057d9f", alpha)
+        traces.append({
+            "type": "scatter",
+            "mode": "markers",
+            "x": [None],
+            "y": [None],
+            "marker": {"size": 10, "color": color_with_alpha},
+            "name": str(year),
+            "showlegend": True,
+            "hoverinfo": "skip",
         })
-        
-        # Annotation for max year (at last frame, aligned with rightmost bar)
-        if len(labels) > 1:
-            annotations.append({
-                "text": str(max_year),
-                "xref": "x",
-                "yref": "paper",
-                "x": len(labels) - 1 - group_offset,  # Position at last frame, offset to rightmost bar
-                "y": -0.12,  # Below the x-axis labels
-                "showarrow": False,
-                "xanchor": "center",
-                "yanchor": "top",
-                "font": {"size": 9, "color": "#666666"},
-            })
     
     layout = {
         "barmode": "group",
-        "margin": {"l": 40, "r": 20, "t": 20, "b": 50},  # Increased bottom margin for year labels
+        "margin": {"l": 40, "r": 20, "t": 20, "b": 0},
         "xaxis": {"title": "", "tickmode": "linear", "tickangle": 0, "automargin": True},
         "yaxis": {"title": "", "tickformat": ".0%"},
         "height": 500,
-        "showlegend": False,  # No legend
-        "annotations": annotations,
+        # Legend positioned on top
+        "legend": {"orientation": "h", "yanchor": "top", "y": 1.08, "x": 0.5, "xanchor": "center"},
     }
     
     return _render_plotly_fragment(chart_id, traces, layout, export_png_path=export_png_path, export_svg=export_svg)

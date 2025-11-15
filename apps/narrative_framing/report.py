@@ -1531,7 +1531,7 @@ def _render_yearly_bar_chart(
     # Use progressively darker greys for more recent years to mirror alpha progression
     for idx, year in enumerate(years):
         alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
-        color_with_alpha = _hex_to_rgba("#057d9f", alpha)
+        color_with_alpha = _hex_to_rgba("#1E3D58", alpha)
         traces.append({
             "type": "scatter",
             "mode": "markers",

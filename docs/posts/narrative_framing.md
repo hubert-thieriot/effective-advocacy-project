@@ -27,7 +27,11 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 
 <div style="text-align: center; margin: 2em 0;">
-  <img src="{{ site.baseurl }}/assets/narrative_framing_intervention_diagram.svg" alt="How Narrative Framing Analysis informs advocacy intervention cycles" style="max-width: 100%; height: auto;">
+  <figure style="margin: 0;">
+    <img src="{{ site.baseurl }}/assets/narrative_framing_intervention_diagram.svg" style="max-width: 100%; height: auto;">
+    <figcaption>How Narrative Framing Analysis informs advocacy intervention cycles
+    </figcaption>
+  </figure>
 </div>
 
 ### What can narrative framing help with?
@@ -43,13 +47,13 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 Narrative framing analysis focuses on content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it’s a way to observe the stories circulating in public space.
 
 <div style="text-align: center; margin: 2em 0 0 0;">
-  <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" style="max-width: 100%; height: auto;">
+  <figure style="margin: 0;">
+    <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" style="max-width: 100%; height: auto;">
+    <figcaption>
+      The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
+    </figcaption>
+  </figure>
 </div>
-
-
-<p style="text-align: center; color: rgba(0, 0, 0, 0.6); font-style: italic; margin-top: 0; margin-bottom: 2em;">
-The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
-</p>
 
 To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in Canada.
 
@@ -136,7 +140,7 @@ The analysis can also reveal how different media outlets frame air pollution sou
     <div class="chart-title">Frame distribution across media outlets</div>
     <div class="chart-subtitle">Share of each pollution source frame by media outlet, weighted by content length</div>
   </div>
-  {% include narrative_framing/indonesia_airpollution/domain_frame_distribution.html %}
+  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.svg" alt="Frame distribution across media outlets" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>

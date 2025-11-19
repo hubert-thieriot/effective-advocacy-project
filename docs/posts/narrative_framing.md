@@ -117,8 +117,8 @@ The results are shown in the figure below. Transport emissions dominate coverage
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">How Indonesian media frames the sources of the capital's pollution</div>
-    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media, weighted by content length.</div>
+    <div class="chart-title">How Indonesian media frame the sources of the capital's pollution</div>
+    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media.</div>
   </div>
   <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.svg" style="width: 100%; height: auto;">
   <p class="chart-note">

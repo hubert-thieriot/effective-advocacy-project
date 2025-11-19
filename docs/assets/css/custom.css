@@ -231,6 +231,7 @@ a {
   max-width: 1120px;
   box-shadow: 0 16px 42px rgba(20, 25, 40, 0.12);
   font-size: 22px !important;
+  line-height: 30px;
 }
 
 .text-box::before {

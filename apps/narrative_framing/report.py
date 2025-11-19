@@ -2158,7 +2158,6 @@ def export_frames_html(
 .frames-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 40px 20px;
 }
 
 .frames-grid {
@@ -2225,11 +2224,7 @@ def export_frames_html(
     font-weight: 500;
 }
 
-@media (max-width: 768px) {
-    .frames-container {
-        padding: 40px 0;
-    }
-    
+@media (max-width: 768px) { 
     .frames-grid {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     }

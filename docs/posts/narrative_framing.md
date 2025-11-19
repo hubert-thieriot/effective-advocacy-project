@@ -13,7 +13,7 @@ tags: [narrative-framing]
 ---
 
 
-<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy in their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and shifts and surfacing outlets/journalists to prioritize.
+<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets/journalists to prioritize.
 
 This post includes two illustrative examples: one on air pollution in Indonesia and one on animal welfare in Canada.
 </div>
@@ -59,7 +59,7 @@ To see what this might look like in practice, I ran two small experiments. One a
 
 ## Example 1: Air pollution causes in Jakarta, Indonesia
 
-In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with different techniques.
+In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with a different technique.
 
 I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
 
@@ -103,7 +103,7 @@ Next comes the **frame induction** where I use an LLM to identify the main frame
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">Frames used for classifying air pollution sources in Indonesian media</div>
-    <div class="chart-subtitle">Definitions for each frame category as determined in model induction and applied in this analysis</div>
+    <div class="chart-subtitle">Definitions for each framing as determined by the framing induction step</div>
   </div>
 {% include narrative_framing/indonesia_airpollution/frames_light.html %}
 <div class="chart-note">
@@ -111,7 +111,7 @@ Next comes the **frame induction** where I use an LLM to identify the main frame
   </div>
 </div>
 
-Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier (IndoBERT in this case) that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length to estimate how much attention each framing received over time.
+Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier (IndoBERT in this case) that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length and article to estimate how much attention each framing received over time.
 
 The results are shown in the figure below. Transport emissions dominate coverage reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next.
 
@@ -140,7 +140,7 @@ The analysis can also reveal how different media outlets frame air pollution sou
     <div class="chart-title">Frame distribution across media outlets</div>
     <div class="chart-subtitle">Share of each pollution source frame by media outlet, weighted by content length</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.svg" alt="Frame distribution across media outlets" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
@@ -192,16 +192,15 @@ The results are shown in the figure below. I’ll leave it to animal welfare adv
 These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
 
 - **Other mediums**: both examples have focused on media articles, but the same approach could be extended to TV and radio transcripts, social media, parliamentary debates and court decisions.
-
 - **Valence and stance**: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
-
 - **Conditional framing**: Beyond tracking which frames appear, future work could look at how they co-occur.
-
 - **Validation and reliability**: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.
 
 
-## Get in touch
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - [reach out to me](mailto:hubert.thieriot@gmail.com).
+<div class="text-box">
+  <h3>Get in touch</h3>
+I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - <a href="mailto:hubert.thieriot@gmail.com">reach out to me</a>.
+</div>
 
 
 
@@ -336,11 +335,6 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 
 
 
-
-
-
-
-
 **Content discovery (search/filters)**:
 We start by defining the slice of content we care about—whether from media articles, TV news transcripts, radio programs, forums, Reddit, or other sources—in a way that is both broad enough to catch variation and precise enough to be actionable. For media analysis, using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. Similar approaches work for other platforms: TV news and radio transcripts, forum posts, Reddit threads, or other text corpora can be collected through their respective APIs or scraping tools. The intent is to bias toward recall at this stage: we would rather include a few borderline documents and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
 
@@ -388,7 +382,3 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 
 
 </div>
-
-
-
----

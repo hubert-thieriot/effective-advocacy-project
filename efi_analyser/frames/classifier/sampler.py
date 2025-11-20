@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 import re
 
 from efi_core.types import Chunk
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_core.utils import normalize_date
 
-from ..identifiers import make_global_passage_id, split_passage_id
+from ..identifiers import (
+    make_global_doc_id,
+    make_global_passage_id,
+    split_passage_id,
+    split_global_doc_id,
+)
+from ..types import Candidate
 
 
 @dataclass
@@ -237,7 +243,7 @@ class CompositeCorpusSampler:
         self._policy = canonical_policy
 
     # ------------------------------------------------------------------ public
-    def collect(self, config: SamplerConfig) -> List[Tuple[str, str]]:
+    def collect_chunks(self, config: SamplerConfig) -> List[Tuple[str, str]]:
         if not self._corpora:
             return []
 
@@ -299,6 +305,197 @@ class CompositeCorpusSampler:
         rng = random.Random(config.seed)
         rng.shuffle(results)
         return results[: config.sample_size]
+
+    def collect_docs(
+        self,
+        *,
+        sample_size: int,
+        seed: int,
+        date_from: Optional[str] = None,
+        exclude_doc_ids: Optional[Sequence[str]] = None,
+    ) -> List[str]:
+        """Sample global document ids across corpora using the configured policy.
+
+        This mirrors the cross-corpus allocation logic used for passage sampling
+        but operates at the document level, with optional date and exclusion
+        filters.
+        """
+        if sample_size <= 0 or not self._corpora:
+            return []
+
+        # Build per-corpus exclusion map from global doc ids
+        exclude_map: Dict[str, set[str]] = {}
+        if exclude_doc_ids:
+            for gid in exclude_doc_ids:
+                corpus_name, local_id = split_global_doc_id(str(gid))
+                if corpus_name is None:
+                    # Single-corpus case: apply to all corpora
+                    for name in self._corpora.keys():
+                        exclude_map.setdefault(name, set()).add(local_id)
+                else:
+                    exclude_map.setdefault(corpus_name, set()).add(local_id)
+
+        # Collect available local doc ids per corpus after filters
+        df_norm: Optional[str] = None
+        if date_from:
+            df_norm = str(date_from).strip() or None
+
+        per_corpus_ids: Dict[str, List[str]] = {}
+        for name, embedded in self._corpora.items():
+            ids = list(embedded.corpus.list_ids())
+
+            # Optional date filter
+            if df_norm:
+                filtered: List[str] = []
+                for local_id in ids:
+                    try:
+                        meta = embedded.corpus.get_metadata(local_id)
+                        pub = meta.get("published_at")
+                        dt = normalize_date(pub)
+                        if dt and dt.date().isoformat() >= df_norm:
+                            filtered.append(local_id)
+                    except Exception:
+                        continue
+                ids = filtered
+
+            # Exclude already-selected documents (by local id)
+            excluded_locals = exclude_map.get(name, set())
+            if excluded_locals:
+                ids = [doc_id for doc_id in ids if doc_id not in excluded_locals]
+
+            per_corpus_ids[name] = ids
+
+        available_counts: Dict[str, int] = {
+            name: len(ids) for name, ids in per_corpus_ids.items() if ids
+        }
+        if not available_counts:
+            return []
+
+        # Allocate sample counts per corpus according to policy
+        total = sample_size
+        if self._policy == "equal":
+            per = total // len(available_counts)
+            allocations: Dict[str, int] = {name: per for name in available_counts}
+            remainder = total - per * len(available_counts)
+        else:  # proportional
+            total_docs = sum(available_counts.values())
+            if total_docs <= 0:
+                return []
+            allocations = {
+                name: int(total * count / total_docs)
+                for name, count in available_counts.items()
+            }
+            remainder = total - sum(allocations.values())
+
+        if remainder > 0:
+            rng = random.Random(seed)
+            ordered = list(available_counts.keys())
+            rng.shuffle(ordered)
+            for name in ordered:
+                if remainder <= 0:
+                    break
+                allocations[name] = allocations.get(name, 0) + 1
+                remainder -= 1
+
+        # Sample local ids per corpus according to allocations
+        sampled: List[str] = []
+        rng = random.Random(seed + 17)
+        multi = len(self._corpora) > 1
+        for name, ids in per_corpus_ids.items():
+            target = allocations.get(name, 0)
+            if target <= 0 or not ids:
+                continue
+            local_ids = list(ids)
+            rng.shuffle(local_ids)
+            chosen = local_ids[: min(target, len(local_ids))]
+            for local_id in chosen:
+                sampled.append(
+                    make_global_doc_id(name if multi else None, local_id)
+                )
+
+        if len(sampled) < sample_size:
+            print(
+                f"⚠️ Requested {sample_size} documents but only sampled {len(sampled)} across corpora."
+            )
+
+        rng = random.Random(seed + 33)
+        rng.shuffle(sampled)
+        return sampled[:sample_size]
+
+    def collect_candidates(self, config: SamplerConfig) -> List[Candidate]:
+        """Collect passages along with document-level metadata.
+
+        This wraps :meth:`collect` to preserve the existing sampling behaviour
+        while enriching each sampled passage with metadata needed downstream
+        (URL, title, published_at, doc_folder_path, corpus, doc ids, etc.).
+        """
+        raw = self.collect_chunks(config)
+        if not raw:
+            return []
+
+        # Cache doc-level metadata to avoid repeated corpus lookups
+        doc_meta_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        results: List[Candidate] = []
+
+        # Helper to resolve the EmbeddedCorpus for a given corpus name
+        def _get_embedded(corpus_name: Optional[str]) -> Optional[EmbeddedCorpus]:
+            if corpus_name:
+                return self._corpora.get(corpus_name)
+            if len(self._corpora) == 1:
+                return next(iter(self._corpora.values()))
+            return None
+
+        for passage_id, text in raw:
+            corpus_name, local_doc_id, _ = split_passage_id(passage_id)
+            embedded = _get_embedded(corpus_name)
+
+            metadata: Dict[str, Any] = {}
+            # Core identifiers
+            metadata["doc_id"] = local_doc_id
+            metadata["global_doc_id"] = make_global_doc_id(corpus_name, local_doc_id) if corpus_name else local_doc_id
+            if corpus_name:
+                metadata["corpus"] = corpus_name
+
+            if embedded is not None:
+                cache_key = (embedded.corpus.corpus_path.name, local_doc_id)
+                if cache_key not in doc_meta_cache:
+                    corpus = embedded.corpus
+                    index_entry = corpus.get_index_entry(local_doc_id) or {}
+                    meta = corpus.get_metadata(local_doc_id)
+                    fetch_info = corpus.get_fetch_info(local_doc_id)
+                    merged_meta: Dict[str, str] = {}
+                    for source in (index_entry, meta, fetch_info):
+                        if not isinstance(source, dict):
+                            continue
+                        for key, value in source.items():
+                            if key not in merged_meta and isinstance(value, str):
+                                merged_meta[key] = value
+
+                    try:
+                        doc_folder_path = corpus.layout.doc_dir(local_doc_id)
+                        doc_folder_path_abs = (
+                            doc_folder_path.resolve() if doc_folder_path.exists() else doc_folder_path
+                        )
+                        doc_folder_str = str(doc_folder_path_abs)
+                    except Exception:
+                        doc_folder_str = ""
+
+                    doc_meta_cache[cache_key] = {
+                        "url": merged_meta.get("url", ""),
+                        "title": merged_meta.get("title", ""),
+                        "published_at": merged_meta.get("published_at", ""),
+                        "doc_folder_path": doc_folder_str,
+                    }
+
+                extra = doc_meta_cache.get(cache_key) or {}
+                for k, v in extra.items():
+                    # Only fill when value is non-empty
+                    if isinstance(v, str) and v.strip():
+                        metadata[k] = v
+
+            results.append(Candidate(item_id=passage_id, text=text, meta=metadata))
+
+        return results
 
     # ----------------------------------------------------------------- helpers
     def _allocate_counts(self, total: int, seed: int) -> Dict[str, int]:
@@ -370,4 +567,6 @@ class CompositeCorpusSampler:
         return excludes
 
 
-__all__ = ["SamplerConfig", "CorpusSampler", "CompositeCorpusSampler"]
+EmbeddedCorporaSampler = CompositeCorpusSampler
+
+__all__ = ["SamplerConfig", "CorpusSampler", "CompositeCorpusSampler", "EmbeddedCorporaSampler"]

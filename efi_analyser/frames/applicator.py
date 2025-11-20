@@ -13,11 +13,11 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     Template = None  # type: ignore
 
-from .types import FrameAssignment, FrameSchema
+from .types import Candidate, FrameAssignment, FrameSchema
 from .identifiers import make_global_doc_id, split_passage_id
 
 
-class LLMFrameApplicator:
+class LLMFrameAnnotator:
     """Apply an induced frame schema to passages using an LLM backend."""
 
     DEFAULT_BATCH_SIZE: int = 8
@@ -61,16 +61,19 @@ class LLMFrameApplicator:
         self.last_built_messages: Optional[List[Dict[str, str]]] = None
         # Collect all batch messages for this run
         self.emitted_messages: List[List[Dict[str, str]]] = []
+        # Optional per-passage metadata attached by upstream samplers
+        self._current_metadata: Dict[str, Dict[str, Any]] = {}
 
     # ------------------------------------------------------------------ public
     def batch_assign(
         self,
         schema: FrameSchema,
-        passages: Sequence[str] | Sequence[Tuple[str, str]],
+        passages: Sequence[str] | Sequence[Tuple[str, str]] | Sequence[Candidate],
         *,
         top_k: int = 3,
     ) -> List[FrameAssignment]:
         """Assign frame probabilities for each passage in order of input."""
+        self._current_metadata = {}
         prepared = self._prepare_passages(passages)
         if not prepared:
             return []
@@ -124,16 +127,25 @@ class LLMFrameApplicator:
     # ------------------------------------------------------------------ helpers
     def _prepare_passages(
         self,
-        passages: Sequence[str] | Sequence[Tuple[str, str]],
+        passages: Sequence[str] | Sequence[Tuple[str, str]] | Sequence[Candidate],
     ) -> List[Tuple[str, str]]:
         prepared: List[Tuple[str, str]] = []
         for idx, item in enumerate(passages):
-            if isinstance(item, tuple):
-                passage_id, text = item
+            # Support raw text, (id, text) tuples, and Candidate objects
+            if isinstance(item, Candidate):
+                passage_id, text = item.item_id, item.text
+                base_meta = dict(item.meta or {})
+                segments = self._split_passage(passage_id, text)
+                for seg_id, seg_text in segments:
+                    prepared.append((seg_id, seg_text))
+                    self._current_metadata[seg_id] = dict(base_meta)
             else:
-                passage_id, text = f"passage_{idx:05d}", str(item)
-            segments = self._split_passage(passage_id, text)
-            prepared.extend(segments)
+                if isinstance(item, tuple):
+                    passage_id, text = item
+                else:
+                    passage_id, text = f"passage_{idx:05d}", str(item)
+                segments = self._split_passage(passage_id, text)
+                prepared.extend(segments)
         return prepared
 
     def _split_passage(self, passage_id: str, text: str) -> List[Tuple[str, str]]:
@@ -333,6 +345,12 @@ class LLMFrameApplicator:
             }
             if corpus_name:
                 metadata["corpus"] = corpus_name
+            # Merge any upstream metadata attached to this passage_id
+            extra_meta = self._current_metadata.get(passage_id)
+            if isinstance(extra_meta, dict):
+                for key, value in extra_meta.items():
+                    if key not in metadata or not metadata[key]:
+                        metadata[key] = value
             assignment = FrameAssignment(
                 passage_id=passage_id,
                 passage_text=batch_lookup[passage_id],
@@ -460,3 +478,7 @@ class LLMFrameApplicator:
             evidence_spans=list(assignment.evidence_spans),
             metadata=metadata,
         )
+
+
+# Backwards-compatible alias
+LLMFrameApplicator = LLMFrameAnnotator

@@ -72,7 +72,6 @@ classifier:
   enabled: true
   model_name: distilbert-base-uncased
   batch_size: 8
-  inference_batch_size: 1
 
 # ---
 # Example: multi-corpus with aliases shown in report legends

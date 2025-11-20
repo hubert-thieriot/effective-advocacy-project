@@ -136,3 +136,31 @@ def any_chunk_matches_keywords(chunks: Sequence[Dict[str, object]], spec: Filter
             return True
     return False
 
+
+@dataclass
+class Filter:
+    """Convenience wrapper for the standard narrative framing filters."""
+
+    exclude_regex: Optional[Sequence[str]] = None
+    exclude_min_hits: Optional[Dict[str, int]] = None
+    trim_after_markers: Optional[Sequence[str]] = None
+    keywords: Optional[Sequence[str]] = None
+
+    def to_spec(self) -> FilterSpec:
+        """Build a :class:`FilterSpec` for use with filter_text/filter_chunks."""
+        return make_filter_spec(
+            exclude_regex=self.exclude_regex,
+            exclude_min_hits=self.exclude_min_hits,
+            trim_after_markers=self.trim_after_markers,
+            keywords=self.keywords,
+        )
+
+    def sampler_kwargs(self) -> Dict[str, object]:
+        """Return kwargs suitable for constructing a SamplerConfig."""
+        return {
+            "keywords": self.keywords,
+            "exclude_regex": self.exclude_regex,
+            "exclude_min_hits": self.exclude_min_hits,
+            "trim_after_markers": self.trim_after_markers,
+        }
+

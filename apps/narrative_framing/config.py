@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
+from efi_analyser.frames.classifier import FrameClassifierSpec
+
 DEFAULT_CORPORA_ROOT = Path("corpora")
 DEFAULT_WORKSPACE_ROOT = Path("workspace")
 DEFAULT_INDUCTION_SAMPLE = 100
@@ -21,28 +23,14 @@ DEFAULT_APPLICATION_BATCH = 8
 DEFAULT_APPLICATION_TOP_K = 3
 
 @dataclass
-class ClassifierSettings:
-    """Configuration for the optional frame classifier."""
+class ClassifierSettings(FrameClassifierSpec):
+    """Application-level classifier settings.
+
+    Inherits all hyper-parameters from FrameClassifierSpec and adds only
+    app-specific flags such as `enabled` and `cv_folds`.
+    """
 
     enabled: bool = False
-    model_name: str = "microsoft/deberta-v3-base"
-    batch_size: int = 8
-    inference_batch_size: int = 8
-    
-    # Training parameters
-    num_train_epochs: float = 3.0
-    learning_rate: float = 5e-5
-    weight_decay: float = 0.01
-    warmup_ratio: float = 0.1
-    max_length: int = 384
-    # Logging/reporting
-    report_to: List[str] = field(default_factory=list)  # e.g., ["tensorboard", "wandb"]
-    logging_dir: Optional[str] = None
-    # Evaluation options
-    eval_threshold: float = 0.5
-    eval_top_k: Optional[int] = None
-    eval_steps: Optional[int] = None
-    # Cross-validation (optional)
     cv_folds: Optional[int] = None
 
 
@@ -121,6 +109,14 @@ class NarrativeFramingConfig:
     date_from: Optional[str] = None
     # Utility: when true, skip analysis and rebuild report from cached artifacts only
     regenerate_report_only: bool = False
+    # When true, try to reload aggregates from cache; when false (or if load fails), rebuild them
+    reload_aggregates: bool = True
+    # Per-step controls for creating new work beyond cached artifacts
+    allow_new_induction: bool = True
+    allow_new_annotation: bool = True
+    allow_new_training: bool = True
+    allow_new_classification: bool = True
+    allow_new_aggregation: bool = True
     # Aggregation controls
     agg_min_threshold_weighted: float = 0.2
     agg_normalize_weighted: bool = True
@@ -200,10 +196,11 @@ def _load_classifier_settings(data: Dict[str, Any]) -> ClassifierSettings:
         settings.enabled = bool(data["enabled"])
     if "model_name" in data:
         settings.model_name = str(data["model_name"])
+    # Allow older configs to specify inference_batch_size as a synonym
     if "batch_size" in data:
         settings.batch_size = int(data["batch_size"])
-    if "inference_batch_size" in data:
-        settings.inference_batch_size = int(data["inference_batch_size"])
+    elif "inference_batch_size" in data:
+        settings.batch_size = int(data["inference_batch_size"])
     # Training parameters
     if "num_train_epochs" in data:
         settings.num_train_epochs = float(data["num_train_epochs"])
@@ -345,6 +342,44 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.regenerate_report_only = bool(data["regenerate_report_only"])  # type: ignore[attr-defined]
         except Exception:
             config.regenerate_report_only = False
+    if "reload_aggregates" in data:
+        try:
+            config.reload_aggregates = bool(data["reload_aggregates"])  # type: ignore[attr-defined]
+        except Exception:
+            config.reload_aggregates = True
+    # Backward compatibility: rebuild_aggregates (inverted logic)
+    if "rebuild_aggregates" in data:
+        try:
+            rebuild = bool(data["rebuild_aggregates"])
+            config.reload_aggregates = not rebuild  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    # Allow toggling per-step creation of new work
+    if "allow_new_induction" in data:
+        try:
+            config.allow_new_induction = bool(data["allow_new_induction"])
+        except Exception:
+            pass
+    if "allow_new_annotation" in data:
+        try:
+            config.allow_new_annotation = bool(data["allow_new_annotation"])
+        except Exception:
+            pass
+    if "allow_new_training" in data:
+        try:
+            config.allow_new_training = bool(data["allow_new_training"])
+        except Exception:
+            pass
+    if "allow_new_classification" in data:
+        try:
+            config.allow_new_classification = bool(data["allow_new_classification"])
+        except Exception:
+            pass
+    if "allow_new_aggregation" in data:
+        try:
+            config.allow_new_aggregation = bool(data["allow_new_aggregation"])
+        except Exception:
+            pass
     # Back-compat: allow top-level hide_empty_passages to set report flag
     if "hide_empty_passages" in data:
         try:

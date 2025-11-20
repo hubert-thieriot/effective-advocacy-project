@@ -1,0 +1,59 @@
+# Test configuration for narrative framing workflow - optimized for fast debugging
+corpus: mediacloud_thailand_airquality
+corpora_root: corpora
+workspace_root: workspace
+results_dir: results/narrative_framing_test
+
+# Narrative framing parameters
+domain: "Thailand air quality media coverage"
+seed: 42
+
+# Reload settings - set to false to force fresh runs
+reload_induction: true
+reload_annotation: true
+reload_classifier: true
+reload_classifications: false
+reload_aggregates: false
+
+# To regenerate the report only, set this to true (it will override all other reload settings)
+regenerate_report_only: false
+
+filter:
+  document:
+    keywords:
+      - air
+      - pollution
+      - quality
+
+chunking:
+  target_words: 200
+  chunker_model: en_core_web_sm
+
+induction:
+  size: 100
+  model: gpt-4o-mini
+  frame_target: "between 5 and 8"
+  guidance: |
+    Induce frames related to air quality and pollution in Thailand media coverage.
+    Focus on distinct, non-overlapping frames that capture different angles or perspectives.
+
+annotation:
+  size: 200
+  model: gpt-4o-mini
+  batch_size: 8
+  top_k: 3
+
+classifier:
+  enabled: true
+  model_name: distilbert-base-uncased
+  batch_size: 8
+  num_train_epochs: 1
+  learning_rate: 2e-5
+
+classification:
+  size: 100
+
+report:
+  title: "Air Quality Frames in Thailand Media"
+  subtitle: "Test run for debugging"
+  hide_empty_passages: false

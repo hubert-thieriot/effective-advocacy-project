@@ -39,12 +39,10 @@ from efi_analyser.frames import (
     LLMFrameAnnotator,
 )
 from efi_analyser.frames.classifier import (
-    DocumentClassification,
     DocumentClassifications,
     EmbeddedCorporaSampler,
     FrameClassifier,
     FrameClassifierModel,
-    FrameClassifierSpec,
     FrameClassifierTrainer,
     FrameClassifierArtifacts,
     FrameLabelSet,
@@ -52,9 +50,19 @@ from efi_analyser.frames.classifier import (
 )
 from efi_analyser.scorers.openai_interface import OpenAIConfig, OpenAIInterface
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
+from efi_analyser.frames.identifiers import (
+    make_global_passage_id,
+    split_global_doc_id,
+)
+from efi_core.utils import normalize_date
 
-from efi_analyser.chunkers import TextChunker, TextChunkerConfig  # type: ignore
-
+try:  # Prefer spaCy-based chunker when available.
+    from efi_analyser.chunkers import TextChunker, TextChunkerConfig  # type: ignore
+    _TEXT_CHUNKER_ERROR = None
+except Exception as exc:  # pragma: no cover - informational only
+    TextChunker = None  # type: ignore
+    TextChunkerConfig = None  # type: ignore
+    _TEXT_CHUNKER_ERROR = exc
 
 
 @dataclass
@@ -200,306 +208,6 @@ def load_schema(path: Path) -> FrameSchema:
     )
 
 
-def save_assignments(path: Path, assignments: Sequence[FrameAssignment]) -> None:
-    """Legacy helper; prefer FrameAssignments.save."""
-    FrameAssignments(assignments).save(path)
-
-
-def load_assignments(path: Path) -> FrameAssignments:
-    """Legacy helper; prefer FrameAssignments.load."""
-    return FrameAssignments.load(path)
-
-
-def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
-    """Load document aggregates from a single JSON file."""
-    if not path.exists():
-        return []
-    
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    records: Iterable[Dict[str, object]] = payload
-    
-    aggregates: List[DocumentFrameAggregate] = []
-    for item in records:
-        aggregates.append(
-            DocumentFrameAggregate(
-                doc_id=item["doc_id"],
-                frame_scores={k: float(v) for k, v in item.get("frame_scores", {}).items()},
-                total_weight=float(item.get("total_weight", 0.0)),
-                published_at=item.get("published_at"),
-                title=item.get("title"),
-                url=item.get("url"),
-                top_frames=list(item.get("top_frames", [])),
-            )
-        )
-    return aggregates
-
-
-def save_aggregates_json(path: Path, data: object) -> None:
-    """Save aggregation data to JSON file."""
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def build_all_aggregates(
-    aggregates_dir: Path,
-    document_aggregates_weighted: List[DocumentFrameAggregate],
-    document_aggregates_occurrence: List[DocumentFrameAggregate],
-    frame_ids: List[str],
-) -> Dict[str, object]:
-    """Build all aggregation combinations and save them to files.
-    
-    Returns a dictionary with all aggregates for passing to the report.
-    """
-    aggregates = {}
-    
-    print("Building document aggregates...")
-    # Save document aggregates
-    if document_aggregates_weighted:
-        save_aggregates_json(
-            aggregates_dir / "documents_weighted.json",
-            [agg.to_dict() for agg in document_aggregates_weighted]
-        )
-        aggregates["documents_weighted"] = document_aggregates_weighted
-    if document_aggregates_occurrence:
-        save_aggregates_json(
-            aggregates_dir / "documents_occurrence.json",
-            [agg.to_dict() for agg in document_aggregates_occurrence]
-        )
-        aggregates["documents_occurrence"] = document_aggregates_occurrence
-    
-    print("Building temporal aggregates...")
-    # Temporal aggregates - year with/without zeros
-    for keep_zeros in [True, False]:
-        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-        agg = TemporalAggregator(
-            period="year",
-            weight_by_document_weight=True,
-            keep_documents_with_no_frames=keep_zeros
-        )
-        yearly_result = agg.aggregate(document_aggregates_weighted)
-        save_aggregates_json(
-            aggregates_dir / f"year_weighted_{key_suffix}.json",
-            [
-                {
-                    "period_id": p.period_id,
-                    "frame_scores": p.frame_scores,
-                    "document_count": p.document_count,
-                }
-                for p in yearly_result
-            ]
-        )
-        aggregates[f"year_weighted_{key_suffix}"] = yearly_result
-    
-    print("Building domain aggregates...")
-    # Domain aggregates - with/without zeros
-    for keep_zeros in [True, False]:
-        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-        
-        domain_agg = DomainAggregator(
-            keep_documents_with_no_frames=keep_zeros,
-            weight_by_document_weight=True,
-            avg_or_sum="avg"
-        )
-        domain_aggregates = domain_agg.aggregate(document_aggregates_weighted)
-        
-        # Convert to old format for compatibility
-        domain_frame_summaries = [
-            {
-                "domain": da.domain,
-                "count": da.document_count,
-                "shares": da.frame_scores,
-            }
-            for da in domain_aggregates
-        ]
-        
-        save_aggregates_json(
-            aggregates_dir / f"domain_weighted_{key_suffix}.json",
-            domain_frame_summaries
-        )
-        aggregates[f"domain_weighted_{key_suffix}"] = domain_frame_summaries
-
-    print("Building corpus aggregates...")
-    # Per-corpus aggregates (weighted) - with/without zeros
-    def _compute_corpus_aggregates(
-        doc_aggs: List[DocumentFrameAggregate],
-        *,
-        keep_documents_with_no_frames: bool,
-        weight_by_document_weight: bool,
-    ) -> List[Dict[str, object]]:
-        if not doc_aggs:
-            return []
-        # Build DataFrame including 'corpus'
-        df = pd.DataFrame([agg.to_dict() for agg in doc_aggs])
-        # Ensure expected columns exist
-        for col in ['frame_scores', 'total_weight', 'doc_id']:
-            if col not in df.columns:
-                return []
-        # Extract corpus from stored field or doc_id prefix
-        if 'corpus' not in df.columns:
-            df['corpus'] = None
-        # Fill missing corpus by splitting doc_id when needed
-        from efi_analyser.frames.identifiers import split_global_doc_id
-        df['corpus'] = df.apply(
-            lambda r: (r['corpus'] if pd.notna(r['corpus']) and r['corpus'] else split_global_doc_id(str(r['doc_id']))[0]),
-            axis=1,
-        )
-        # If still missing, label as 'default'
-        df['corpus'] = df['corpus'].apply(lambda x: x if isinstance(x, str) and x.strip() else 'default')
-
-        # Indicator for documents with any frame present
-        df['has_frames'] = df['frame_scores'].apply(lambda x: any(float(v or 0.0) > 0.0 for v in x.values()))
-        if not keep_documents_with_no_frames:
-            df = df[df['has_frames']]
-        if df.empty:
-            return []
-
-        # Weight per document
-        if weight_by_document_weight:
-            df['weight'] = df['total_weight']
-        else:
-            df['weight'] = 1.0
-
-        # Explode frames to long format
-        x = pd.DataFrame(pd.json_normalize(df['frame_scores']).stack()).reset_index(level=1)
-        x.columns = ['frame', 'value']
-        df_long = df.drop(columns=['frame_scores']).join(x)
-
-        # Multiply by document weight
-        df_long['weighted_value'] = df_long['value'] * df_long['weight']
-
-        # We want an average per corpus. To be consistent with DomainAggregator,
-        # we normalize by the mean doc weight per corpus.
-        mean_weight_per_corpus = (
-            df_long.drop_duplicates(subset=['corpus', 'doc_id']).groupby('corpus')['weight'].mean()
-        )
-        grouped = df_long.groupby(['corpus', 'frame'])['weighted_value'].mean()
-        # Divide by mean weight per corpus
-        grouped = grouped / mean_weight_per_corpus
-        # Reshape back to corpus x frame table
-        results_df = grouped.unstack(fill_value=0.0)
-
-        # Document counts per corpus (after filtering)
-        doc_counts = df.groupby('corpus')['doc_id'].nunique().to_dict()
-
-        results: List[Dict[str, object]] = []
-        for corpus_name, row in results_df.iterrows():
-            frame_scores = {str(col): float(row[col]) for col in row.index}
-            results.append({
-                'corpus': str(corpus_name),
-                'frame_scores': frame_scores,
-                'document_count': int(doc_counts.get(corpus_name, 0)),
-            })
-        return results
-
-    # Weighted per-corpus
-    for keep_zeros in [True, False]:
-        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-        corpus_weighted = _compute_corpus_aggregates(
-            document_aggregates_weighted,
-            keep_documents_with_no_frames=keep_zeros,
-            weight_by_document_weight=True,
-        )
-        if corpus_weighted:
-            save_aggregates_json(aggregates_dir / f"corpus_weighted_{key_suffix}.json", corpus_weighted)
-            aggregates[f"corpus_weighted_{key_suffix}"] = corpus_weighted
-    
-    print("Building global aggregates...")
-    # Global aggregates - with/without zeros
-    for keep_zeros in [True, False]:
-        key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-        agg = TemporalAggregator(
-            period="all",
-            weight_by_document_weight=True,
-            keep_documents_with_no_frames=keep_zeros
-        )
-        global_result = agg.aggregate(document_aggregates_weighted)
-        if global_result:
-            global_data = {
-                "period_id": global_result[0].period_id,
-                "frame_scores": global_result[0].frame_scores,
-                "document_count": global_result[0].document_count,
-            }
-            save_aggregates_json(
-                aggregates_dir / f"global_weighted_{key_suffix}.json",
-                global_data
-            )
-            aggregates[f"global_weighted_{key_suffix}"] = global_result
-    
-    print("Building occurrence aggregates...")
-    # Occurrence aggregates - global and yearly with/without zeros
-    if document_aggregates_occurrence:
-        # Global occurrence aggregates
-        for keep_zeros in [True, False]:
-            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-            agg = TemporalAggregator(
-                period="all",
-                weight_by_document_weight=False,  # Occurrence: don't weight by document
-                keep_documents_with_no_frames=keep_zeros
-            )
-            global_result = agg.aggregate(document_aggregates_occurrence)
-            if global_result:
-                global_data = {
-                    "period_id": global_result[0].period_id,
-                    "frame_scores": global_result[0].frame_scores,
-                    "document_count": global_result[0].document_count,
-                }
-                save_aggregates_json(
-                    aggregates_dir / f"global_occurrence_{key_suffix}.json",
-                    global_data
-                )
-                aggregates[f"global_occurrence_{key_suffix}"] = global_result
-        
-        # Yearly occurrence aggregates
-        for keep_zeros in [True, False]:
-            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-            agg = TemporalAggregator(
-                period="year",
-                weight_by_document_weight=False,  # Occurrence: don't weight by document
-                keep_documents_with_no_frames=keep_zeros
-            )
-            yearly_result = agg.aggregate(document_aggregates_occurrence)
-            save_aggregates_json(
-                aggregates_dir / f"year_occurrence_{key_suffix}.json",
-                [
-                    {
-                        "period_id": p.period_id,
-                        "frame_scores": p.frame_scores,
-                        "document_count": p.document_count,
-                    }
-                    for p in yearly_result
-                ]
-            )
-            aggregates[f"year_occurrence_{key_suffix}"] = yearly_result
-        # Per-corpus occurrence aggregates (documents counted equally)
-        for keep_zeros in [True, False]:
-            key_suffix = "with_zeros" if keep_zeros else "without_zeros"
-            corpus_occ = _compute_corpus_aggregates(
-                document_aggregates_occurrence,
-                keep_documents_with_no_frames=keep_zeros,
-                weight_by_document_weight=False,
-            )
-            if corpus_occ:
-                save_aggregates_json(aggregates_dir / f"corpus_occurrence_{key_suffix}.json", corpus_occ)
-                aggregates[f"corpus_occurrence_{key_suffix}"] = corpus_occ
-    
-    print("Building time series with 30-day rolling average...")
-    # 30-day running average time series
-    # Don't normalize each period - compute avg_score, apply rolling average, then normalize globally
-    # This prevents all frames from appearing equal due to daily normalization
-    temporal_agg = TemporalAggregator(
-        period="day",
-        weight_by_document_weight=True,
-        avg_or_sum="avg",
-        rolling_window=30
-    )
-    frame_timeseries_aggregates = temporal_agg.aggregate(document_aggregates_weighted)
-    frame_timeseries_records = period_aggregates_to_records(frame_timeseries_aggregates)
-    save_aggregates_json(aggregates_dir / "time_series_30day.json", frame_timeseries_records)
-    aggregates["time_series_30day"] = frame_timeseries_records
-    return aggregates
-
-
-
-
 def print_schema(schema: FrameSchema) -> None:
     print(f"\nDomain: {schema.domain}")
     print(f"Frames discovered: {len(schema.frames)}")
@@ -559,12 +267,14 @@ class NarrativeFramingWorkflow:
         self.state = WorkflowState()
         self.corpora_map: EmbeddedCorpora
         self.sampler: EmbeddedCorporaSampler
-        self.keywords: Optional[List[str]] = config.filter_keywords
+        # Use document-level keywords for document selection
+        self.keywords: Optional[List[str]] = config.filter.document.keywords
+        # Use chunk-level filters for chunk filtering
         self.filter = Filter(
-            exclude_regex=config.filter_exclude_regex,
-            exclude_min_hits=config.filter_exclude_min_hits,
-            trim_after_markers=config.filter_trim_after_markers,
-            keywords=config.filter_keywords,
+            exclude_regex=config.filter.chunk.exclude_regex,
+            exclude_min_hits=config.filter.chunk.exclude_min_hits,
+            trim_after_markers=config.filter.chunk.trim_after_markers,
+            keywords=config.filter.chunk.keywords,
         )
 
         self.openai_induction_config: OpenAIConfig
@@ -640,8 +350,8 @@ class NarrativeFramingWorkflow:
             try:
                 chunker = TextChunker(
                     TextChunkerConfig(
-                        max_words=config.target_words,
-                        spacy_model=config.chunker_model,
+                        max_words=config.chunking.target_words,
+                        spacy_model=config.chunking.chunker_model,
                     )
                 )
             except Exception as exc:
@@ -671,25 +381,25 @@ class NarrativeFramingWorkflow:
         config = self.config
 
         induction_temp = (
-            config.induction_temperature
-            if config.induction_temperature is not None
-            else OpenAIConfig.get_default_temperature(config.induction_model)
+            config.induction.temperature
+            if config.induction.temperature is not None
+            else OpenAIConfig.get_default_temperature(config.induction.model)
         )
         application_temp = (
-            config.application_temperature
-            if config.application_temperature is not None
-            else OpenAIConfig.get_default_temperature(config.application_model)
+            config.annotation.temperature
+            if config.annotation.temperature is not None
+            else OpenAIConfig.get_default_temperature(config.annotation.model)
         )
 
         self.openai_induction_config = OpenAIConfig(
-            model=config.induction_model,
+            model=config.induction.model,
             temperature=induction_temp,
             timeout=600.0,
             ignore_cache=False,
             verbose=True,  # Enable warnings for temperature overrides
         )
         self.openai_application_config = OpenAIConfig(
-            model=config.application_model,
+            model=config.annotation.model,
             temperature=application_temp,
             timeout=600.0,
             ignore_cache=False,
@@ -725,12 +435,13 @@ class NarrativeFramingWorkflow:
         paths = self.paths
         state = self.state
 
-        # Reload from cache when requested
-        if config.reload_induction and paths.schema and paths.schema.exists():
+        # Reload from cache when requested, or in regenerate mode
+        should_reload = config.reload_induction or config.regenerate_report_only
+        if should_reload and paths.schema and paths.schema.exists():
             state.schema = load_schema(paths.schema)
             state.induction_reused = True
             print(f"Reloaded frame schema from {paths.schema}")
-        elif config.reload_induction and self.allow_new_induction:
+        elif should_reload and self.allow_new_induction:
             # Wanted to reload but cache is missing; fall back to running induction.
             print("⚠️ Cached schema not found; running induction instead.")
 
@@ -745,9 +456,9 @@ class NarrativeFramingWorkflow:
             print("Collecting passages for frame induction...")
             induction_samples = self.sampler.collect_chunks(
                 SamplerConfig(
-                    sample_size=config.induction_sample_size,
+                    sample_size=config.induction.size,
                     seed=config.seed,
-                    date_from=config.date_from,
+                    date_from=config.filter.date_from,
                     **self.filter.sampler_kwargs(),
                 )
             )
@@ -757,10 +468,10 @@ class NarrativeFramingWorkflow:
             inducer = FrameInducer(
                 llm_client=inducer_client,
                 domain=config.domain,
-                frame_target=config.induction_frame_target,
-                max_passages_per_call=max(20, min(config.induction_sample_size, 80)),
-                max_total_passages=config.induction_sample_size * 2,
-                induction_guidance=config.induction_guidance,
+                frame_target=config.induction.frame_target,
+                max_passages_per_call=max(20, min(config.induction.size, 80)),
+                max_total_passages=config.induction.size * 2,
+                induction_guidance=config.induction.guidance,
                 system_template=self.ind_sys_t,
                 user_template=self.ind_usr_t,
             )
@@ -799,10 +510,11 @@ class NarrativeFramingWorkflow:
         assignments: FrameAssignments = FrameAssignments()
 
         induction_samples = state.induction_samples
-        target_application_count = max(0, config.application_sample_size)
+        target_application_count = max(0, config.annotation.size)
 
-        # 1) Reload cached assignments from disk if requested
-        if config.reload_application and paths.assignments and paths.assignments.exists():
+        # 1) Reload cached assignments from disk if requested, or in regenerate mode
+        should_reload = config.reload_annotation or config.regenerate_report_only
+        if should_reload and paths.assignments and paths.assignments.exists():
             try:
                 assignments = FrameAssignments.load(paths.assignments)
                 if assignments:
@@ -827,7 +539,7 @@ class NarrativeFramingWorkflow:
                             sample_size=additional_needed,
                             seed=config.seed + 1,
                             exclude_passage_ids=exclude_ids or None,
-                            date_from=config.date_from,
+                            date_from=config.filter.date_from,
                             **self.filter.sampler_kwargs(),
                         )
                     )
@@ -841,7 +553,7 @@ class NarrativeFramingWorkflow:
                     )
                     annotator = LLMFrameAnnotator(
                         llm_client=annotator_client,
-                        batch_size=config.application_batch_size,
+                        batch_size=config.annotation.batch_size,
                         max_chars_per_passage=None,
                         chunk_overlap_chars=0,
                         system_template=self.app_sys_t,
@@ -859,7 +571,7 @@ class NarrativeFramingWorkflow:
                             batch_assignments = annotator.batch_assign(
                                 schema,
                                 batch,
-                                top_k=config.application_top_k,
+                                top_k=config.annotation.top_k,
                             )
                             for assignment in batch_assignments:
                                 if assignment.passage_id in existing_ids:
@@ -914,9 +626,10 @@ class NarrativeFramingWorkflow:
             print("⚠️ Skipping classifier: no schema or assignments available.")
             return
 
-        # Attempt to reload classifier artifacts when training is disabled
+        # Attempt to reload classifier artifacts when training is disabled or in regenerate mode
+        should_reload = config.reload_classifier or config.regenerate_report_only
         if (
-            config.reload_classifier
+            should_reload
             and paths.classifier_dir
             and paths.classifier_dir.exists()
             and paths.classifier_predictions
@@ -991,19 +704,21 @@ class NarrativeFramingWorkflow:
         classifier_model = state.classifier_model
 
         # Build document universe
-        total_doc_ids = self.corpora_map.list_global_doc_ids_from(config.date_from)
+        total_doc_ids = self.corpora_map.list_global_doc_ids_from(config.filter.date_from)
         self.total_doc_ids = list(total_doc_ids)
 
-        desired_doc_total = config.classifier_corpus_sample_size or len(total_doc_ids)
+        desired_doc_total = config.classification.size or len(total_doc_ids)
         desired_doc_total = max(0, min(desired_doc_total, len(total_doc_ids)))
 
-        # Load existing classifications from disk when available
+        # Load existing classifications from disk when available, or in regenerate mode
         classifications = DocumentClassifications()
-        if paths.classifications_dir and paths.classifications_dir.exists():
+        should_reload = config.reload_classifications or config.regenerate_report_only
+        if should_reload and paths.classifications_dir and paths.classifications_dir.exists():
             classifications = DocumentClassifications.from_folder(paths.classifications_dir)
-            print(
-                f"✅ Reloaded {classifications.n_docs} classifications for {classifications.n_chunks} chunks from cache."
-            )
+            if classifications.n_docs > 0:
+                print(
+                    f"✅ Reloaded {classifications.n_docs} classifications for {classifications.n_chunks} chunks from cache."
+                )
 
         if self.allow_new_classification and schema and classifier_model:
             # Classify additional documents if needed
@@ -1013,7 +728,7 @@ class NarrativeFramingWorkflow:
                     doc_ids_to_classify = self.sampler.collect_docs(
                         sample_size=remaining_needed,
                         seed=config.seed,
-                        date_from=config.date_from,
+                        date_from=config.filter.date_from,
                         exclude_doc_ids=[doc.doc_id for doc in classifications if doc.doc_id],
                     )
                     if doc_ids_to_classify:
@@ -1027,10 +742,10 @@ class NarrativeFramingWorkflow:
                             corpora=self.corpora_map,
                             batch_size=batch_size,
                             seed=config.seed,
-                            require_keywords=config.filter_keywords,
-                            exclude_regex=config.filter_exclude_regex,
-                            exclude_min_hits=config.filter_exclude_min_hits,
-                            trim_after_markers=config.filter_trim_after_markers,
+                            require_keywords=config.filter.document.keywords,
+                            exclude_regex=config.filter.chunk.exclude_regex,
+                            exclude_min_hits=config.filter.chunk.exclude_min_hits,
+                            trim_after_markers=config.filter.chunk.trim_after_markers,
                         )
                         new_classifications = classifier.run(
                             sample_size=None,
@@ -1066,12 +781,13 @@ class NarrativeFramingWorkflow:
         aggregates_dir = paths.aggregates_dir
         aggregates: Optional[Aggregates] = None
 
-        # Try to load aggregates from cache if reload is requested
-        if config.reload_aggregates:
+        # Try to load aggregates from cache if reload is requested, or in regenerate mode
+        should_reload = config.reload_aggregates or config.regenerate_report_only
+        if should_reload:
             aggregates = Aggregates.load(aggregates_dir)
             if aggregates:
-                mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
-                print(
+                        mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
+                        print(
                     f"✅ Reloaded {len(aggregates.documents_weighted)} weighted document aggregates "
                     f"and {len(aggregates.documents_occurrence)} occurrence aggregates from cache{mode_msg}."
                 )
@@ -1090,12 +806,12 @@ class NarrativeFramingWorkflow:
                 aggregates_dir=aggregates_dir,
                 frame_ids=[frame.frame_id for frame in schema.frames],
                 corpus_names=self.corpus_names,
-                application_top_k=config.application_top_k,
+                application_top_k=config.annotation.top_k,
                 min_threshold_weighted=config.agg_min_threshold_weighted,
                 normalize_weighted=config.agg_normalize_weighted,
                 min_threshold_occurrence=config.agg_min_threshold_occurrence,
-                filter_spec=filter_spec,
-            )
+                    filter_spec=filter_spec,
+                )
             aggregates = builder.build(classifications)
 
         state.aggregates = aggregates
@@ -1107,9 +823,6 @@ class NarrativeFramingWorkflow:
         config = self.config
         paths = self.paths
         state = self.state
-
-        schema = state.schema
-        aggregates = state.aggregates
 
         # Generate report using ReportBuilder
         report_builder = ReportBuilder(

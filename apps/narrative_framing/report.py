@@ -285,8 +285,8 @@ class ReportBuilder:
         all_aggregates = aggregates.all_aggregates
 
         # Apply optional date filter to assignments used in report
-        if self.config.date_from and assignments:
-            df_norm = str(self.config.date_from).strip()
+        if self.config.filter.date_from and assignments:
+            df_norm = str(self.config.filter.date_from).strip()
             filtered_as: List[FrameAssignment] = []
             for a in assignments:
                 pub = a.metadata.get("published_at") if isinstance(a.metadata, dict) else None

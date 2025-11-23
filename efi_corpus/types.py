@@ -16,7 +16,7 @@ class BuilderParams:
     date_to: str
     extra: Optional[Dict[str, Any]] = None
     source_id: Optional[str] = None
-    skip_previously_failed: bool = False
+    skip_previously_failed: bool = True  # Default to True: skip failed URLs by default. Set to False to retry them.
 
 
 @dataclass

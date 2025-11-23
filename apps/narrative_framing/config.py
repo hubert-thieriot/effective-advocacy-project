@@ -69,6 +69,7 @@ class DocumentFilter:
     trim_after_markers: Optional[List[str]] = None  # Trim document text after these markers
     exclude_min_hits: Optional[Dict[str, int]] = None  # Exclude documents with too many hits of certain phrases
     exclude_regex: Optional[List[str]] = None  # Exclude documents matching these regex patterns
+    domain_whitelist: Optional[List[str]] = None  # Only include documents from these domains (extracted from URL)
 
 
 @dataclass
@@ -481,6 +482,12 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                         config.filter.document.keywords = None
                     else:
                         config.filter.document.keywords = [str(item) for item in keywords]
+                if "domain_whitelist" in doc_filter:
+                    domains = doc_filter["domain_whitelist"]
+                    if domains is None:
+                        config.filter.document.domain_whitelist = None
+                    else:
+                        config.filter.document.domain_whitelist = [str(item).lower().strip() for item in domains]
                 if "exclude_regex" in doc_filter:
                     patterns = doc_filter["exclude_regex"]
                     if patterns is None:

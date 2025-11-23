@@ -459,7 +459,7 @@ class NarrativeFramingWorkflow:
                     seed=config.seed,
                     date_from=config.filter.date_from,
                     require_document_keywords=config.filter.document.keywords,
-                    **self.filter.sampler_kwargs(),
+                    **self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist),
                 )
             )
             print(f"Collected {len(induction_samples)} passages for induction.")
@@ -540,7 +540,7 @@ class NarrativeFramingWorkflow:
                             exclude_passage_ids=exclude_ids or None,
                             date_from=config.filter.date_from,
                             require_document_keywords=config.filter.document.keywords,
-                            **self.filter.sampler_kwargs(),
+                            **self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist),
                         )
                     )
                 except ValueError as exc:
@@ -719,6 +719,7 @@ class NarrativeFramingWorkflow:
                         date_from=config.filter.date_from,
                         exclude_doc_ids=[doc.doc_id for doc in classifications if doc.doc_id],
                         require_keywords=config.filter.document.keywords,
+                        domain_whitelist=config.filter.document.domain_whitelist,
                     )
                     if doc_ids_to_classify:
                         print(

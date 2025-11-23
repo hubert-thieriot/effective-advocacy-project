@@ -542,7 +542,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         pairs = [(d.url, sid(d.url)) for d in discovered]
         frontier = [(u, s) for (u, s) in pairs if not self.corpus.has_doc(s)]
 
-        # Optionally skip URLs that failed in previous runs
+        # Skip URLs that failed in previous runs (unless skip_previously_failed is False)
         if params.skip_previously_failed:
             previously_failed_urls = self._get_previous_failures(manifest, params)
             if previously_failed_urls:
@@ -553,6 +553,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 skipped_failed = original_frontier_size - len(frontier)
                 if skipped_failed > 0:
                     print(f"⏭️  Skipping {skipped_failed} URLs that failed in previous runs")
+        else:
+            print("🔄 skip_previously_failed is disabled: will retry URLs that previously failed")
 
         # Choose processing strategy based on config (default to concurrent)
         use_concurrent = (params.extra or {}).get('use_concurrent_processing', True)
@@ -749,7 +751,11 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 
                 # Accumulate results
                 for key in total_result:
-                    total_result[key] += result.get(key, 0)
+                    if key == 'failed_details':
+                        # Merge failed_details lists
+                        total_result[key].extend(result.get(key, []))
+                    else:
+                        total_result[key] += result.get(key, 0)
                 
                 print(f"✅ Batch {batch_num + 1} completed: {result.get('added_count', 0)} added, {result.get('failed_count', 0)} failed")
                 
@@ -761,8 +767,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             result = total_result
 
             # Update manifest with results
-            # Note: Concurrent processing doesn't track individual failed URLs,
-            # so failed_details will be empty, but this is still saved for consistency
+            # Collect failed URLs from all batches
+            failed_details = result.get("failed_details", [])
             manifest["history"].append({
                 "run_at": time.time(),
                 "discovered": len(discovered_by_url),
@@ -771,7 +777,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 "skipped_text_extraction": result["skipped_text_extraction"],
                 "skipped_duplicate": len(discovered_by_url) - len(frontier),
                 "failed": result["failed"],
-                "failed_details": [],  # Concurrent processing doesn't track individual failures
+                "failed_details": failed_details,  # Track failed URLs for skip_previously_failed
                 "date_from": params.date_from,
                 "date_to": params.date_to,
                 "keywords": params.keywords,

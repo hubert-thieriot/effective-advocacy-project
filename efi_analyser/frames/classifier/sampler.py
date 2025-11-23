@@ -35,6 +35,8 @@ class SamplerConfig:
     trim_after_markers: Optional[Sequence[str]] = None
     # Optional publication date lower bound (YYYY-MM-DD). Only docs on/after this date are considered.
     date_from: Optional[str] = None
+    # Optional domain whitelist: only include documents from these domains (extracted from URL)
+    domain_whitelist: Optional[Sequence[str]] = None
 
 
 class CorpusSampler:
@@ -95,6 +97,46 @@ class CorpusSampler:
                 doc_ids = doc_keyword_filtered
                 if not doc_ids and original_count > 0:
                     print(f"ℹ️  Document keyword filter removed all documents (was {original_count}).")
+        
+        # Optional domain whitelist filter: only include documents from whitelisted domains
+        if config.domain_whitelist:
+            normalized_domains = [d.lower().strip() for d in config.domain_whitelist if d and d.strip()]
+            if normalized_domains:
+                original_count = len(doc_ids)
+                domain_filtered: List[str] = []
+                for _doc_id in doc_ids:
+                    try:
+                        meta = self.embedded_corpus.corpus.get_metadata(_doc_id)
+                        url = meta.get("uri") or meta.get("url")
+                        if not url:
+                            continue
+                        # Extract domain from URL (same logic as aggregation_document._extract_domain)
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        netloc = parsed.netloc or parsed.path
+                        if not netloc:
+                            continue
+                        domain = netloc.lower()
+                        if domain.startswith("www."):
+                            domain = domain[4:]
+                        # Extract base domain (ignore subdomains)
+                        parts = domain.split('.')
+                        if len(parts) >= 2:
+                            if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
+                                doc_domain = '.'.join(parts[-3:])
+                            else:
+                                doc_domain = '.'.join(parts[-2:])
+                        else:
+                            doc_domain = domain
+                        # Check if document domain is in whitelist
+                        if doc_domain in normalized_domains:
+                            domain_filtered.append(_doc_id)
+                    except (FileNotFoundError, Exception):
+                        # Skip documents where metadata cannot be read
+                        continue
+                doc_ids = domain_filtered
+                if not doc_ids and original_count > 0:
+                    print(f"ℹ️  Domain whitelist filter removed all documents (was {original_count}).")
         
         rng = random.Random(config.seed)
         rng.shuffle(doc_ids)
@@ -346,11 +388,12 @@ class CompositeCorpusSampler:
         date_from: Optional[str] = None,
         exclude_doc_ids: Optional[Sequence[str]] = None,
         require_keywords: Optional[Sequence[str]] = None,
+        domain_whitelist: Optional[Sequence[str]] = None,
     ) -> List[str]:
         """Sample global document ids across corpora using the configured policy.
 
         This mirrors the cross-corpus allocation logic used for passage sampling
-        but operates at the document level, with optional date, exclusion, and keyword
+        but operates at the document level, with optional date, exclusion, keyword, and domain
         filters.
         
         Args:
@@ -359,6 +402,7 @@ class CompositeCorpusSampler:
             date_from: Only include documents published on or after this date (YYYY-MM-DD)
             exclude_doc_ids: Document IDs to exclude from sampling
             require_keywords: Documents must contain at least one of these keywords in their text
+            domain_whitelist: Only include documents from these domains (extracted from URL)
         """
         if sample_size <= 0 or not self._corpora:
             return []
@@ -367,6 +411,11 @@ class CompositeCorpusSampler:
         normalized_keywords: Optional[List[str]] = None
         if require_keywords:
             normalized_keywords = self._normalize_keywords(require_keywords)
+        
+        # Normalize domain whitelist for case-insensitive matching
+        normalized_domains: Optional[List[str]] = None
+        if domain_whitelist:
+            normalized_domains = [d.lower().strip() for d in domain_whitelist if d and d.strip()]
 
         # Build per-corpus exclusion map from global doc ids
         exclude_map: Dict[str, set[str]] = {}
@@ -418,6 +467,41 @@ class CompositeCorpusSampler:
                         # Skip documents where text cannot be read
                         continue
                 ids = keyword_filtered
+
+            # Optional domain whitelist filter: only include documents from whitelisted domains
+            if normalized_domains:
+                domain_filtered: List[str] = []
+                for local_id in ids:
+                    try:
+                        meta = embedded.corpus.get_metadata(local_id)
+                        url = meta.get("uri") or meta.get("url")
+                        if not url:
+                            continue
+                        # Extract domain from URL (same logic as aggregation_document._extract_domain)
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        netloc = parsed.netloc or parsed.path
+                        if not netloc:
+                            continue
+                        domain = netloc.lower()
+                        if domain.startswith("www."):
+                            domain = domain[4:]
+                        # Extract base domain (ignore subdomains)
+                        parts = domain.split('.')
+                        if len(parts) >= 2:
+                            if len(parts) >= 3 and parts[-2] in ('co', 'com', 'org', 'net', 'ac', 'gov'):
+                                doc_domain = '.'.join(parts[-3:])
+                            else:
+                                doc_domain = '.'.join(parts[-2:])
+                        else:
+                            doc_domain = domain
+                        # Check if document domain is in whitelist
+                        if doc_domain in normalized_domains:
+                            domain_filtered.append(local_id)
+                    except (FileNotFoundError, Exception):
+                        # Skip documents where metadata cannot be read
+                        continue
+                ids = domain_filtered
 
             # Exclude already-selected documents (by local id)
             excluded_locals = exclude_map.get(name, set())

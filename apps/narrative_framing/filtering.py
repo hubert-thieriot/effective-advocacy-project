@@ -155,12 +155,15 @@ class Filter:
             keywords=self.keywords,
         )
 
-    def sampler_kwargs(self) -> Dict[str, object]:
+    def sampler_kwargs(self, domain_whitelist: Optional[Sequence[str]] = None) -> Dict[str, object]:
         """Return kwargs suitable for constructing a SamplerConfig."""
-        return {
+        kwargs = {
             "keywords": self.keywords,
             "exclude_regex": self.exclude_regex,
             "exclude_min_hits": self.exclude_min_hits,
             "trim_after_markers": self.trim_after_markers,
         }
+        if domain_whitelist is not None:
+            kwargs["domain_whitelist"] = domain_whitelist
+        return kwargs
 

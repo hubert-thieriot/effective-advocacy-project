@@ -79,6 +79,7 @@ class EFISpider(scrapy.Spider):
         self.failed_count = 0
         self.skipped_quality = 0
         self.skipped_text_extraction = 0
+        self.failed_urls = []  # Track failed URLs with error details
 
         # Common tracking parameters to strip from URLs
         self.TRACKERS = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid"}
@@ -89,7 +90,8 @@ class EFISpider(scrapy.Spider):
             'added_count': 0,
             'failed_count': 0,
             'skipped_quality': 0,
-            'skipped_text_extraction': 0
+            'skipped_text_extraction': 0,
+            'failed_urls': []
         }
 
     def canonicalize(self, url: str) -> str:
@@ -129,9 +131,12 @@ class EFISpider(scrapy.Spider):
             # Check for Access Denied responses
             if response.status in [403, 410]:
                 if b'Access Denied' in response.body or b'access denied' in response.body.lower():
+                    error_msg = f"Access Denied (Status: {response.status})"
                     print(f"  🚫 Access Denied for {url} (Status: {response.status})")
                     self.failed_count += 1
+                    self.failed_urls.append({"url": url, "error": error_msg})
                     EFISpider.results[self.result_key]['failed_count'] += 1
+                    EFISpider.results[self.result_key]['failed_urls'].append({"url": url, "error": error_msg})
                     return
 
             # Add timeout for individual URL processing
@@ -247,21 +252,27 @@ class EFISpider(scrapy.Spider):
             signal.alarm(0)
 
         except TimeoutError as e:
+            error_msg = str(e)
             print(f"  ⏰ Timeout processing URL: {url}")
             print(f"     Error: {e}")
             self.failed_count += 1
+            self.failed_urls.append({"url": url, "error": error_msg})
             EFISpider.results[self.result_key]['failed_count'] += 1
+            EFISpider.results[self.result_key]['failed_urls'].append({"url": url, "error": error_msg})
             # Cancel timeout
             signal.alarm(0)
             return
             
         except Exception as e:
+            error_msg = str(e)
             print(f"  ❌ Failed to process URL: {url}")
             print(f"     Error: {e}")
             import traceback
             print(f"     Traceback: {traceback.format_exc()}")
             self.failed_count += 1
+            self.failed_urls.append({"url": url, "error": error_msg})
             EFISpider.results[self.result_key]['failed_count'] += 1
+            EFISpider.results[self.result_key]['failed_urls'].append({"url": url, "error": error_msg})
             # Cancel timeout
             signal.alarm(0)
             # Continue processing other URLs
@@ -358,7 +369,8 @@ def run_scrapy_spider(urls: List[str], fetcher: Fetcher, text_extractor: TextExt
         'added_count': 0,
         'failed_count': 0,
         'skipped_quality': 0,
-        'skipped_text_extraction': 0
+        'skipped_text_extraction': 0,
+        'failed_urls': []
     })
 
     # Clean up the results
@@ -367,11 +379,12 @@ def run_scrapy_spider(urls: List[str], fetcher: Fetcher, text_extractor: TextExt
 
     # Return summary
     return {
-        "added": results["added_count"],
+        "added_count": results["added_count"],
         "skipped_quality": results["skipped_quality"],
         "skipped_text_extraction": results["skipped_text_extraction"],
-        "failed": results["failed_count"],
-        "total_processed": results["processed_count"],
+        "failed_count": results["failed_count"],
+        "failed_details": results.get("failed_urls", []),
+        "processed_count": results["processed_count"],
         "concurrent_requests": concurrent_requests,
         "download_delay": download_delay
     }

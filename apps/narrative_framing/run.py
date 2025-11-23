@@ -14,7 +14,6 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
-from tqdm import tqdm
 from dotenv import load_dotenv
 
 # Load environment variables from .env if present (for WANDB_*, etc.)
@@ -459,6 +458,7 @@ class NarrativeFramingWorkflow:
                     sample_size=config.induction.size,
                     seed=config.seed,
                     date_from=config.filter.date_from,
+                    require_document_keywords=config.filter.document.keywords,
                     **self.filter.sampler_kwargs(),
                 )
             )
@@ -499,7 +499,6 @@ class NarrativeFramingWorkflow:
         config = self.config
         paths = self.paths
         sampler = self.sampler
-        keywords = self.keywords
         state = self.state
         schema = state.schema
 
@@ -540,6 +539,7 @@ class NarrativeFramingWorkflow:
                             seed=config.seed + 1,
                             exclude_passage_ids=exclude_ids or None,
                             date_from=config.filter.date_from,
+                            require_document_keywords=config.filter.document.keywords,
                             **self.filter.sampler_kwargs(),
                         )
                     )
@@ -551,6 +551,7 @@ class NarrativeFramingWorkflow:
                     annotator_client = OpenAIInterface(
                         name="frame_annotation", config=self.openai_application_config
                     )
+                    resolved_dir = (config.results_dir or Path("results")) / "prompts" / "frame_annotation" / "resolved"
                     annotator = LLMFrameAnnotator(
                         llm_client=annotator_client,
                         batch_size=config.annotation.batch_size,
@@ -558,37 +559,22 @@ class NarrativeFramingWorkflow:
                         chunk_overlap_chars=0,
                         system_template=self.app_sys_t,
                         user_template=self.app_usr_t,
+                        resolved_messages_dir=resolved_dir,
+                        resolved_messages_prefix="frame_annotation_batch",
                     )
-                    with tqdm(
-                        total=len(new_candidates),
-                        desc=f"Applying frames ({annotator_client.config.model})",
-                        unit="passages",
-                        bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
-                    ) as pbar:
-                        batch_size = annotator.batch_size
-                        for i in range(0, len(new_candidates), batch_size):
-                            batch = new_candidates[i : i + batch_size]
-                            batch_assignments = annotator.batch_assign(
-                                schema,
-                                batch,
-                                top_k=config.annotation.top_k,
-                            )
-                            for assignment in batch_assignments:
-                                if assignment.passage_id in existing_ids:
-                                    continue
-                                existing_ids.add(assignment.passage_id)
-                                assignments.append(assignment)
-                            pbar.update(len(batch))
+                    new_assignments = annotator.batch_assign(
+                        schema,
+                        new_candidates,
+                        top_k=config.annotation.top_k,
+                        show_progress=True,
+                        progress_desc=f"Annotating frames ({annotator_client.config.model})",
+                    )
+                    assignments.extend(new_assignments)
                     print(
                         f"Received {len(assignments) - existing_count} new assignments; total cached assignments: {len(assignments)}."
                     )
                     if paths.assignments:
                         assignments.save(paths.assignments)
-                    if annotator.emitted_messages:
-                        resolved_dir = (config.results_dir or Path("results")) / "prompts" / "frame_annotation" / "resolved"
-                        _save_resolved_messages(
-                            resolved_dir, "frame_annotation_batch", annotator.emitted_messages
-                        )
                 else:
                     print(
                         f"⚠️ No new passages were sampled; continuing with {assignments.count} cached assignments."
@@ -600,9 +586,6 @@ class NarrativeFramingWorkflow:
                 f"Limiting cached assignments from {assignments.count} to a shuffled subset of {target_application_count} for this run."
             )
             assignments = assignments.select_random(target_application_count, config.seed + 97)
-            
-        if assignments:
-            preview_assignments(assignments, limit=5)
 
         # Persist state
         state.assignments = assignments
@@ -626,7 +609,7 @@ class NarrativeFramingWorkflow:
             print("⚠️ Skipping classifier: no schema or assignments available.")
             return
 
-        # Attempt to reload classifier artifacts when training is disabled or in regenerate mode
+        # Attempt to reload classifier artifacts when reload_classifier is True or in regenerate mode
         should_reload = config.reload_classifier or config.regenerate_report_only
         if (
             should_reload
@@ -634,7 +617,6 @@ class NarrativeFramingWorkflow:
             and paths.classifier_dir.exists()
             and paths.classifier_predictions
             and paths.classifier_predictions.exists()
-            and not self.allow_new_training
         ):
             try:
                 state.classifier_model = FrameClassifierModel.load(paths.classifier_dir)
@@ -644,6 +626,12 @@ class NarrativeFramingWorkflow:
                 return
             except Exception as exc:
                 print(f"⚠️ Failed to load classifier artifacts from {paths.classifier_dir}: {exc}")
+                # If reload fails and training is disabled, we can't proceed
+                if not self.allow_new_training:
+                    raise RuntimeError(
+                        f"Cannot reload classifier and training is disabled. "
+                        f"Fix the classifier artifacts or set allow_new_training: true"
+                    ) from exc
 
         if not self.allow_new_training:
             return
@@ -730,6 +718,7 @@ class NarrativeFramingWorkflow:
                         seed=config.seed,
                         date_from=config.filter.date_from,
                         exclude_doc_ids=[doc.doc_id for doc in classifications if doc.doc_id],
+                        require_keywords=config.filter.document.keywords,
                     )
                     if doc_ids_to_classify:
                         print(

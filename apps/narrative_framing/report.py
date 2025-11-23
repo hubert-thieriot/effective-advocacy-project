@@ -1517,9 +1517,9 @@ def write_html_report(
       opacity: 0.85;
     }}
     .header-metrics {{
-      display: grid;
+      display: flex;
+      flex-direction: row;
       gap: 18px;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       align-items: stretch;
     }}
     .metric-card {{
@@ -1532,6 +1532,8 @@ def write_html_report(
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
+      min-width: 0;
     }}
     .metric-card::before {{
       content: "";
@@ -1924,8 +1926,8 @@ def write_html_report(
         align-items: flex-start;
       }}
       .header-metrics {{
+        flex-wrap: wrap;
         width: 100%;
-        justify-content: space-between;
       }}
     }}
   </style>

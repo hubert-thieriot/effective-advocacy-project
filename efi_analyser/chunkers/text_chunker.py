@@ -47,12 +47,25 @@ class TextChunker:
         except OSError:
             raise OSError(f"spaCy model '{self.spacy_model}' not found. Install with: python -m spacy download {self.spacy_model}")
         
-        # Ensure the model has a sentencizer for sentence boundary detection
+        # Since we only need sentence boundaries (doc.sents), we can disable parser and NER
+        # to reduce memory usage for long texts. This allows processing longer documents.
+        # Note: If the parser provides sentence boundaries, we keep it but disable other heavy components
+        if 'ner' in self.nlp.pipe_names:
+            # NER is not needed for sentence splitting, disable it to save memory
+            self.nlp.disable_pipe('ner')
+        
+        # Ensure the model has sentence boundary detection
         # Check if any component provides sentence boundaries (parser, senter, sentencizer)
         has_sents = any(pipe in self.nlp.pipe_names for pipe in ['parser', 'senter', 'sentencizer'])
         if not has_sents:
             # Add sentencizer if no sentence boundary detector is present
             self.nlp.add_pipe('sentencizer')
+        
+        # Increase max_length to allow processing longer texts
+        # Default is usually 1M chars, increase significantly since we're disabling heavy components
+        # We'll still chunk manually if text exceeds this limit
+        if self.nlp.max_length < 5000000:
+            self.nlp.max_length = 5000000
 
         # Attribution patterns for quote preservation
         self.attribution_patterns = [
@@ -293,15 +306,58 @@ class TextChunker:
 
     def _split_into_sentences(self, text: str) -> List[str]:
         """Split text into sentences using spaCy."""
-        doc = self.nlp(text)
-        sentences = []
-
-        for sent in doc.sents:
-            sentence_text = sent.text.strip()
-            if sentence_text:
-                sentences.append(sentence_text)
-
-        return sentences
+        # Handle very long texts by chunking them
+        # spaCy has a max_length limit (default 1M chars) to prevent memory issues
+        # We chunk the text and process each piece separately
+        max_length = self.nlp.max_length
+        all_sentences = []
+        
+        if len(text) <= max_length:
+            # Text is within limit, process normally
+            doc = self.nlp(text)
+            for sent in doc.sents:
+                sentence_text = sent.text.strip()
+                if sentence_text:
+                    all_sentences.append(sentence_text)
+        else:
+            # Text exceeds limit, chunk it into pieces
+            # Use a safety margin to account for sentence boundaries
+            chunk_size = max_length - 10000  # Leave margin for sentence boundaries
+            
+            offset = 0
+            while offset < len(text):
+                # Extract chunk
+                chunk_end = min(offset + chunk_size, len(text))
+                chunk = text[offset:chunk_end]
+                
+                # Try to end at a sentence boundary to avoid splitting sentences
+                if chunk_end < len(text):
+                    # Look for last sentence-ending punctuation in the chunk
+                    last_period = chunk.rfind('.')
+                    last_excl = chunk.rfind('!')
+                    last_quest = chunk.rfind('?')
+                    last_sentence_end = max(last_period, last_excl, last_quest)
+                    
+                    if last_sentence_end > chunk_size * 0.8 and last_sentence_end > 0:  # Only use if in last 20% of chunk
+                        # Adjust chunk to end at sentence boundary
+                        chunk = chunk[:last_sentence_end + 1]
+                        offset = offset + last_sentence_end + 1
+                    else:
+                        # No good sentence boundary found, just use the chunk as-is
+                        offset = chunk_end
+                else:
+                    # This is the last chunk, process it
+                    offset = chunk_end
+                
+                # Process chunk
+                if chunk.strip():
+                    doc = self.nlp(chunk)
+                    for sent in doc.sents:
+                        sentence_text = sent.text.strip()
+                        if sentence_text:
+                            all_sentences.append(sentence_text)
+        
+        return all_sentences
 
     def _count_words(self, text: str) -> int:
         """Count words in text using simple whitespace splitting."""

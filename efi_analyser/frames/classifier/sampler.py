@@ -26,7 +26,8 @@ class SamplerConfig:
 
     sample_size: int
     seed: int
-    keywords: Optional[Sequence[str]] = None
+    keywords: Optional[Sequence[str]] = None  # Chunk-level keywords (passages must contain these)
+    require_document_keywords: Optional[Sequence[str]] = None  # Document-level keywords (document text must contain these)
     exclude_passage_ids: Optional[Sequence[str]] = None
     # Optional content-based exclusion/cleanup rules
     exclude_regex: Optional[Sequence[str]] = None
@@ -73,6 +74,27 @@ class CorpusSampler:
                 doc_ids = filtered
                 if not doc_ids:
                     print(f"ℹ️  Date filter {df_norm} removed all documents (was {original_count}).")
+        
+        # Optional document-level keyword filter: documents must contain at least one keyword in their text
+        if config.require_document_keywords:
+            normalized_doc_keywords = self._normalize_keywords(config.require_document_keywords)
+            if normalized_doc_keywords:
+                original_count = len(doc_ids)
+                doc_keyword_filtered: List[str] = []
+                for _doc_id in doc_ids:
+                    try:
+                        # Get document text and check for keywords
+                        doc_text = self.embedded_corpus.corpus.get_text(_doc_id)
+                        doc_text_lower = doc_text.lower()
+                        # Check if any keyword appears in the document text
+                        if any(kw in doc_text_lower for kw in normalized_doc_keywords):
+                            doc_keyword_filtered.append(_doc_id)
+                    except (FileNotFoundError, Exception):
+                        # Skip documents where text cannot be read
+                        continue
+                doc_ids = doc_keyword_filtered
+                if not doc_ids and original_count > 0:
+                    print(f"ℹ️  Document keyword filter removed all documents (was {original_count}).")
         
         rng = random.Random(config.seed)
         rng.shuffle(doc_ids)
@@ -242,6 +264,14 @@ class CompositeCorpusSampler:
         }
         self._policy = canonical_policy
 
+    # ------------------------------------------------------------------ helpers
+    def _normalize_keywords(self, keywords: Optional[Sequence[str]]) -> Optional[List[str]]:
+        """Normalize keywords for case-insensitive matching."""
+        if not keywords:
+            return None
+        normalized = [kw.strip().lower() for kw in keywords if kw and kw.strip()]
+        return normalized or None
+
     # ------------------------------------------------------------------ public
     def collect_chunks(self, config: SamplerConfig) -> List[Tuple[str, str]]:
         if not self._corpora:
@@ -255,6 +285,7 @@ class CompositeCorpusSampler:
                     sample_size=config.sample_size,
                     seed=config.seed,
                     keywords=config.keywords,
+                    require_document_keywords=config.require_document_keywords,
                     exclude_passage_ids=local_exclude or None,
                     exclude_regex=config.exclude_regex,
                     exclude_min_hits=config.exclude_min_hits,
@@ -284,6 +315,7 @@ class CompositeCorpusSampler:
                     sample_size=target,
                     seed=config.seed + index,
                     keywords=config.keywords,
+                    require_document_keywords=config.require_document_keywords,
                     exclude_passage_ids=local_excludes or None,
                     exclude_regex=config.exclude_regex,
                     exclude_min_hits=config.exclude_min_hits,
@@ -313,15 +345,28 @@ class CompositeCorpusSampler:
         seed: int,
         date_from: Optional[str] = None,
         exclude_doc_ids: Optional[Sequence[str]] = None,
+        require_keywords: Optional[Sequence[str]] = None,
     ) -> List[str]:
         """Sample global document ids across corpora using the configured policy.
 
         This mirrors the cross-corpus allocation logic used for passage sampling
-        but operates at the document level, with optional date and exclusion
+        but operates at the document level, with optional date, exclusion, and keyword
         filters.
+        
+        Args:
+            sample_size: Number of documents to sample
+            seed: Random seed for reproducible sampling
+            date_from: Only include documents published on or after this date (YYYY-MM-DD)
+            exclude_doc_ids: Document IDs to exclude from sampling
+            require_keywords: Documents must contain at least one of these keywords in their text
         """
         if sample_size <= 0 or not self._corpora:
             return []
+
+        # Normalize keywords for case-insensitive matching
+        normalized_keywords: Optional[List[str]] = None
+        if require_keywords:
+            normalized_keywords = self._normalize_keywords(require_keywords)
 
         # Build per-corpus exclusion map from global doc ids
         exclude_map: Dict[str, set[str]] = {}
@@ -357,6 +402,22 @@ class CompositeCorpusSampler:
                     except Exception:
                         continue
                 ids = filtered
+
+            # Optional keyword filter: documents must contain at least one keyword in their text
+            if normalized_keywords:
+                keyword_filtered: List[str] = []
+                for local_id in ids:
+                    try:
+                        # Get document text and check for keywords
+                        doc_text = embedded.corpus.get_text(local_id)
+                        doc_text_lower = doc_text.lower()
+                        # Check if any keyword appears in the document text
+                        if any(kw in doc_text_lower for kw in normalized_keywords):
+                            keyword_filtered.append(local_id)
+                    except (FileNotFoundError, Exception):
+                        # Skip documents where text cannot be read
+                        continue
+                ids = keyword_filtered
 
             # Exclude already-selected documents (by local id)
             excluded_locals = exclude_map.get(name, set())

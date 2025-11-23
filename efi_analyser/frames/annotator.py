@@ -8,10 +8,10 @@ import json
 from inspect import Parameter, signature
 from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional
 
-try:
-    from jinja2 import Template  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    Template = None  # type: ignore
+from pathlib import Path
+
+from jinja2 import Template
+from tqdm import tqdm
 
 from .types import Candidate, FrameAssignment, FrameSchema
 from .identifiers import make_global_doc_id, split_passage_id
@@ -33,6 +33,8 @@ class LLMFrameAnnotator:
         chunk_overlap_chars: int = 120,
         system_template: Optional[str] = None,
         user_template: Optional[str] = None,
+        resolved_messages_dir: Optional[Path | str] = None,
+        resolved_messages_prefix: str = "batch",
     ) -> None:
         if batch_size <= 0:
             raise ValueError("Frame applicator batch_size must be positive.")
@@ -63,6 +65,11 @@ class LLMFrameAnnotator:
         self.emitted_messages: List[List[Dict[str, str]]] = []
         # Optional per-passage metadata attached by upstream samplers
         self._current_metadata: Dict[str, Dict[str, Any]] = {}
+        # Optional directory for saving resolved messages
+        self._resolved_messages_dir: Optional[Path] = (
+            Path(resolved_messages_dir) if resolved_messages_dir else None
+        )
+        self._resolved_messages_prefix = resolved_messages_prefix
 
     # ------------------------------------------------------------------ public
     def batch_assign(
@@ -71,8 +78,18 @@ class LLMFrameAnnotator:
         passages: Sequence[str] | Sequence[Tuple[str, str]] | Sequence[Candidate],
         *,
         top_k: int = 3,
+        show_progress: bool = False,
+        progress_desc: Optional[str] = None,
     ) -> List[FrameAssignment]:
-        """Assign frame probabilities for each passage in order of input."""
+        """Assign frame probabilities for each passage in order of input.
+        
+        Args:
+            schema: The frame schema to apply.
+            passages: Passages to assign frames to.
+            top_k: Number of top frames to return per passage.
+            show_progress: Whether to display a progress bar during processing.
+            progress_desc: Optional description for the progress bar.
+        """
         self._current_metadata = {}
         prepared = self._prepare_passages(passages)
         if not prepared:
@@ -93,28 +110,52 @@ class LLMFrameAnnotator:
         results: Dict[str, FrameAssignment] = dict(cached)
         skipped_passages: List[str] = []
 
-        if pending:
-            for batch in self._chunk(pending, self.batch_size):
-                messages = self._build_messages(schema, batch, top_k)
-                self.last_built_messages = list(messages)
-                self.emitted_messages.append(list(messages))
-                infer_kwargs: Dict[str, Any] = {}
-                if self.infer_timeout is not None and self._infer_supports_timeout:
-                    infer_kwargs["timeout"] = self.infer_timeout
-                try:
-                    raw_response = self.llm_client.infer(messages, **infer_kwargs)
-                    parsed = self._parse_batch_response(schema, batch, raw_response, top_k)
-                except ValueError as exc:
-                    print(
-                        f"⚠️ Skipping frame application batch of {len(batch)} passages due to parse error: {exc}"
-                    )
-                    skipped_passages.extend(pid for pid, _, _ in batch)
-                    continue
+        # Create progress bar if requested
+        pbar = None
+        if show_progress and pending:
+            desc = progress_desc or "Annotating frames"
+            pbar = tqdm(
+                total=len(pending),
+                desc=desc,
+                unit="passages",
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+            )
 
-                for passage_id, assignment in parsed.items():
-                    cache_key = next(key for pid, _, key in batch if pid == passage_id)
-                    self._cache[cache_key] = self._clone_assignment(assignment)
-                    results[passage_id] = assignment
+        try:
+            if pending:
+                for batch in self._chunk(pending, self.batch_size):
+                    messages = self._build_messages(schema, batch, top_k)
+                    self.last_built_messages = list(messages)
+                    self.emitted_messages.append(list(messages))
+                    # Save messages if directory is configured
+                    if self._resolved_messages_dir is not None:
+                        self._save_resolved_messages_batch(list(messages), len(self.emitted_messages))
+                    infer_kwargs: Dict[str, Any] = {}
+                    if self.infer_timeout is not None and self._infer_supports_timeout:
+                        infer_kwargs["timeout"] = self.infer_timeout
+                    try:
+                        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+                        parsed = self._parse_batch_response(schema, batch, raw_response, top_k)
+                    except ValueError as exc:
+                        print(
+                            f"⚠️ Skipping frame application batch of {len(batch)} passages due to parse error: {exc}"
+                        )
+                        skipped_passages.extend(pid for pid, _, _ in batch)
+                        if pbar is not None:
+                            pbar.update(len(batch))
+                        continue
+
+                    for passage_id, assignment in parsed.items():
+                        cache_key = next(key for pid, _, key in batch if pid == passage_id)
+                        self._cache[cache_key] = self._clone_assignment(assignment)
+                        results[passage_id] = assignment
+                    
+                    # Update progress bar after batch is successfully processed
+                    if pbar is not None:
+                        pbar.update(len(batch))
+        finally:
+            if pbar is not None:
+                pbar.close()
 
         if skipped_passages:
             print(
@@ -223,8 +264,6 @@ class LLMFrameAnnotator:
         batch_lines = "\n".join(passage_lines)
 
         # Require Jinja templates; do not fallback to built-in strings
-        if Template is None:
-            raise RuntimeError("Jinja2 is required for template-based prompts but is not installed.")
         if not (self._system_template and self._user_template):
             raise RuntimeError("Application prompts must be provided via templates (system + user).")
 
@@ -455,6 +494,17 @@ class LLMFrameAnnotator:
                 return True
         return any(param.name == "timeout" for param in params)
 
+    def _save_resolved_messages_batch(self, messages: List[Dict[str, str]], batch_index: int) -> None:
+        """Save a single batch of resolved messages to disk."""
+        if self._resolved_messages_dir is None:
+            return
+        self._resolved_messages_dir.mkdir(parents=True, exist_ok=True)
+        for msg in messages:
+            role = str(msg.get("role", "unknown")).lower()
+            content = str(msg.get("content", ""))
+            out_path = self._resolved_messages_dir / f"{self._resolved_messages_prefix}_{batch_index:03d}_{role}.txt"
+            out_path.write_text(content, encoding="utf-8")
+
     def _clone_assignment(self, assignment: FrameAssignment, new_passage_id: str | None = None) -> FrameAssignment:
         passage_id_to_use = new_passage_id if new_passage_id is not None else assignment.passage_id
         
@@ -478,7 +528,3 @@ class LLMFrameAnnotator:
             evidence_spans=list(assignment.evidence_spans),
             metadata=metadata,
         )
-
-
-# Backwards-compatible alias
-LLMFrameApplicator = LLMFrameAnnotator

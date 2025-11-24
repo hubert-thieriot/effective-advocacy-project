@@ -611,18 +611,33 @@ class NarrativeFramingWorkflow:
 
         # Attempt to reload classifier artifacts when reload_classifier is True or in regenerate mode
         should_reload = config.reload_classifier or config.regenerate_report_only
+        print(f"🔍 Classifier reload check: reload_classifier={config.reload_classifier}, regenerate_report_only={config.regenerate_report_only}, should_reload={should_reload}")
+        print(f"🔍 Paths: classifier_dir={paths.classifier_dir}, classifier_predictions={paths.classifier_predictions}")
+        
+        # Check if required files exist for reloading
+        classifier_dir_exists = paths.classifier_dir and paths.classifier_dir.exists()
+        classifier_json_exists = classifier_dir_exists and (paths.classifier_dir / "frame_classifier.json").exists()
+        predictions_exists = paths.classifier_predictions and paths.classifier_predictions.exists()
+        
+        if paths.classifier_dir:
+            print(f"🔍 classifier_dir.exists()={paths.classifier_dir.exists()}")
+            if classifier_dir_exists:
+                print(f"🔍 frame_classifier.json.exists()={classifier_json_exists}")
+        if paths.classifier_predictions:
+            print(f"🔍 classifier_predictions.exists()={predictions_exists}")
+        
         if (
             should_reload
-            and paths.classifier_dir
-            and paths.classifier_dir.exists()
-            and paths.classifier_predictions
-            and paths.classifier_predictions.exists()
+            and classifier_dir_exists
+            and classifier_json_exists
+            and predictions_exists
         ):
             try:
+                print(f"🔄 Attempting to reload classifier from {paths.classifier_dir}...")
                 state.classifier_model = FrameClassifierModel.load(paths.classifier_dir)
                 artifacts = FrameClassifierArtifacts.load_predictions(paths.classifier_predictions)
                 state.classifier_predictions = artifacts.predictions
-                print(f"Reloaded classifier model and predictions from {paths.classifier_dir}.")
+                print(f"✅ Reloaded classifier model and predictions from {paths.classifier_dir}.")
                 return
             except Exception as exc:
                 print(f"⚠️ Failed to load classifier artifacts from {paths.classifier_dir}: {exc}")
@@ -632,6 +647,18 @@ class NarrativeFramingWorkflow:
                         f"Cannot reload classifier and training is disabled. "
                         f"Fix the classifier artifacts or set allow_new_training: true"
                     ) from exc
+        elif should_reload:
+            print(f"⚠️ reload_classifier is True but required files are missing:")
+            if not paths.classifier_dir:
+                print(f"  - classifier_dir is None")
+            elif not paths.classifier_dir.exists():
+                print(f"  - classifier_dir does not exist: {paths.classifier_dir}")
+            elif not classifier_json_exists:
+                print(f"  - frame_classifier.json does not exist in {paths.classifier_dir}")
+            if not paths.classifier_predictions:
+                print(f"  - classifier_predictions is None")
+            elif not paths.classifier_predictions.exists():
+                print(f"  - classifier_predictions does not exist: {paths.classifier_predictions}")
 
         if not self.allow_new_training:
             return

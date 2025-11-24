@@ -333,6 +333,7 @@ class CompositeCorpusSampler:
                     exclude_min_hits=config.exclude_min_hits,
                     trim_after_markers=config.trim_after_markers,
                     date_from=config.date_from,
+                    domain_whitelist=config.domain_whitelist,
                 ),
                 allow_partial=True,
             )
@@ -363,6 +364,7 @@ class CompositeCorpusSampler:
                     exclude_min_hits=config.exclude_min_hits,
                     trim_after_markers=config.trim_after_markers,
                     date_from=config.date_from,
+                    domain_whitelist=config.domain_whitelist,
                 ),
                 allow_partial=True,
             )

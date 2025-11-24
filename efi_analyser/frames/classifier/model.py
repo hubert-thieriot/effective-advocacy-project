@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
@@ -98,6 +98,12 @@ class FrameClassifierModel:
         output_dir.mkdir(parents=True, exist_ok=True)
         self.model.save_pretrained(output_dir)
         self.tokenizer.save_pretrained(output_dir)
+        # Filter spec dict to only include FrameClassifierSpec fields
+        # This handles cases where ClassifierSettings (which extends FrameClassifierSpec)
+        # is passed with extra fields like 'enabled' and 'cv_folds'
+        spec_dict = self.spec.__dict__
+        valid_spec_fields = {f.name for f in fields(FrameClassifierSpec)}
+        filtered_spec_dict = {k: v for k, v in spec_dict.items() if k in valid_spec_fields}
         payload = {
             "schema": {
                 "domain": self.schema.domain,
@@ -115,7 +121,7 @@ class FrameClassifierModel:
                 ],
             },
             "label_order": self.label_order,
-            "spec": self.spec.__dict__,
+            "spec": filtered_spec_dict,
         }
         (output_dir / "frame_classifier.json").write_text(
             json.dumps(payload, indent=2, ensure_ascii=False),
@@ -150,7 +156,13 @@ class FrameClassifierModel:
             notes=schema_payload.get("notes", ""),
         )
         label_order = payload["label_order"]
-        spec = FrameClassifierSpec(**payload.get("spec", {}))
+        # Filter spec dict to only include fields that belong to FrameClassifierSpec
+        # This handles cases where ClassifierSettings (which extends FrameClassifierSpec)
+        # was saved with extra fields like 'enabled' and 'cv_folds'
+        spec_dict = payload.get("spec", {})
+        valid_spec_fields = {f.name for f in fields(FrameClassifierSpec)}
+        filtered_spec_dict = {k: v for k, v in spec_dict.items() if k in valid_spec_fields}
+        spec = FrameClassifierSpec(**filtered_spec_dict)
         model = AutoModelForSequenceClassification.from_pretrained(output_dir, use_safetensors=True)
         tokenizer = AutoTokenizer.from_pretrained(output_dir)
         return cls(schema=schema, label_order=label_order, model=model, tokenizer=tokenizer, spec=spec)

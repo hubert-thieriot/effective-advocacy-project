@@ -138,8 +138,7 @@ As can be seen, public conversations about air pollution in Delhi focus heavily 
 Bringing the power sector’s true impact into greater public prominence is potentially an effective way to increase regulatory pressure on one of Delhi’s most significant but least-discussed pollution sources. If so, narrative framing analysis could be used to **track progress** in that direction by providing a measurable **intermediate outcome**.
 
 
-
-Such analysis could also be conducted at the outlet level -- for instance to prioritise outreach or identify biases or external influences. In this case, the distribution seems consistent across all selected media outlets, as shown in the figure below.
+Such analysis could also be conducted at the outlet level -- for instance to prioritise outreach or identify biases or external influences. In the Delhi case, the distribution seems consistent across all selected media outlets, as shown in the figure below.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -156,9 +155,7 @@ Such analysis could also be conducted at the outlet level -- for instance to pri
 
 ## Example 2: Animal welfare in Canada
 
-To test how adaptable the method is, I applied it to a very different topic: how Canadian media discuss meat production and consumption. The framing categories were developed with the animal welfare movement in mind, aiming to capture dimensions that might be strategically relevant (such as factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks). This was a first attempt, made with limited experience in that field, but intended to explore what such an analysis could reveal about the narrative landscape around meat.
-
-As in the previous example, the first step was frame induction — using a language model to identify the main ways the issue is discussed. In this case, I provided explicit guidance to focus on angles most relevant to animal welfare advocacy: factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks. The model then proposed six corresponding frames, generating short descriptions, examples, and semantic clues for each.
+To test how adaptable the method is, I apply to mentions of meat production and consumption in Canada. The framing categories were developed with the animal welfare movement in mind, aiming to capture dimensions that might be strategically relevant. I provided the Frame Inducer with explicit guidance to focus on: factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks.
 
 
 <div class="chart-item">
@@ -172,10 +169,7 @@ As in the previous example, the first step was frame induction — using a langu
   </div>
 </div>
 
-After defining these frames, I used a smaller model (GPT-4.1-mini) to annotate a few thousand text segments according to them, and then fine-tuned a BERT-based classifier (DistilBERT) to scale the analysis to the full corpus. Each chunk was then classified based on the likelihood of each frame and aggregated across articles, domains and years. The goal here wasn’t to produce precise statistics, but to see whether this workflow could surface meaningful patterns in how meat and animal welfare are discussed over time.
-
-
-The results are shown in the figure below. I’ll leave it to animal welfare advocates to judge whether any interesting signal emerges from this first run. I imagine it could be interesting to compare such patterns across countries as well.
+Similar to the previous example, a smaller model (GPT-4.1-mini) was used to annotate a few thousand text segments. A BERT-based classifier (DistilBERT) was then trained and applied to the whole corpus. The results are shown in the figure below. For now, I leave it to animal welfare advocates to see whether any interesting signal emerges. I imagine it could be interesting to compare such patterns across countries as well.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -341,31 +335,29 @@ The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible
 
 
 
-**Content discovery (search/filters)**:
-We start by defining the slice of content we care about—whether from media articles, TV news transcripts, radio programs, forums, Reddit, or other sources—in a way that is both broad enough to catch variation and precise enough to be actionable. For media analysis, using Media Cloud collections lets us anchor each run in a country and time window, and then layer topical filters (for instance, city names or issue cues) to focus coverage. Similar approaches work for other platforms: TV news and radio transcripts, forum posts, Reddit threads, or other text corpora can be collected through their respective APIs or scraping tools. The intent is to bias toward recall at this stage: we would rather include a few borderline documents and filter them downstream than miss legitimate phrasing that differs from our initial keywords. Every run is captured in a small YAML file so the choices are explicit and replicable.
+**Content discovery**:
+We start by defining the slice of content we care about, whether from media articles, TV news transcripts, radio programs, forums, social media, parlimentary debates, or even court decisions.
 
 **Scrape and extract**:
-To reason about narratives we need full passages, not just headlines or snippets. We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal (things like widgets, "follow us" blocks, or stock tickers). The trimming rules live in config so we can adapt them by outlet or country. This step trades a little engineering effort for cleaner inputs and more stable downstream classification.
+We fetch pages and extract the main text, then remove boilerplate and navigation tails that otherwise drown the signal
 
 **Chunking**:
-We split documents into smaller chunks (~200 words) using spaCy language models. This linguistic approach respects sentence boundaries, paragraph structure, and discourse connectors (words like "however" or "therefore" that should stay attached to their preceding sentences). We use language-specific spaCy models (e.g., `en_core_web_sm` for English, `id_core_news_sm` for Bahasa Indonesia) to ensure proper sentence segmentation and preserve semantic coherence.
+We split documents into smaller chunks (~200 words) using spaCy language models. This linguistic approach respects sentence boundaries, paragraph structure, and discourse connectors (words like "however" or "therefore" that should stay attached to their preceding sentences). We use language-specific spaCy models to ensure proper sentence segmentation and preserve semantic coherence. By working with smaller units, we can detect when a single article discusses both vehicle emissions and industrial pollution, even if one frame dominates the overall document.
 
-Chunking and annotating at this granularity is essential because long documents often contain multiple frames, and classifying at the document level would bury weaker or less prominent frames. By working with smaller units, we can detect when a single article discusses both vehicle emissions and industrial pollution, even if one frame dominates the overall document.
-
-**Frame induction (LLM)**:
+**Frame induction**:
 We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Delhi) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
 
-**Sample annotations (LLM)**:
+**Sample annotations**:
 We then use another LLM as a probabilistic annotator on a sample of passages (typically 2,000 passages in the examples above). Each passage gets a distribution over frames (not just a single label) plus a brief rationale. We typically use a smaller GPT‑4 variant (e.g., `gpt-4.1-mini`) for this step to balance cost and quality, since we need to label thousands of examples. This does two things: it reveals ambiguous cases that keyword-based approaches would mis-label, and it gives us enough labeled data to train a supervised model.
 
-**Supervised classifier (transformers)**:
-We then fine‑tune a multi‑label transformer classifier on those LLM‑labeled passages using Hugging Face transformers. We start with a pre-trained language model and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame using sigmoid activation. This gives us cheap, fast inference over tens of thousands of chunks while freezing the labeling policy defined by the schema.
+**Supervised classifier**:
+We then fine‑tune a multi‑label transformer classifier on those annotated passages using BERT-based models. We start with a pre-trained language model and adapt it to our frame classification task: the encoder layers learn to recognize frame-relevant patterns, while a new classification head outputs probability scores for each frame. In this first design, precision and recall typically stand above 0.85 and 0.75 respectively. Visual validation confirmed that the classifier correctly identifies frames in most cases.
 
 **Classify the corpus**:
-We classify content at the chunk level (typically sentences or short spans) to avoid burying weaker frames in long documents. Light keyword gating and regex excludes from earlier steps help keep us on topic without reintroducing brittle rules. Results are cached per document to support iterative runs and easy re‑aggregation.
+The model can then produce fast inference over tens of thousands of chunks.
 
 **Aggregate and report**:
-Finally, we aggregate chunk‑level predictions to document‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within a document (article, post, thread, etc.); an occurrence view answers a different question—what share of documents mention a frame at all.
+Finally, we aggregate chunk‑level predictions to document‑level profiles and summaries over time. A length‑weighted aggregator estimates how much attention each frame receives within a document.
 
 <div class="text-box">
   <h3>Why not simply use keywords?</h3>

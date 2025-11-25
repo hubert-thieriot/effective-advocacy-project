@@ -50,22 +50,42 @@ class CorpusManager:
         """Create a builder instance based on type"""
         if builder_type == "mediacloud":
             from .builders.mediacloud import MediaCloudCorpusBuilder
-            # For MediaCloud, we need to extract collection info from config
+            # For MediaCloud, we need to extract collection or source info from config
             params_cfg = self.config.get("parameters", {})
             collections = params_cfg.get("collections", [])
-            if not collections:
-                raise ValueError("MediaCloud builder requires collections in parameters")
+            sources = params_cfg.get("sources", [])
             
-            # Use the first collection for now
-            collection = collections[0]
-            collection_id = collection.get("id")
-            collection_name = collection.get("name", str(collection_id))
+            if not collections and not sources:
+                raise ValueError("MediaCloud builder requires either collections or sources in parameters")
             
-            return MediaCloudCorpusBuilder(
-                corpus_dir=base_dir,
-                collection_id=collection_id,
-                collection_name=collection_name
-            )
+            if collections and sources:
+                raise ValueError("Cannot specify both collections and sources. Use one or the other.")
+            
+            if sources:
+                # Use sources (media_ids) - names are optional
+                source_ids = [source.get("id") for source in sources if source.get("id")]
+                source_names = [source.get("name") for source in sources if source.get("name")] or None
+                
+                if not source_ids:
+                    raise ValueError("MediaCloud builder requires at least one source with an id")
+                
+                return MediaCloudCorpusBuilder(
+                    corpus_dir=base_dir,
+                    source_ids=source_ids,
+                    source_names=source_names
+                )
+            else:
+                # Use collections (legacy behavior)
+                # Use the first collection for now
+                collection = collections[0]
+                collection_id = collection.get("id")
+                collection_name = collection.get("name", str(collection_id))
+                
+                return MediaCloudCorpusBuilder(
+                    corpus_dir=base_dir,
+                    collection_id=collection_id,
+                    collection_name=collection_name
+                )
         elif builder_type == "youtube":
             from .builders.youtube import YouTubeCorpusBuilder
             return YouTubeCorpusBuilder(corpus_dir=base_dir)

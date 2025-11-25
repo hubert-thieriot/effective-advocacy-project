@@ -85,7 +85,7 @@ def test_composite_sampler_date_from_filters(tmp_path: Path):
     sampler = CompositeCorpusSampler({"test_corpus_a": ec1, "test_corpus_b": ec2}, policy="equal")
 
     # Filter on/after 2024-01-01 → should exclude a1 (2023-05-01) and b1 (2023-12-31)
-    results = sampler.collect(
+    results = sampler.collect_chunks(
         SamplerConfig(
             sample_size=4,
             seed=42,
@@ -116,7 +116,7 @@ def test_composite_sampler_date_from_too_strict(tmp_path: Path):
     sampler = CompositeCorpusSampler({"test_corpus_c": ec1}, policy="equal")
 
     # Too strict date_from eliminates all docs
-    results = sampler.collect(
+    results = sampler.collect_chunks(
         SamplerConfig(
             sample_size=2,
             seed=1,
@@ -124,4 +124,3 @@ def test_composite_sampler_date_from_too_strict(tmp_path: Path):
         )
     )
     assert results == []
-

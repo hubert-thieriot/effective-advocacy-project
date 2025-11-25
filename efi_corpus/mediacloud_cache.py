@@ -44,19 +44,22 @@ class MediaCloudSearchCache:
         """Save cache metadata"""
         self.metadata_file.write_text(json.dumps(self.metadata, indent=2, cls=DateAwareJSONEncoder))
     
-    def _generate_cache_key(self, query: str, collection_id: int, start_date, end_date) -> str:
+    def _generate_cache_key(self, query: str, collection_id: int = None, media_ids: List[int] = None, start_date = None, end_date = None) -> str:
         """Generate a unique cache key for a search"""
         # Convert dates to strings if they're date objects
-        start_date_str = str(start_date) if hasattr(start_date, 'isoformat') else str(start_date)
-        end_date_str = str(end_date) if hasattr(end_date, 'isoformat') else str(end_date)
+        start_date_str = str(start_date) if hasattr(start_date, 'isoformat') else str(start_date) if start_date else ""
+        end_date_str = str(end_date) if hasattr(end_date, 'isoformat') else str(end_date) if end_date else ""
         
         # Create a deterministic key based on search parameters
         key_data = {
             "query": query,
-            "collection_id": collection_id,
             "start_date": start_date_str,
             "end_date": end_date_str
         }
+        if collection_id is not None:
+            key_data["collection_id"] = collection_id
+        if media_ids is not None:
+            key_data["media_ids"] = sorted(media_ids)  # Sort for consistency
         key_string = json.dumps(key_data, sort_keys=True, cls=DateAwareJSONEncoder)
         return hashlib.sha256(key_string.encode()).hexdigest()[:16]
     
@@ -64,14 +67,15 @@ class MediaCloudSearchCache:
         """Get the file path for a cache entry"""
         return self.cache_root / f"search_{cache_key}.json"
     
-    def get_search_results(self, query: str, collection_id: int, start_date, end_date, 
-                          max_age_hours: int = 24) -> Optional[List[Dict[str, Any]]]:
+    def get_search_results(self, query: str, collection_id: int = None, media_ids: List[int] = None, 
+                          start_date = None, end_date = None, max_age_hours: int = 24) -> Optional[List[Dict[str, Any]]]:
         """
         Get cached search results if they exist and are not too old
         
         Args:
             query: Search query
-            collection_id: MediaCloud collection ID
+            collection_id: MediaCloud collection ID (optional, use with media_ids)
+            media_ids: List of MediaCloud media IDs (optional, use with collection_id)
             start_date: Start date for search
             end_date: End date for search
             max_age_hours: Maximum age of cached results in hours
@@ -79,7 +83,7 @@ class MediaCloudSearchCache:
         Returns:
             Cached search results or None if not found/too old
         """
-        cache_key = self._generate_cache_key(query, collection_id, start_date, end_date)
+        cache_key = self._generate_cache_key(query, collection_id, media_ids, start_date, end_date)
         cache_file = self._get_cache_file_path(cache_key)
         
         if not cache_file.exists():
@@ -108,49 +112,57 @@ class MediaCloudSearchCache:
             self._remove_cache_entry(cache_key)
             return None
     
-    def cache_search_results(self, query: str, collection_id: int, start_date, end_date, 
-                           stories: List[Dict[str, Any]]):
+    def cache_search_results(self, query: str, collection_id: int = None, media_ids: List[int] = None,
+                           start_date = None, end_date = None, stories: List[Dict[str, Any]] = None):
         """
         Cache search results
         
         Args:
             query: Search query
-            collection_id: MediaCloud collection ID
+            collection_id: MediaCloud collection ID (optional)
+            media_ids: List of MediaCloud media IDs (optional)
             start_date: Start date for search
             end_date: End date for search
             stories: List of story dictionaries to cache
         """
-        cache_key = self._generate_cache_key(query, collection_id, start_date, end_date)
+        cache_key = self._generate_cache_key(query, collection_id, media_ids, start_date, end_date)
         cache_file = self._get_cache_file_path(cache_key)
         
         # Convert dates to strings if they're date objects
-        start_date_str = str(start_date) if hasattr(start_date, 'isoformat') else str(start_date)
-        end_date_str = str(end_date) if hasattr(end_date, 'isoformat') else str(end_date)
+        start_date_str = str(start_date) if hasattr(start_date, 'isoformat') else str(start_date) if start_date else ""
+        end_date_str = str(end_date) if hasattr(end_date, 'isoformat') else str(end_date) if end_date else ""
         
         # Prepare cache data
         cache_data = {
             "query": query,
-            "collection_id": collection_id,
             "start_date": start_date_str,
             "end_date": end_date_str,
-            "stories": stories,
+            "stories": stories or [],
             "cached_at": datetime.now().isoformat(),
-            "story_count": len(stories)
+            "story_count": len(stories) if stories else 0
         }
+        if collection_id is not None:
+            cache_data["collection_id"] = collection_id
+        if media_ids is not None:
+            cache_data["media_ids"] = media_ids
         
         # Save to file
         cache_file.write_text(json.dumps(cache_data, indent=2, cls=DateAwareJSONEncoder))
         
         # Update metadata
-        self.metadata["searches"][cache_key] = {
+        metadata_entry = {
             "query": query,
-            "collection_id": collection_id,
             "start_date": start_date_str,
             "end_date": end_date_str,
-            "story_count": len(stories),
+            "story_count": len(stories) if stories else 0,
             "cached_at": datetime.now().isoformat(),
             "cache_file": str(cache_file)
         }
+        if collection_id is not None:
+            metadata_entry["collection_id"] = collection_id
+        if media_ids is not None:
+            metadata_entry["media_ids"] = media_ids
+        self.metadata["searches"][cache_key] = metadata_entry
         self._save_metadata()
         
         print(f"💾 Cached {len(stories)} stories for query: {query[:50]}...")

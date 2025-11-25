@@ -22,10 +22,13 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
     """Corpus builder that integrates with MediaCloud for content discovery"""
     
     def __init__(self, corpus_dir: Path, collection_id: int = None, collection_name: str = None, 
+                 source_ids: List[int] = None, source_names: List[str] = None,
                  rate_limit_config: RateLimitConfig = None, fetcher: Fetcher = None, cache_root: Path = None):
         super().__init__(corpus_dir, fetcher, cache_root)
         self.collection_id = collection_id
         self.collection_name = collection_name
+        self.source_ids = source_ids or []
+        self.source_names = source_names or []
         
         # Initialize rate limiter
         if rate_limit_config is None:
@@ -69,23 +72,21 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         
         # Use collection_id from constructor or from params.extra
         collection_id = self.collection_id or (params.extra or {}).get('collection_id')
-        if not collection_id:
-            raise ValueError("collection_id must be provided either in constructor or params.extra")
+        # Use source_ids from constructor or from params.extra
+        source_ids = self.source_ids or (params.extra or {}).get('source_ids', [])
+        source_names = self.source_names or (params.extra or {}).get('source_names', [])
         
-        collection_name = self.collection_name or (params.extra or {}).get('collection_name', str(collection_id))
+        # Either collection_id or source_ids must be provided
+        if not collection_id and not source_ids:
+            raise ValueError("Either collection_id or source_ids must be provided either in constructor or params.extra")
         
-        print(f"Querying MediaCloud in collection {collection_name} ({collection_id})")
-        print(f"Date range: {params.date_from} to {params.date_to}")
-
+        if collection_id and source_ids:
+            raise ValueError("Cannot specify both collection_id and source_ids. Use one or the other.")
+        
         # Normalize parameters for API
         start_date = ensure_date(params.date_from, "date_from")
         end_date = ensure_date(params.date_to, "date_to")
 
-        try:
-            collection_id_int = int(collection_id)
-        except (TypeError, ValueError):
-            collection_id_int = collection_id
-        
         # Query MediaCloud for stories (aggregate across all queries)
         all_stories = []
         max_stories = (params.extra or {}).get('max_stories')
@@ -94,23 +95,47 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         use_cache = not (params.extra or {}).get('force_refresh_cache', False)
         cache_max_age_hours = (params.extra or {}).get('cache_max_age_hours', 24)
         
+        # Determine context name for logging and prepare IDs
+        if source_ids:
+            # Use source_ids (media_ids)
+            source_ids_int = [int(sid) for sid in source_ids]
+            context_name = source_names[0] if source_names else f"{len(source_ids)} sources"
+            print(f"Querying MediaCloud for sources: {context_name} ({len(source_ids)} sources)")
+            print(f"Source IDs: {source_ids_int}")
+        else:
+            # Use collection_id
+            collection_name = self.collection_name or (params.extra or {}).get('collection_name', str(collection_id))
+            context_name = collection_name
+            try:
+                collection_id_int = int(collection_id)
+            except (TypeError, ValueError):
+                collection_id_int = collection_id
+            print(f"Querying MediaCloud in collection {collection_name} ({collection_id})")
+        
+        print(f"Date range: {params.date_from} to {params.date_to}")
+        
         for q in queries:
-            print(f"{collection_name}: Running query: {q}")
+            print(f"{context_name}: Running query: {q}")
             
             # Try to get cached results first
             cached_stories = None
             if use_cache:
-                cached_stories = self.search_cache.get_search_results(
-                    q, collection_id_int, start_date, end_date, cache_max_age_hours
-                )
+                if source_ids:
+                    cached_stories = self.search_cache.get_search_results(
+                        q, None, source_ids_int, start_date, end_date, cache_max_age_hours
+                    )
+                else:
+                    cached_stories = self.search_cache.get_search_results(
+                        q, collection_id_int, None, start_date, end_date, cache_max_age_hours
+                    )
             
             if cached_stories is not None:
                 # Use cached results
-                print(f"{collection_name}: Using cached results ({len(cached_stories)} stories)")
+                print(f"{context_name}: Using cached results ({len(cached_stories)} stories)")
                 all_stories.extend(cached_stories)
             else:
                 # Fetch from API and cache results
-                print(f"{collection_name}: Fetching from MediaCloud API...")
+                print(f"{context_name}: Fetching from MediaCloud API...")
                 query_stories = []
                 pagination_token = None
                 more_stories = True
@@ -118,73 +143,92 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 
                 while more_stories:
                     api_call_count += 1
-                    print(f"{collection_name}: {len(query_stories)} stories retrieved so far (API call #{api_call_count})")
+                    print(f"{context_name}: {len(query_stories)} stories retrieved so far (API call #{api_call_count})")
                 
                     # Check if we've reached the max stories limit
                     if max_stories and len(all_stories) + len(query_stories) >= max_stories:
-                        print(f"{collection_name}: Reached max stories limit ({max_stories}), stopping pagination")
+                        print(f"{context_name}: Reached max stories limit ({max_stories}), stopping pagination")
                         more_stories = False
                         break
                 
                     try:
+                        # Build API call parameters
+                        # story_list signature: query, start_date, end_date (positional), then optional kwargs
+                        api_kwargs = {
+                            'pagination_token': pagination_token
+                        }
+                        
+                        if source_ids:
+                            # Use source_ids when source_ids are provided
+                            api_kwargs['source_ids'] = source_ids_int
+                        else:
+                            # Use collection_ids when collection_id is provided
+                            api_kwargs['collection_ids'] = [collection_id_int]
+                        
+                        # Call with query, start_date, end_date as positional args
                         pages, pagination_token = self.mc_api.story_list(
-                            q,
-                            collection_ids=[collection_id_int],
-                            start_date=start_date,
-                            end_date=end_date,
-                            pagination_token=pagination_token
+                            q, start_date, end_date, **api_kwargs
                         )
                         
                         if not pages:
-                            print(f"{collection_name}: No more stories returned, ending pagination for query")
+                            print(f"{context_name}: No more stories returned, ending pagination for query")
                             more_stories = False
                         else:
-                            # Add collection name to each story (create a copy to avoid modifying the original)
+                            # Add metadata to each story (create a copy to avoid modifying the original)
                             for story in pages:
                                 story_copy = story.copy()
-                                story_copy['collection'] = collection_name
-                                story_copy['collection_id'] = collection_id
+                                if source_ids:
+                                    story_copy['source_ids'] = source_ids_int
+                                    story_copy['source_names'] = source_names
+                                else:
+                                    story_copy['collection'] = collection_name
+                                    story_copy['collection_id'] = collection_id
                                 query_stories.append(story_copy)
                                 
                                 # Check if we've reached the max stories limit after adding this story
                                 if max_stories and len(all_stories) + len(query_stories) >= max_stories:
-                                    print(f"{collection_name}: Reached max stories limit ({max_stories}) after adding story")
+                                    print(f"{context_name}: Reached max stories limit ({max_stories}) after adding story")
                                     more_stories = False
                                     break
                             
                             if more_stories:
                                 more_stories = pagination_token is not None
                                 if not more_stories:
-                                    print(f"{collection_name}: Reached the end of pagination for query")
+                                    print(f"{context_name}: Reached the end of pagination for query")
                                 
                     except Exception as e:
                         error_str = str(e)
-                        print(f"{collection_name}: Error during API call: {e}")
+                        print(f"{context_name}: Error during API call: {e}")
                         
                         # Handle specific error types with different strategies
                         if "403" in error_str:
-                            print(f"{collection_name}: Received 403 error, waiting 60 seconds before retrying...")
+                            print(f"{context_name}: Received 403 error, waiting 60 seconds before retrying...")
                             self.rate_limiter.wait_for_retry(60)
                             continue
                         elif "timeout" in error_str.lower() or "read timed out" in error_str.lower():
-                            print(f"{collection_name}: Timeout error, waiting 30 seconds before retrying...")
+                            print(f"{context_name}: Timeout error, waiting 30 seconds before retrying...")
                             self.rate_limiter.wait_for_retry(30)
                             continue
                         elif "connection" in error_str.lower() or "network" in error_str.lower():
-                            print(f"{collection_name}: Connection error, waiting 45 seconds before retrying...")
+                            print(f"{context_name}: Connection error, waiting 45 seconds before retrying...")
                             self.rate_limiter.wait_for_retry(45)
                             continue
                         else:
                             # For other errors, try one more time after a short delay
-                            print(f"{collection_name}: Unknown error, waiting 15 seconds before retrying...")
+                            print(f"{context_name}: Unknown error, waiting 15 seconds before retrying...")
                             self.rate_limiter.wait_for_retry(15)
                             continue
                 
                 # Cache the results for this query
                 if query_stories and use_cache:
-                    self.search_cache.cache_search_results(
-                        q, collection_id_int, start_date, end_date, query_stories
-                    )
+                    if source_ids:
+                        self.search_cache.cache_search_results(
+                            q, None, source_ids_int, start_date, end_date, query_stories
+                        )
+                    else:
+                        self.search_cache.cache_search_results(
+                            q, collection_id_int, None, start_date, end_date, query_stories
+                        )
                 
                 all_stories.extend(query_stories)
                 
@@ -498,7 +542,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         pairs = [(d.url, sid(d.url)) for d in discovered]
         frontier = [(u, s) for (u, s) in pairs if not self.corpus.has_doc(s)]
 
-        # Optionally skip URLs that failed in previous runs
+        # Skip URLs that failed in previous runs (unless skip_previously_failed is False)
         if params.skip_previously_failed:
             previously_failed_urls = self._get_previous_failures(manifest, params)
             if previously_failed_urls:
@@ -509,6 +553,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 skipped_failed = original_frontier_size - len(frontier)
                 if skipped_failed > 0:
                     print(f"⏭️  Skipping {skipped_failed} URLs that failed in previous runs")
+        else:
+            print("🔄 skip_previously_failed is disabled: will retry URLs that previously failed")
 
         # Choose processing strategy based on config (default to concurrent)
         use_concurrent = (params.extra or {}).get('use_concurrent_processing', True)
@@ -705,7 +751,11 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 
                 # Accumulate results
                 for key in total_result:
-                    total_result[key] += result.get(key, 0)
+                    if key == 'failed_details':
+                        # Merge failed_details lists
+                        total_result[key].extend(result.get(key, []))
+                    else:
+                        total_result[key] += result.get(key, 0)
                 
                 print(f"✅ Batch {batch_num + 1} completed: {result.get('added_count', 0)} added, {result.get('failed_count', 0)} failed")
                 
@@ -717,8 +767,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
             result = total_result
 
             # Update manifest with results
-            # Note: Concurrent processing doesn't track individual failed URLs,
-            # so failed_details will be empty, but this is still saved for consistency
+            # Collect failed URLs from all batches
+            failed_details = result.get("failed_details", [])
             manifest["history"].append({
                 "run_at": time.time(),
                 "discovered": len(discovered_by_url),
@@ -727,7 +777,7 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
                 "skipped_text_extraction": result["skipped_text_extraction"],
                 "skipped_duplicate": len(discovered_by_url) - len(frontier),
                 "failed": result["failed"],
-                "failed_details": [],  # Concurrent processing doesn't track individual failures
+                "failed_details": failed_details,  # Track failed URLs for skip_previously_failed
                 "date_from": params.date_from,
                 "date_to": params.date_to,
                 "keywords": params.keywords,

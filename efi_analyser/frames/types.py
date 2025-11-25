@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+import json
+import random
 
 
 @dataclass
@@ -41,6 +44,60 @@ class FrameAssignment:
     rationale: str = ""
     evidence_spans: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class FrameAssignments(List[FrameAssignment]):
+    """Convenience collection for working with groups of frame assignments."""
+
+    @property
+    def count(self) -> int:
+        return len(self)
+
+    def select_random(self, n: int, seed: Optional[int] = None) -> "FrameAssignments":
+        """Return a new FrameAssignments with up to n randomly selected items."""
+        if n <= 0 or not self:
+            return FrameAssignments()
+        n = min(n, len(self))
+        indices = list(range(len(self)))
+        rng = random.Random(seed)
+        rng.shuffle(indices)
+        return FrameAssignments(self[i] for i in indices[:n])
+
+    # ------------------------------------------------------------------ I/O helpers
+    @classmethod
+    def load(cls, path: Path) -> "FrameAssignments":
+        """Load frame assignments from a JSON file on disk."""
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        items = cls()
+        for item in payload:
+            items.append(
+                FrameAssignment(
+                    passage_id=item["passage_id"],
+                    passage_text=item.get("passage_text", ""),
+                    probabilities=item.get("probabilities", {}),
+                    top_frames=item.get("top_frames", []),
+                    rationale=item.get("rationale", ""),
+                    evidence_spans=item.get("evidence_spans", []),
+                    metadata=item.get("metadata", {}),
+                )
+            )
+        return items
+
+    def save(self, path: Path) -> None:
+        """Persist assignments to a JSON file."""
+        serialized = [
+            {
+                "passage_id": assignment.passage_id,
+                "passage_text": assignment.passage_text,
+                "probabilities": assignment.probabilities,
+                "top_frames": assignment.top_frames,
+                "rationale": assignment.rationale,
+                "evidence_spans": assignment.evidence_spans,
+                "metadata": assignment.metadata,
+            }
+            for assignment in self
+        ]
+        path.write_text(json.dumps(serialized, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 @dataclass

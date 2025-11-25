@@ -1,16 +1,17 @@
 """Frame induction toolkit for EFI analyser."""
 
-from .types import Candidate, Frame, FrameSchema, FrameAssignment
+from .types import Candidate, Frame, FrameSchema, FrameAssignment, FrameAssignments
 from .induction import FrameInducer
-from .applicator import LLMFrameApplicator
-from . import classifier
+from .annotator import LLMFrameAnnotator
+from .corpora import EmbeddedCorpora
 
 __all__ = [
     "Candidate",
     "Frame",
     "FrameSchema",
     "FrameAssignment",
+    "FrameAssignments",
     "FrameInducer",
-    "LLMFrameApplicator",
-    "classifier",
+    "LLMFrameAnnotator",
+    "EmbeddedCorpora",
 ]

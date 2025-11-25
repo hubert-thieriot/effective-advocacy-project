@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-from typing import Callable, Dict, Optional, Sequence, Any, List
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Sequence
+import json
 
 import numpy as np
 
@@ -24,6 +26,7 @@ from efi_analyser.frames.classifier.reporting import (
     EpochEndEvaluateCallback,
     PerFrameMetricsCallback,
 )
+from efi_analyser.frames.types import FrameAssignment
 
 
 class _HFDataset(torch.utils.data.Dataset):  # type: ignore[name-defined]
@@ -52,6 +55,25 @@ class _HFDataset(torch.utils.data.Dataset):  # type: ignore[name-defined]
         item = {k: torch.tensor(v) for k, v in encoded.items()}
         item["labels"] = self.labels[idx]
         return item
+
+
+@dataclass
+class FrameClassifierArtifacts:
+    """Trained classifier and optional predictions for downstream use."""
+
+    model: Optional[FrameClassifierModel]
+    predictions: List[Dict[str, object]]
+
+    def save_predictions(self, path: Path) -> None:
+        """Persist predictions to JSON at the given path."""
+        path.write_text(json.dumps(list(self.predictions), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    @classmethod
+    def load_predictions(cls, path: Path) -> "FrameClassifierArtifacts":
+        """Load predictions from JSON; model is not restored here."""
+        data = json.loads(path.read_text(encoding="utf-8"))
+        preds: List[Dict[str, object]] = list(data)
+        return cls(model=None, predictions=preds)
 
 
 class FrameClassifierTrainer:
@@ -398,5 +420,84 @@ class FrameClassifierTrainer:
         )
         return summary
 
+    # ------------------------------------------------------------------ high-level API
+    def run(
+        self,
+        label_set: FrameLabelSet,
+        *,
+        assignments: Optional[Sequence[FrameAssignment]] = None,
+        cv_folds: Optional[int] = None,
+    ) -> FrameClassifierArtifacts:
+        """Train, optionally cross-validate, and infer on provided samples.
 
-__all__ = ["FrameClassifierTrainer"]
+        - Splits ``label_set`` into train/dev using a simple 90/10 policy
+          (with a special case to ensure at least one dev example when possible).
+        - Trains a classifier on the train split and evaluates on the dev split.
+        - Optionally runs K-fold cross-validation for overfitting diagnostics.
+        - If ``inference_samples`` are provided, runs inference over them and
+          returns predictions keyed by passage_id.
+        """
+        if not label_set.passages:
+            print("[FrameTrainer] Label set is empty; skipping training.")
+            return FrameClassifierArtifacts(model=None, predictions=[])
+
+        # Train/dev split
+        n_total = len(label_set.passages)
+        base_train_ratio = 0.9
+        base_dev_ratio = 0.1
+        if n_total >= 2 and int(n_total * base_dev_ratio) == 0:
+            dev_ratio = 1.0 / n_total
+            train_ratio = max(0.0, 1.0 - dev_ratio)
+        else:
+            train_ratio = base_train_ratio
+            dev_ratio = base_dev_ratio
+        train_set, dev_set, _ = label_set.split(train_ratio=train_ratio, dev_ratio=dev_ratio, seed=self.spec.seed)
+
+        print(
+            f"[FrameTrainer] Training classifier: {self.spec.model_name} "
+            f"(epochs={self.spec.num_train_epochs}, lr={self.spec.learning_rate})\n"
+            f"  Using {len(train_set.passages)} train / {len(dev_set.passages)} dev passages for evaluation"
+        )
+        model = self.train(train_set, eval_set=dev_set)
+        print("[FrameTrainer] Training complete.")
+
+        # Optional cross-validation
+        cv_value = cv_folds if cv_folds is not None else getattr(self.spec, "cv_folds", None)
+        try:
+            k = int(cv_value) if cv_value is not None else 0
+        except Exception:
+            k = 0
+        if k >= 2:
+            print(f"[FrameTrainer] Running {k}-fold cross-validation for overfitting check…")
+            try:
+                self.cross_validate(label_set, k_folds=k, seed=self.spec.seed)
+            except Exception as exc:
+                print(f"[FrameTrainer] ⚠️ Cross-validation failed: {exc}")
+
+        # Inference
+        predictions: List[Dict[str, object]] = []
+        if assignments:
+            texts = [a.passage_text for a in assignments]
+            if not texts:
+                print("[FrameTrainer] ⚠️ No passages available for inference; skipping predictions.")
+            else:
+                batch_size = self.spec.batch_size
+                print(
+                    f"[FrameTrainer] Running classifier inference on {len(texts)} passages "
+                    f"(batch size {batch_size})..."
+                )
+                probs = model.predict_proba_batch(texts, batch_size=batch_size)
+                for assignment, prob_dict in zip(assignments, probs):
+                    ordered = sorted(prob_dict.items(), key=lambda item: item[1], reverse=True)
+                    predictions.append(
+                        {
+                            "passage_id": assignment.passage_id,
+                            "probabilities": prob_dict,
+                            "top_frames": [fid for fid, _ in ordered[:3]],
+                        }
+                    )
+
+        return FrameClassifierArtifacts(model=model, predictions=predictions)
+
+
+__all__ = ["FrameClassifierTrainer", "FrameClassifierArtifacts"]

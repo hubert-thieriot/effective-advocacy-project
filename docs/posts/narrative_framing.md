@@ -117,7 +117,7 @@ Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to 
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">How Delhi newspapers frame the city's pollution sources</div>
-    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in articles about Delhi and the National Capital Region between 2015 and 2025.</div>
+    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in articles about Delhi and the National Capital Region between January 2015 and October 2025.</div>
   </div>
   <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/yearly_weighted_woz_annotated.svg" style="width: 100%; height: auto;">
   <p class="chart-note">

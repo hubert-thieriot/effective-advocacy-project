@@ -1373,9 +1373,13 @@ def render_yearly_bar_chart(
             "showlegend": False,  # Hide legend for bars; use grey-scale legend below
         })
     
-    # Add grey-scale legend entries for years (legend-only traces)
-    # Use progressively darker greys for more recent years to mirror alpha progression
-    for idx, year in enumerate(years):
+    # Add grey-scale legend entries for first and last year only to avoid clutter
+    legend_years: List[Tuple[int, int]] = []
+    if num_years == 1:
+        legend_years = [(0, years[0])]
+    elif num_years > 1:
+        legend_years = [(0, years[0]), (num_years - 1, years[-1])]
+    for idx, year in legend_years:
         alpha = 0.6 + (idx / max(num_years - 1, 1)) * 0.4
         color_with_alpha = hex_to_rgba("#1E3D58", alpha)
         traces.append({

@@ -1,0 +1,143 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.frames-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.frame-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-color);
+    padding: 20px;
+    transition: box-shadow 0.2s ease;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.frame-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.frame-card-header {
+    margin-bottom: 12px;
+}
+
+.frame-card-name {
+    font-size: 18px;
+    font-weight: 600 !important;
+    color: var(--accent-color);
+    margin-bottom: 0 !important;
+}
+
+.frame-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.frame-card-body {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.frame-card-description {
+    margin-bottom: 10px;
+    line-height: 1.5 ! important;
+    font-size: unset ! important;
+}
+
+.frame-keywords,
+.frame-examples {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.frame-keywords strong,
+.frame-examples strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) { 
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+</style>
+<div class="frames-container">
+    <div class="frames-grid">
+        
+        <div class="frame-card" style="--accent-color: #1E3D58;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Transportation and Vehicular Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by emissions from vehicles such as cars, trucks, buses, motorcycles, and other forms of road transport, including references to fuel types (diesel, petrol), vehicle bans, and traffic-related air quality measures.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #057D9F;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Industrial and Power Plant Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution resulting from emissions by factories, manufacturing facilities, power plants (especially coal-fired), and related industrial activities, including references to effluents, industrial waste, and fossil fuel combustion.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F18F01;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Biomass Burning and Agriculture</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by burning of biomass, especially crop residue (stubble burning), agricultural fires, and related rural burning activities, often in neighboring states but impacting Delhi.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #A23B72;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Household Fuel and Cooking Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution from household use of fossil fuels or biomass for cooking and heating, including references to firewood, coal, and domestic burning in homes or small eateries.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #6C63FF;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Open Waste Burning</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution resulting from the open burning of municipal solid waste, trash, or landfill fires, including explicit references to combustion of waste materials.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #3A7D44;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Construction and Road Dust</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by construction activities, demolition, roadworks, and resuspended dust from roads or soil, including references to construction and demolition (C&amp;D) waste.</p>
+                
+                
+            </div>
+        </div>
+    </div>
+</div>

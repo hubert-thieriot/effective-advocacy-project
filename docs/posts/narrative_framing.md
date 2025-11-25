@@ -15,13 +15,13 @@ tags: [narrative-framing]
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets/journalists to prioritize.
 
-This post includes two illustrative examples: one on air pollution in Indonesia and one on animal welfare in Canada.
+This post includes two illustrative examples: one on air pollution in India and one on animal welfare in Canada.
 </div>
 
 
 
 ## Why narrative framing analysis?
-Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery to me — it risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
+Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery to me and risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
 
 That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move the needle? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
 
@@ -36,7 +36,7 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 ### What can narrative framing help with?
 
-- **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Jakarta overemphasizes individual behavior while neglecting industrial and energy sources, it signals not just a bias in media attention but a structural blind spot in public debate.
+- **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Delhi overemphasizes individual behavior while neglecting industrial, power, or agricultural sources, it signals not just a bias in media attention but a structural blind spot in public debate.
 
 - **Prioritise regions, messaging and outlets**: Comparing how narratives differ across outlets or regions can reveal where certain perspectives are missing — or, conversely, where the conversation already aligns with desired change. This information could eventually help advocates or funders decide where to focus their attention: in some cases by addressing narrative gaps, and in others by building on more conducive framings.
 
@@ -44,7 +44,7 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 ### What it can't (yet) do?
 
-Narrative framing analysis focuses on content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it’s a way to observe the stories circulating in public space.
+Narrative framing analysis focuses on message content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it is a way to observe the stories circulating in public space.
 
 <div style="text-align: center; margin: 2em 0 0 0;">
   <figure style="margin: 0;">
@@ -55,32 +55,32 @@ Narrative framing analysis focuses on content — how issues are discussed in me
   </figure>
 </div>
 
-To see what this might look like in practice, I ran two small experiments. One asks how Indonesian media talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in Canada.
+To see what this might look like in practice, I ran two small experiments. One asks how India’s largest English-language newspapers talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in Canada.
 
-## Example 1: Air pollution causes in Jakarta, Indonesia
+## Example 1: Air pollution causes in Delhi, India
 
-In this first exploration, I looked at how Indonesian media discuss air pollution in Jakarta, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with a different technique.
+In this first exploration, I looked at how leading English-language newspapers discuss air pollution in Delhi, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with a different technique.
 
-I collected around 15,000 media articles published between January 2020 and October 2025 that mention air pollution in Jakarta. Most were written in Bahasa Indonesia.
+I collected 20,000 articles published between January 2015 and November 2025 across five prominent national newspapers (The Times of India, Hindustan Times, The Hindu, The Indian Express, and The New Indian Express). All pieces were written in English, but the same method can be applied to virtually any language.
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">Varying attention to the air pollution in Jakarta</div>
+    <div class="chart-title">Varying attention to air pollution in Delhi</div>
     <div class="chart-subtitle">Number of articles per day - 30-day window average</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/article_volume_over_time.svg" alt="Article volume over time" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/article_volume_over_time.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
-    <strong>Data Source:</strong> Articles are collected from MediaCloud collection "Indonesia - National" using the keywords: "air pollution" OR "air quality" OR "polusi udara" OR "kualitas udara". Articles are further filtered to include only those mentioning Jakarta, DKI, ibukota, or jabodetabek.
+    <strong>Data Source:</strong> Articles are collected via MediaCloud using keywords related to air pollution and filtered to pieces that mention Delhi, New Delhi, NCR, or the National Capital Region. The corpus is limited to the five newspapers listed above.
   </p>
 </div>
 
-To analyse this corpus, I implemented a six-step process: chunking, frame induction, frame annotation, model training, classification and aggregation (for more details, see [Methodology section below](#method-overview)).
+To analyse this corpus, we follow a six-step process: chunking, frame induction, frame annotation, model training, classification and aggregation (for more details, see [Methodology section below](#method-overview)).
 
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#e8f1f8','primaryTextColor':'#1E3D58','primaryBorderColor':'#4f6081','lineColor':'#4f6081','secondaryColor':'#d4e3f0','tertiaryColor':'#fff','fontFamily':'Open Sans, Arial, sans-serif'}}}%%
 flowchart LR
-    A[Chunking] --> B[Frame Induction]
+    A[Semantic Chunking] --> B[Frame Induction]
     B --> C[Frame Annotation]
     C --> D[Model Training]
     D --> E[Classification]
@@ -95,52 +95,58 @@ flowchart LR
     
     linkStyle default stroke:#4f6081,stroke-width:2.5px
 ```
+<figcaption>Schematic view of the analysis workflow</figcaption>
 
-First, each article was split into smaller, coherent segments called **chunks** (about 200 words) using linguistic models. This helps capture multiple frames coexisting within a single document while keeping each segment short enough for the models (both the annotator and the classifier) to interpret reliably.
-
-Next comes the **frame induction** where I use an LLM to identify the main frames that appear across a sample of chunks. The idea is to let the model look across hundreds of short passages and propose a compact set of recurring ways the issue is discussed. This can be done with little or no guidance (letting the model discover patterns freely) or with light direction around a specific question. In this case, I guided it toward sources of air pollution, which resulted in eight frames. The model then generated short descriptions, examples, and keywords for each, forming the schema used in the next steps.
+First, each article was split into smaller, coherent segments called **chunks** using linguistic models. Next comes the **frame induction** in which an LLM is used to identify the main frames that appear across a sample of chunks. The idea is to let the model propose a compact set of recurring ways the issue is discussed. This can be done with little or no guidance (letting the model discover patterns freely) or with direction around a specific question. In this case, I guided it toward sources of air pollution, which resulted in eight frames. The model then generated short descriptions, examples, and keywords for each, forming the schema used in the next steps.
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">Frames used for classifying air pollution sources in Indonesian media</div>
+    <div class="chart-title">Frames used for classifying air pollution sources in Delhi coverage</div>
     <div class="chart-subtitle">Definitions for each framing as determined by the framing induction step</div>
   </div>
-{% include narrative_framing/indonesia_airpollution/frames_light.html %}
+{% include narrative_framing/delhi_airpollution_selected_newspapers/frames_light.html %}
 <div class="chart-note">
-    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on identifying distinct air pollution sources.
+    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on distinct air pollution sources.
   </div>
 </div>
 
-Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier (IndoBERT in this case) that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length and article to estimate how much attention each framing received over time.
+Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length and article to estimate how much attention each framing received over time. This led to the results shown in the image below.
 
-The results are shown in the figure below. Transport emissions dominate coverage reflecting Jakarta's heavy traffic and vehicle-related pollution discourse. Natural and meteorological factors come next.
+
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">How Indonesian media frame the sources of the capital's pollution</div>
-    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in media articles about air pollution in Jakarta or the greater metropolitan area. The analysis is based on articles published between 2020 and 2025 in Indonesian media.</div>
+    <div class="chart-title">How Delhi newspapers frame the city's pollution sources</div>
+    <div class="chart-subtitle">This chart shows the sources of air pollution mentioned in articles about Delhi and the National Capital Region between 2015 and 2025.</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/yearly_weighted_wz.svg" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/yearly_weighted_woz_annotated.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
-    <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of Indonesian media articles. Articles are included if they mention Jakarta, DKI, ibukota, or jabodetabek and contain keywords related to air pollution. Each source category (vehicles, industry, forest fires, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
+    <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of English-language articles from the five selected newspapers. Each source category (vehicles, industry, crop burning, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>
-    <strong>Data Sources:</strong> The list of articles is retrieved from MediaCloud. Content has been scraped and processed locally for analysis.
+    <strong>Data Sources:</strong> Articles are retrieved from MediaCloud. Content has been scraped and processed locally for analysis.
     <br><br>
     <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
 </div>
 
 
-Unsurprisingly, transport dominates public conversations about air quality: Jakarta’s traffic problems are highly visible and easy to blame. But research by the Centre for Research on Energy and Clean Air has [shown](https://energyandcleanair.org/work-from-home-wfh-and-other-gimmicks-cannot-clear-jakartas-air/) that this prominence, including in the measures proposed to address pollution, tend to downplay the role played by the power generation sector and regional sources. Such a framing analysis could help organisations gauge whether their work is starting to change how the issue is discussed.
 
-The analysis can also reveal how different media outlets frame air pollution sources. Some outlets emphasize certain pollution sources more than others, which could potentially inform advocacy targeting and messaging strategies.
+As can be seen, public conversations about air pollution in Delhi focus heavily on stubble burning, traffic and dust, while the year-round emissions from industry coal-fired power plants receive relatively less attention. This imbalance is reinforced by official narratives that downplay the sector’s role, such as CSIR-NEERI’s [claim](https://www.downtoearth.org.in/pollution/where-is-indias-so-control-from-tpps-headed-niti-aayogs-memo-over-fgds-fuels-debate) that SO₂ from power plants is “not significantly affecting ambient air quality” and the environment ministry's assertion that sulphate aerosols account for only up to 5% of PM2.5. This happens in the context of repeatedly [relaxed deadlines](https://healthpolicy-watch.news/india-reverses-key-policy-exempting-most-coal-fired-power-plants-from-emission-rules/) for pollution-control equipment.
+
+[CREA](https://energyandcleanair.org/publication/enforcing-so2-norms-in-indias-coal-power-plants-is-non-negotiable/) and independent [researchers](https://www.healtheffects.org/system/files/GBD-MAPS-SpecRep21-India-revised_0.pdf) highlight that these conclusions ignore broader evidence that coal burning contributes 10–15 % of India’s total PM2.5 burden, while universal installation of flue-gas-desulphurisation systems could prevent tens of thousands of premature deaths. 
+
+Bringing the power sector’s true impact into greater public prominence is potentially an effective way to increase regulatory pressure on one of Delhi’s most significant but least-discussed pollution sources. If so, narrative framing analysis could be used to **track progress** in that direction by providing a measurable **intermediate outcome**.
+
+
+
+Such analysis could also be conducted at the outlet level -- for instance to prioritise outreach or identify biases or external influences. In this case, the distribution seems consistent across all selected media outlets, as shown in the figure below.
 
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">Frame distribution across media outlets</div>
-    <div class="chart-subtitle">Share of each pollution source frame by media outlet, weighted by content length</div>
+    <div class="chart-subtitle">Share of each pollution source frame by newspaper, weighted by content length</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/indonesia_airpollution/domain_frame_distribution.svg" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/domain_frame_distribution.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
@@ -347,7 +353,7 @@ We split documents into smaller chunks (~200 words) using spaCy language models.
 Chunking and annotating at this granularity is essential because long documents often contain multiple frames, and classifying at the document level would bury weaker or less prominent frames. By working with smaller units, we can detect when a single article discusses both vehicle emissions and industrial pollution, even if one frame dominates the overall document.
 
 **Frame induction (LLM)**:
-We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Jakarta) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
+We ask an LLM to propose a compact set of categories tailored to the question and context (e.g., causes of air pollution in Delhi) by feeding it a random sample of passages (200 passages in the examples above) in several consecutive batches, followed by a consolidation call. User can inject guidance to guide the LLM e.g. to include or exclude certain frames. After a manual and shallow comparison of various models performances through visual inspection of framing results, I selected OpenAI GPT‑4.1 for this step. The resulting schema (names, short definitions, examples, keywords) is passed along to the annotation step.
 
 **Sample annotations (LLM)**:
 We then use another LLM as a probabilistic annotator on a sample of passages (typically 2,000 passages in the examples above). Each passage gets a distribution over frames (not just a single label) plus a brief rationale. We typically use a smaller GPT‑4 variant (e.g., `gpt-4.1-mini`) for this step to balance cost and quality, since we need to label thousands of examples. This does two things: it reveals ambiguous cases that keyword-based approaches would mis-label, and it gives us enough labeled data to train a supervised model.
@@ -364,7 +370,7 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 <div class="text-box">
   <h3>Why not simply use keywords?</h3>
   
-  <p>Keyword-based approaches are the simplest starting point for narrative analysis, and they can work reasonably well in some cases. In fact, quick comparisons suggested that a keyword-based approach might have produced broadly similar results for the Indonesia example.</p>
+  <p>Keyword-based approaches are the simplest starting point for narrative analysis, and they can work reasonably well in some cases. In fact, quick comparisons suggested that a keyword-based approach might have produced broadly similar results for the Delhi example.</p>
 
   <p>That said, keywords come with several limitations that become more noticeable as the analysis grows in scope or complexity:</p>
   

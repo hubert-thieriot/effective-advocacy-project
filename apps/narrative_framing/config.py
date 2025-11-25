@@ -60,6 +60,9 @@ class ReportSettings:
     export_plot_formats: List[str] = field(default_factory=lambda: ["png"])  # List of formats to export: ["png"], ["svg"], ["png", "svg"], etc. HTML is always exported.
     n_min_per_media: Optional[int] = None  # Minimum number of articles per media/domain to show in domain mapping
     domain_mapping_max_domains: int = 20  # Maximum number of domains to show in domain mapping chart
+    include_yearly_bar_charts: bool = True  # Whether to include yearly bar charts in the aggregation section
+    include_domain_yearly_bar_charts: bool = False  # Whether to include per-domain yearly bar charts
+    domain_yearly_top_domains: int = 5  # Number of top domains (by article count) to display in yearly charts
 
 
 @dataclass
@@ -720,6 +723,25 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                     config.report.domain_mapping_max_domains = int(report_data["domain_mapping_max_domains"]) if report_data["domain_mapping_max_domains"] is not None else 20
                 except Exception:
                     config.report.domain_mapping_max_domains = 20
+            # Handle include_domain_yearly_bar_charts
+            if "include_domain_yearly_bar_charts" in report_data:
+                try:
+                    config.report.include_domain_yearly_bar_charts = bool(report_data["include_domain_yearly_bar_charts"])
+                except Exception:
+                    config.report.include_domain_yearly_bar_charts = False
+            # Handle domain_yearly_top_domains
+            if "domain_yearly_top_domains" in report_data:
+                try:
+                    value = int(report_data["domain_yearly_top_domains"])
+                except Exception:
+                    value = config.report.domain_yearly_top_domains
+                config.report.domain_yearly_top_domains = max(0, value)
+            # Handle include_yearly_bar_charts
+            if "include_yearly_bar_charts" in report_data:
+                try:
+                    config.report.include_yearly_bar_charts = bool(report_data["include_yearly_bar_charts"])
+                except Exception:
+                    config.report.include_yearly_bar_charts = True
 
     config.normalize()
     return config

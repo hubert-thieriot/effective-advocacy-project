@@ -8,11 +8,13 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+import re
 
 if TYPE_CHECKING:
     from apps.narrative_framing.run import WorkflowState, ResultPaths
     from apps.narrative_framing.config import NarrativeFramingConfig
 from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
+from apps.narrative_framing.aggregation_temporal import TemporalAggregator
 from apps.narrative_framing.plots import (
     build_color_map,
     build_corpus_color_map,
@@ -360,6 +362,9 @@ class ReportBuilder:
                 n_min_per_media=self.config.report.n_min_per_media,
                 domain_mapping_max_domains=self.config.report.domain_mapping_max_domains,
                 corpus_aliases=self.config.corpus_aliases,
+                include_yearly_bar_charts=self.config.report.include_yearly_bar_charts,
+                include_domain_yearly_bar_charts=self.config.report.include_domain_yearly_bar_charts,
+                domain_yearly_top_domains=self.config.report.domain_yearly_top_domains,
             )
 
             # Publish PNGs and HTML to docs for GitHub Pages
@@ -415,6 +420,11 @@ class ReportBuilder:
                         )
 
 
+def _slugify(value: str) -> str:
+    """Simple slug generator for chart IDs."""
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "domain"
+
+
 def write_html_report(
     schema: FrameSchema,
     assignments: Sequence[FrameAssignment],
@@ -441,6 +451,9 @@ def write_html_report(
     n_min_per_media: Optional[int] = None,
     domain_mapping_max_domains: int = 20,
     corpus_aliases: Optional[Dict[str, str]] = None,
+    include_yearly_bar_charts: bool = True,
+    include_domain_yearly_bar_charts: bool = False,
+    domain_yearly_top_domains: int = 5,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
     
@@ -652,6 +665,7 @@ def write_html_report(
 
     # Frame distribution across top domains (Plotly)
     domain_frame_chart_html = ""
+    domain_counts_lookup: Dict[str, int] = {}
     if domain_frame_summaries:
         ordered_domain_frames = [entry for entry in domain_frame_summaries if entry.get("shares")]
         if ordered_domain_frames:
@@ -666,6 +680,14 @@ def write_html_report(
                 max_domains=domain_mapping_max_domains,
                 export_svg=export_svg,
             )
+            for entry in ordered_domain_frames:
+                domain = entry.get("domain")
+                count = entry.get("count", 0)
+                if domain:
+                    try:
+                        domain_counts_lookup[domain] = int(count)
+                    except Exception:
+                        continue
 
     rows = []
     for assignment in assignments:
@@ -926,80 +948,81 @@ def write_html_report(
                 )
         
         # Yearly - Weighted - Excluding empty
-        yearly_woz = all_aggregates.get("year_weighted_without_zeros")
-        if yearly_woz:
-            yearly_woz_html = render_yearly_bar_chart(
-                yearly_woz,
-                frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_weighted_woz.png") if (export_dir and export_png) else None,
-                chart_id="yearly-weighted-woz",
-                export_svg=export_svg,
-            )
-            if yearly_woz_html:
-                chart_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Yearly - Weighted - Excluding empty</h4>'
-                    '<p class="chart-explanation">Frame share by year, weighted by content length. Documents with all frame scores zero are excluded.</p>'
-                    f'{yearly_woz_html}'
-                    '</div>'
+        if include_yearly_bar_charts:
+            yearly_woz = all_aggregates.get("year_weighted_without_zeros")
+            if yearly_woz:
+                yearly_woz_html = render_yearly_bar_chart(
+                    yearly_woz,
+                    frame_lookup, color_map,
+                    export_png_path=(export_dir / "yearly_weighted_woz.png") if (export_dir and export_png) else None,
+                    chart_id="yearly-weighted-woz",
+                    export_svg=export_svg,
                 )
-        
-        # Yearly - Weighted - Including empty
-        yearly_wz = all_aggregates.get("year_weighted_with_zeros")
-        if yearly_wz:
-            yearly_wz_html = render_yearly_bar_chart(
-                yearly_wz,
-                frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_weighted_wz.png") if (export_dir and export_png) else None,
-                chart_id="yearly-weighted-wz",
-                export_svg=export_svg,
-            )
-            if yearly_wz_html:
-                chart_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Yearly - Weighted - Including empty</h4>'
-                    '<p class="chart-explanation">Frame share by year, weighted by content length. Documents with all frame scores zero are included.</p>'
-                    f'{yearly_wz_html}'
-                    '</div>'
+                if yearly_woz_html:
+                    chart_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Yearly - Weighted - Excluding empty</h4>'
+                        '<p class="chart-explanation">Frame share by year, weighted by content length. Documents with all frame scores zero are excluded.</p>'
+                        f'{yearly_woz_html}'
+                        '</div>'
+                    )
+            
+            # Yearly - Weighted - Including empty
+            yearly_wz = all_aggregates.get("year_weighted_with_zeros")
+            if yearly_wz:
+                yearly_wz_html = render_yearly_bar_chart(
+                    yearly_wz,
+                    frame_lookup, color_map,
+                    export_png_path=(export_dir / "yearly_weighted_wz.png") if (export_dir and export_png) else None,
+                    chart_id="yearly-weighted-wz",
+                    export_svg=export_svg,
                 )
-        
-        # Yearly - Occurrence - Excluding empty
-        yearly_occ_woz = all_aggregates.get("year_occurrence_without_zeros")
-        if yearly_occ_woz:
-            yearly_occ_woz_html = render_yearly_bar_chart(
-                yearly_occ_woz,
-                frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_occurrence_woz.png") if (export_dir and export_png) else None,
-                chart_id="yearly-occurrence-woz",
-                export_svg=export_svg,
-            )
-            if yearly_occ_woz_html:
-                chart_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Yearly - Occurrence - Excluding empty</h4>'
-                    '<p class="chart-explanation">Share of articles mentioning each frame by year. Each article counts equally. Documents with all frame scores zero are excluded.</p>'
-                    f'{yearly_occ_woz_html}'
-                    '</div>'
+                if yearly_wz_html:
+                    chart_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Yearly - Weighted - Including empty</h4>'
+                        '<p class="chart-explanation">Frame share by year, weighted by content length. Documents with all frame scores zero are included.</p>'
+                        f'{yearly_wz_html}'
+                        '</div>'
+                    )
+            
+            # Yearly - Occurrence - Excluding empty
+            yearly_occ_woz = all_aggregates.get("year_occurrence_without_zeros")
+            if yearly_occ_woz:
+                yearly_occ_woz_html = render_yearly_bar_chart(
+                    yearly_occ_woz,
+                    frame_lookup, color_map,
+                    export_png_path=(export_dir / "yearly_occurrence_woz.png") if (export_dir and export_png) else None,
+                    chart_id="yearly-occurrence-woz",
+                    export_svg=export_svg,
                 )
-        
-        # Yearly - Occurrence - Including empty
-        yearly_occ_wz = all_aggregates.get("year_occurrence_with_zeros")
-        if yearly_occ_wz:
-            yearly_occ_wz_html = render_yearly_bar_chart(
-                yearly_occ_wz,
-                frame_lookup, color_map,
-                export_png_path=(export_dir / "yearly_occurrence_wz.png") if (export_dir and export_png) else None,
-                chart_id="yearly-occurrence-wz",
-                export_svg=export_svg,
-            )
-            if yearly_occ_wz_html:
-                chart_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Yearly - Occurrence - Including empty</h4>'
-                    '<p class="chart-explanation">Share of articles mentioning each frame by year. Each article counts equally. Documents with all frame scores zero are included.</p>'
-                    f'{yearly_occ_wz_html}'
-                    '</div>'
+                if yearly_occ_woz_html:
+                    chart_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Yearly - Occurrence - Excluding empty</h4>'
+                        '<p class="chart-explanation">Share of articles mentioning each frame by year. Each article counts equally. Documents with all frame scores zero are excluded.</p>'
+                        f'{yearly_occ_woz_html}'
+                        '</div>'
+                    )
+            
+            # Yearly - Occurrence - Including empty
+            yearly_occ_wz = all_aggregates.get("year_occurrence_with_zeros")
+            if yearly_occ_wz:
+                yearly_occ_wz_html = render_yearly_bar_chart(
+                    yearly_occ_wz,
+                    frame_lookup, color_map,
+                    export_png_path=(export_dir / "yearly_occurrence_wz.png") if (export_dir and export_png) else None,
+                    chart_id="yearly-occurrence-wz",
+                    export_svg=export_svg,
                 )
+                if yearly_occ_wz_html:
+                    chart_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Yearly - Occurrence - Including empty</h4>'
+                        '<p class="chart-explanation">Share of articles mentioning each frame by year. Each article counts equally. Documents with all frame scores zero are included.</p>'
+                        f'{yearly_occ_wz_html}'
+                        '</div>'
+                    )
         
         if chart_sections:
             aggregation_charts_html = f"""
@@ -1017,79 +1040,101 @@ def write_html_report(
         """
     
     # Per Corpus section (grouped bars by corpus per frame)
+    # Only include if there are multiple corpora
     corpus_section_html = ""
     if all_aggregates:
-        corpus_sections: List[str] = []
+        # Check how many unique corpora exist in the data
+        def count_unique_corpora(corpus_data: Optional[object]) -> int:
+            """Count unique corpora from corpus aggregate data."""
+            if not isinstance(corpus_data, list) or not corpus_data:
+                return 0
+            corpora = set()
+            for entry in corpus_data:
+                if isinstance(entry, dict):
+                    corpus_name = entry.get('corpus')
+                    if corpus_name:
+                        corpora.add(str(corpus_name))
+            return len(corpora)
+        
+        # Check any corpus aggregate to determine number of corpora
         corpus_weighted_woz = all_aggregates.get("corpus_weighted_without_zeros")
-        if corpus_weighted_woz:
-            chart_html = render_corpus_bar_chart(
-                corpus_weighted_woz, frame_lookup,
-                corpus_aliases=corpus_aliases,
-                export_png_path=(export_dir / "corpus_weighted_woz.png") if (export_dir and export_png) else None,
-                chart_id="corpus-weighted-woz",
-                export_svg=export_svg,
-            )
-            if chart_html:
-                corpus_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Per Corpus - Weighted - Excluding empty</h4>'
-                    '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are excluded.</p>'
-                    f'{chart_html}'
-                    '</div>'
-                )
         corpus_weighted_wz = all_aggregates.get("corpus_weighted_with_zeros")
-        if corpus_weighted_wz:
-            chart_html = render_corpus_bar_chart(
-                corpus_weighted_wz, frame_lookup,
-                corpus_aliases=corpus_aliases,
-                export_png_path=(export_dir / "corpus_weighted_wz.png") if (export_dir and export_png) else None,
-                chart_id="corpus-weighted-wz",
-                export_svg=export_svg,
-            )
-            if chart_html:
-                corpus_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Per Corpus - Weighted - Including empty</h4>'
-                    '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are included.</p>'
-                    f'{chart_html}'
-                    '</div>'
-                )
         corpus_occ_woz = all_aggregates.get("corpus_occurrence_without_zeros")
-        if corpus_occ_woz:
-            chart_html = render_corpus_bar_chart(
-                corpus_occ_woz, frame_lookup,
-                corpus_aliases=corpus_aliases,
-                export_png_path=(export_dir / "corpus_occurrence_woz.png") if (export_dir and export_png) else None,
-                chart_id="corpus-occurrence-woz",
-                export_svg=export_svg,
-            )
-            if chart_html:
-                corpus_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Per Corpus - Occurrence - Excluding empty</h4>'
-                    '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are excluded.</p>'
-                    f'{chart_html}'
-                    '</div>'
-                )
         corpus_occ_wz = all_aggregates.get("corpus_occurrence_with_zeros")
-        if corpus_occ_wz:
-            chart_html = render_corpus_bar_chart(
-                corpus_occ_wz, frame_lookup,
-                corpus_aliases=corpus_aliases,
-                export_png_path=(export_dir / "corpus_occurrence_wz.png") if (export_dir and export_png) else None,
-                chart_id="corpus-occurrence-wz",
-                export_svg=export_svg,
-            )
-            if chart_html:
-                corpus_sections.append(
-                    '<div class="chart-item">'
-                    '<h4>Per Corpus - Occurrence - Including empty</h4>'
-                    '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are included.</p>'
-                    f'{chart_html}'
-                    '</div>'
+        
+        # Find the first available corpus data to count corpora
+        corpus_data_for_count = corpus_weighted_woz or corpus_weighted_wz or corpus_occ_woz or corpus_occ_wz
+        num_corpora = count_unique_corpora(corpus_data_for_count)
+        
+        # Only generate per corpus section if there are multiple corpora
+        if num_corpora > 1:
+            corpus_sections: List[str] = []
+            if corpus_weighted_woz:
+                chart_html = render_corpus_bar_chart(
+                    corpus_weighted_woz, frame_lookup,
+                    corpus_aliases=corpus_aliases,
+                    export_png_path=(export_dir / "corpus_weighted_woz.png") if (export_dir and export_png) else None,
+                    chart_id="corpus-weighted-woz",
+                    export_svg=export_svg,
                 )
-        if corpus_sections:
-            corpus_section_html = f"""
+                if chart_html:
+                    corpus_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Per Corpus - Weighted - Excluding empty</h4>'
+                        '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are excluded.</p>'
+                        f'{chart_html}'
+                        '</div>'
+                    )
+            if corpus_weighted_wz:
+                chart_html = render_corpus_bar_chart(
+                    corpus_weighted_wz, frame_lookup,
+                    corpus_aliases=corpus_aliases,
+                    export_png_path=(export_dir / "corpus_weighted_wz.png") if (export_dir and export_png) else None,
+                    chart_id="corpus-weighted-wz",
+                    export_svg=export_svg,
+                )
+                if chart_html:
+                    corpus_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Per Corpus - Weighted - Including empty</h4>'
+                        '<p class="chart-explanation">Frame share by corpus, weighted by content length. Documents with all frame scores zero are included.</p>'
+                        f'{chart_html}'
+                        '</div>'
+                    )
+            if corpus_occ_woz:
+                chart_html = render_corpus_bar_chart(
+                    corpus_occ_woz, frame_lookup,
+                    corpus_aliases=corpus_aliases,
+                    export_png_path=(export_dir / "corpus_occurrence_woz.png") if (export_dir and export_png) else None,
+                    chart_id="corpus-occurrence-woz",
+                    export_svg=export_svg,
+                )
+                if chart_html:
+                    corpus_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Per Corpus - Occurrence - Excluding empty</h4>'
+                        '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are excluded.</p>'
+                        f'{chart_html}'
+                        '</div>'
+                    )
+            if corpus_occ_wz:
+                chart_html = render_corpus_bar_chart(
+                    corpus_occ_wz, frame_lookup,
+                    corpus_aliases=corpus_aliases,
+                    export_png_path=(export_dir / "corpus_occurrence_wz.png") if (export_dir and export_png) else None,
+                    chart_id="corpus-occurrence-wz",
+                    export_svg=export_svg,
+                )
+                if chart_html:
+                    corpus_sections.append(
+                        '<div class="chart-item">'
+                        '<h4>Per Corpus - Occurrence - Including empty</h4>'
+                        '<p class="chart-explanation">Share of articles mentioning each frame by corpus. Each article counts equally. Documents with all frame scores zero are included.</p>'
+                        f'{chart_html}'
+                        '</div>'
+                    )
+            if corpus_sections:
+                corpus_section_html = f"""
         <section class=\"report-section\" id=\"per-corpus\">
             <header class=\"section-heading\">
                 <h2>Per Corpus</h2>
@@ -1133,6 +1178,97 @@ def write_html_report(
             <div class="section-body">
                 <div class="card chart-card">
                     {''.join(domain_charts)}
+                </div>
+            </div>
+        </section>
+        """
+
+    # Domain yearly charts
+    domain_yearly_section_html = ""
+    domain_yearly_limit = max(0, domain_yearly_top_domains if domain_yearly_top_domains is not None else 0)
+
+    if include_domain_yearly_bar_charts and document_aggregates_weighted:
+        # Build lookup of domain -> document aggregates
+        domain_documents: Dict[str, List[DocumentFrameAggregate]] = {}
+        for agg in document_aggregates_weighted:
+            domain = getattr(agg, "domain", None)
+            if not domain and getattr(agg, "url", None):
+                extracted = extract_domain_from_url(agg.url)
+                if extracted:
+                    try:
+                        object.__setattr__(agg, "domain", extracted)
+                        domain = extracted
+                    except Exception:
+                        domain = extracted
+            if domain:
+                domain_documents.setdefault(domain, []).append(agg)
+
+        if domain_documents:
+            # Determine top domains based on counts from aggregates or fallback to doc counts
+            ranked_domain_counts = domain_counts or []
+            if not ranked_domain_counts:
+                ranked_domain_counts = sorted(
+                    [(dom, len(docs)) for dom, docs in domain_documents.items()],
+                    key=lambda kv: kv[1],
+                    reverse=True,
+                )
+            top_domain_names: List[str] = []
+            for domain_name, _ in ranked_domain_counts:
+                if domain_name in domain_documents:
+                    top_domain_names.append(domain_name)
+                if domain_yearly_limit and len(top_domain_names) >= domain_yearly_limit:
+                    break
+            if not top_domain_names:
+                fallback_domains = sorted(
+                    domain_documents.keys(),
+                    key=lambda name: len(domain_documents.get(name, [])),
+                    reverse=True,
+                )
+                top_domain_names = (
+                    fallback_domains[:domain_yearly_limit] if domain_yearly_limit else fallback_domains
+                )
+
+            charts: List[str] = []
+            for domain_name in top_domain_names:
+                domain_docs = domain_documents.get(domain_name, [])
+                if not domain_docs:
+                    continue
+                yearly_agg = TemporalAggregator(
+                    period="year",
+                    weight_by_document_weight=True,
+                    keep_documents_with_no_frames=False,
+                ).aggregate(domain_docs)
+                if not yearly_agg:
+                    continue
+                slug = _slugify(domain_name)
+                chart_html = render_yearly_bar_chart(
+                    yearly_agg,
+                    frame_lookup,
+                    color_map,
+                    export_png_path=(export_dir / f"domain_yearly_{slug}.png") if (export_dir and export_png) else None,
+                    chart_id=f"domain-yearly-{slug}",
+                    export_svg=export_svg,
+                )
+                if chart_html:
+                    note = f"Year-over-year frame share for {domain_name} (n={domain_counts_lookup.get(domain_name, len(domain_docs))} articles)."
+                    charts.append(
+                        '<div class="chart-item">'
+                        f'<h4>{html.escape(domain_name)} — Yearly Frame Share</h4>'
+                        f'<p class="chart-explanation">{html.escape(note)}</p>'
+                        f'{chart_html}'
+                        '</div>'
+                    )
+
+            if charts:
+                domain_yearly_section_html = f"""
+        <section class="report-section" id="domain-yearly">
+            <header class="section-heading">
+                <h2>Yearly Trends by Domain</h2>
+                <p>Top domains ranked by document volume with yearly frame distributions.</p>
+            </header>
+            <div class="section-body">
+                <div class="card chart-card">
+                    {''.join(charts)}
                 </div>
             </div>
         </section>
@@ -1517,22 +1653,21 @@ def write_html_report(
       opacity: 0.85;
     }}
     .header-metrics {{
-      display: flex;
-      flex-direction: row;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 18px;
       align-items: stretch;
     }}
     .metric-card {{
       position: relative;
-      padding: 18px 20px 18px 28px;
+      padding: 20px 20px 20px 28px;
       border: 1px solid rgba(148, 163, 184, 0.35);
       border-radius: 12px;
       background: #ffffff;
       box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      flex: 1;
+      gap: 10px;
       min-width: 0;
     }}
     .metric-card::before {{
@@ -1551,23 +1686,28 @@ def write_html_report(
       text-transform: uppercase;
       color: var(--ink-500);
       font-weight: 600;
+      margin-bottom: 4px;
+      line-height: 1.3;
     }}
     .metric-line {{
       display: flex;
       align-items: baseline;
       gap: 6px;
+      flex-wrap: wrap;
     }}
     .metric-number {{
       font-size: 1.45rem;
       font-weight: 600;
       color: var(--ink-900);
-      line-height: 1.1;
+      line-height: 1.2;
+      white-space: nowrap;
     }}
     .metric-unit {{
       font-size: 0.85rem;
       color: var(--ink-500);
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      white-space: nowrap;
     }}
     .report-section {{ margin-bottom: 52px; }}
     .report-section:last-of-type {{ margin-bottom: 0; }}
@@ -1926,7 +2066,7 @@ def write_html_report(
         align-items: flex-start;
       }}
       .header-metrics {{
-        flex-wrap: wrap;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         width: 100%;
       }}
     }}
@@ -1942,6 +2082,7 @@ def write_html_report(
     {corpus_section_html}
     {aggregation_charts_html}
     {domain_analysis_html}
+    {domain_yearly_section_html}
     {custom_section_html}
     {top_stories_section_html}
     {developer_section_html}

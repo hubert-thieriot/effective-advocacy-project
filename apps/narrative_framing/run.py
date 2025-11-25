@@ -13,11 +13,16 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
+import os
 import pandas as pd
 from dotenv import load_dotenv
 
 # Load environment variables from .env if present (for WANDB_*, etc.)
 load_dotenv()
+
+# Set tokenizers parallelism to false to avoid warnings when processes fork
+# This must be set before any tokenizers are loaded
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
 from apps.narrative_framing.aggregation_temporal import TemporalAggregator, period_aggregates_to_records

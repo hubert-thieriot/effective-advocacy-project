@@ -1,0 +1,25 @@
+builder: manifesto
+
+corpus:
+  base_dir: corpora/manifesto_example
+
+parameters:
+  # Country filter - use ISO 3166-1 numeric codes or country names
+  # Common codes: 41 (Germany), 51 (UK), 61 (USA), 21 (Canada), 64 (France)
+  # Full list: https://manifestoproject.wzb.eu/information/documents/api
+  countries:
+    - 41  # Germany
+    - 51  # United Kingdom
+  
+  # Date filters (YYYY-MM-DD or YYYY format)
+  # Filters by election date (edate field)
+  date_from: "2000-01-01"
+  date_to: "2024-12-31"
+  
+  # Optional: specific dataset version (default: "MPDS2025a")
+  # core_version: "MPDS2025a"
+
+extra_meta:
+  comment: Example manifesto corpus configuration
+  topic: political_manifestos
+

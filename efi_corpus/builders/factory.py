@@ -8,12 +8,14 @@ from pathlib import Path
 from typing import Callable, Dict, Any, Type
 
 from .mediacloud import MediaCloudCorpusBuilder
+from .manifesto import ManifestoCorpusBuilder
 from ..rate_limiter import RateLimitConfig
 
 
 # Registry mapping builder name -> class/constructor
 _REGISTRY: Dict[str, Callable[..., Any]] = {
     "mediacloud": MediaCloudCorpusBuilder,
+    "manifesto": ManifestoCorpusBuilder,
 }
 
 

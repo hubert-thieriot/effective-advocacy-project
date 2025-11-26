@@ -89,8 +89,17 @@ class CorpusManager:
         elif builder_type == "youtube":
             from .builders.youtube import YouTubeCorpusBuilder
             return YouTubeCorpusBuilder(corpus_dir=base_dir)
+        elif builder_type == "manifesto":
+            from .builders.manifesto import ManifestoCorpusBuilder
+            # Extract countries from config
+            params_cfg = self.config.get("parameters", {})
+            countries = params_cfg.get("countries", [])
+            return ManifestoCorpusBuilder(
+                corpus_dir=base_dir,
+                countries=countries
+            )
         else:
-            raise ValueError(f"Unsupported builder type: {builder_type}. Supported types: 'mediacloud', 'youtube'")
+            raise ValueError(f"Unsupported builder type: {builder_type}. Supported types: 'mediacloud', 'youtube', 'manifesto'")
 
     # ------------- helpers -------------
 

@@ -1,0 +1,155 @@
+# Narrative framing for European political manifestos on animal welfare
+
+corpus: manifesto_europe
+corpora_root: corpora
+workspace_root: workspace
+results_dir: results/narrative_framing/manifesto_europe_animalwelfare
+
+# Narrative framing parameters
+domain: "Animal welfare discourse in European political manifestos"
+seed: 42
+
+# Reload settings
+reload_induction: true
+reload_annotation: false
+reload_classifier: false
+reload_classifications: false
+reload_aggregates: false
+
+
+chunking:
+  target_words: 200
+
+induction:
+  size: 150
+  model: gpt-4.1
+  frame_target: "around 8"
+  guidance: |
+    Identify narrative frames used in European political manifestos to discuss animal welfare 
+    and animal rights. The corpus includes manifestos in multiple European languages.
+    
+    Use these 8 specific frames as the basis (refine wording for clarity if needed, but
+    preserve their essential meaning and scope):
+
+    1. Slaughterhouses: Discourse around slaughtering practices, abattoirs, humane killing,
+       stunning requirements, and conditions in slaughter facilities.
+
+    2. Cruel treatments: General framing of cruelty, abuse, suffering, and inhumane treatment
+       of animals across various contexts.
+
+    3. Pet/companion animals: Discourse specifically about pets, companion animals, domestic
+       animals, breeding practices, pet shops, and animal abandonment.
+
+    4. Cage-free: Framing around cage-free systems, battery cages, confinement, housing
+       conditions, and freedom of movement for farmed animals.
+
+    5. Plant-based proteins: Discourse on plant-based alternatives, meat substitutes,
+       reducing animal consumption, vegan/vegetarian options, and protein transition.
+
+    6. Factory farming: Framing of industrial raising of animals for food production (not covering farming of plants).
+
+    7. Anti-hunting and snaring: Discourse opposing hunting, trapping, snaring, and
+       other wildlife killing practices, including traditional and sport hunting.
+
+    8. Anti-laboratory experiments: Framing against animal testing, vivisection,
+       laboratory experiments on animals, and the push for alternative testing methods.
+
+    IMPORTANT: 
+    - These frames should NOT necessarily be treated as non-overlapping categories
+    - Assign chunks to the most specific applicable frame
+    - Treat all European languages as part of the same conceptual space
+
+
+classification:
+  size: 0
+
+classifier:
+  enabled: false
+  model_name: distilbert-base-uncased
+  batch_size: 8
+  inference_batch_size: 1
+
+report:
+   hide_empty_passages: true
+
+
+annotation:
+  size: 5000
+  model: gpt-4.1-mini
+  batch_size: 8
+  top_k: 3
+  guidance: |
+   This analysis is specifically about ANIMAL WELFARE discourse. DO NOT assign frames to passages that do not explicitly pertain to animals.
+   Factory farming is about the intensive raising of animals.
+   Hunting is about the killing of animals.
+   
+  force_zero_if_no_keywords:
+    # Core terms (cover many compounds)
+    - animal
+    - welfare
+    - humane
+    - inhumane
+    - sentien  # covers sentient, sentience
+    - cruelty
+    - slaughter
+    - abattoir
+    
+    # Pets (careful - using longer forms)
+    - companion
+    - puppy
+    - kitten
+    - breeding
+    - breeder
+    - pet
+    - stray
+    - shelter
+    - adoption
+    - spay
+    - neuter
+    
+    # Cage/confinement
+    - cage
+    - free-range
+    - battery
+    - gestation crate
+    - farrowing
+    - confinement
+    - sow
+    - veal
+    
+    # Factory farming
+    - factory farm
+    - intensive farm
+    - livestock
+    - poultry
+    - chicken
+    - broiler
+    - cattle
+    - feedlot
+    - overcrowd
+    
+    # Plant-based
+    - plant-based
+    - vegan
+    - vegetarian
+    - meat-free
+    - meatless
+    - meat
+    - lab-grown
+    - cell-based
+    
+    # Hunting
+    - hunting
+    - poaching
+    - snare
+    - snaring
+    - trapping
+    - fur
+    - culling
+    
+    # Lab experiments
+    - vivisection
+    - laboratory animal
+    - lab animal
+    - cosmetic testing
+    - 3Rs

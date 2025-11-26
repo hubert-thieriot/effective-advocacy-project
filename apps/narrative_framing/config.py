@@ -92,6 +92,8 @@ class FilterConfig:
     chunk: ChunkFilter = field(default_factory=ChunkFilter)
 
 
+
+
 @dataclass
 class ChunkingConfig:
     """Configuration for text chunking."""
@@ -117,6 +119,8 @@ class AnnotationConfig:
     batch_size: int = DEFAULT_APPLICATION_BATCH
     top_k: int = DEFAULT_APPLICATION_TOP_K
     temperature: Optional[float] = None  # None = use model default
+    force_zero_if_no_keywords: Optional[List[str]] = None  # Bypass LLM with zero scores if chunk lacks these keywords
+    guidance: Optional[str] = None  # Additional guidance for the annotator to reduce false positives
 
 
 @dataclass
@@ -432,6 +436,14 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.annotation.top_k = int(annotation_data["top_k"])
         if "temperature" in annotation_data:
             config.annotation.temperature = float(annotation_data["temperature"]) if annotation_data["temperature"] is not None else None
+        if "force_zero_if_no_keywords" in annotation_data:
+            keywords = annotation_data["force_zero_if_no_keywords"]
+            if keywords is None:
+                config.annotation.force_zero_if_no_keywords = None
+            else:
+                config.annotation.force_zero_if_no_keywords = [str(item).lower().strip() for item in keywords if item]
+        if "guidance" in annotation_data:
+            config.annotation.guidance = str(annotation_data["guidance"]).strip() if annotation_data["guidance"] else None
     
     # Parse nested classification config
     if "classification" in data and isinstance(data["classification"], dict):

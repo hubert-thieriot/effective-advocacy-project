@@ -99,6 +99,61 @@ class FrameAssignments(List[FrameAssignment]):
         ]
         path.write_text(json.dumps(serialized, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    def to_classifications(self) -> "DocumentClassifications":
+        """Convert LLM frame assignments to document classifications format.
+        
+        This allows using LLM annotations for aggregation when classifier is disabled.
+        Groups assignments by document and creates classification payloads.
+        """
+        from collections import defaultdict
+        from efi_analyser.frames.classifier import DocumentClassification, DocumentClassifications
+        from efi_analyser.frames.identifiers import split_passage_id
+        
+        # Group assignments by doc_id
+        doc_chunks: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        doc_meta: Dict[str, Dict[str, Any]] = {}
+        
+        for assignment in self:
+            # Parse passage_id to extract corpus and doc_id
+            corpus_name, local_doc_id, _ = split_passage_id(assignment.passage_id)
+            
+            # Reconstruct global doc_id
+            if corpus_name:
+                doc_id = f"{corpus_name}@@{local_doc_id}"
+            else:
+                doc_id = local_doc_id
+            
+            # Build chunk record
+            chunk: Dict[str, Any] = {
+                "text": assignment.passage_text,
+                "probabilities": assignment.probabilities,
+            }
+            doc_chunks[doc_id].append(chunk)
+            
+            # Store metadata from assignment if available
+            if doc_id not in doc_meta:
+                doc_meta[doc_id] = {}
+        
+        # Build DocumentClassifications
+        classifications = DocumentClassifications()
+        for doc_id, chunks in doc_chunks.items():
+            payload: Dict[str, Any] = {
+                "doc_id": doc_id,
+                "chunks": chunks,
+            }
+            # Add any metadata we have
+            meta = doc_meta.get(doc_id, {})
+            if meta.get("published_at"):
+                payload["published_at"] = meta["published_at"]
+            if meta.get("title"):
+                payload["title"] = meta["title"]
+            if meta.get("url"):
+                payload["url"] = meta["url"]
+                
+            classifications.append(DocumentClassification(payload=payload))
+        
+        return classifications
+
 
 @dataclass
 class Candidate:

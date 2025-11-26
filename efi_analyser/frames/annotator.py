@@ -80,6 +80,8 @@ class LLMFrameAnnotator:
         top_k: int = 3,
         show_progress: bool = False,
         progress_desc: Optional[str] = None,
+        relevance_keywords: Optional[List[str]] = None,
+        guidance: Optional[str] = None,
     ) -> List[FrameAssignment]:
         """Assign frame probabilities for each passage in order of input.
         
@@ -89,17 +91,32 @@ class LLMFrameAnnotator:
             top_k: Number of top frames to return per passage.
             show_progress: Whether to display a progress bar during processing.
             progress_desc: Optional description for the progress bar.
+            relevance_keywords: If provided, passages without these keywords get
+                zero frame scores without calling the LLM (cost optimization).
+            guidance: Additional guidance text to help the annotator avoid false positives.
         """
+        self._current_guidance = guidance  # Store for use in _build_messages
         self._current_metadata = {}
         prepared = self._prepare_passages(passages)
         if not prepared:
             return []
 
+        frame_ids = [frame.frame_id for frame in schema.frames]
+        
+        # Partition passages: those needing annotation vs auto-zero
+        to_annotate, zero_annotated = self._partition_by_relevance(
+            prepared, relevance_keywords, frame_ids
+        )
+        
+        if zero_annotated:
+            print(f"ℹ️ Bypassed LLM for {len(zero_annotated)} passages without relevance keywords (auto-zero).")
+
+        # Check cache for passages that need annotation
         schema_hash = self._schema_hash(schema)
         cached: Dict[str, FrameAssignment] = {}
         pending: List[Tuple[str, str, str]] = []
 
-        for passage_id, text in prepared:
+        for passage_id, text in to_annotate:
             cache_key = self._cache_key(schema_hash, text)
             cached_assignment = self._cache.get(cache_key)
             if cached_assignment is not None:
@@ -107,7 +124,9 @@ class LLMFrameAnnotator:
             else:
                 pending.append((passage_id, text, cache_key))
 
+        # Combine zero-annotated with cached results
         results: Dict[str, FrameAssignment] = dict(cached)
+        results.update(zero_annotated)
         skipped_passages: List[str] = []
 
         # Create progress bar if requested
@@ -188,6 +207,68 @@ class LLMFrameAnnotator:
                 segments = self._split_passage(passage_id, text)
                 prepared.extend(segments)
         return prepared
+
+    def _partition_by_relevance(
+        self,
+        prepared: List[Tuple[str, str]],
+        relevance_keywords: Optional[List[str]],
+        frame_ids: List[str],
+    ) -> Tuple[List[Tuple[str, str]], Dict[str, FrameAssignment]]:
+        """Partition passages into those needing annotation vs auto-zero.
+        
+        Returns:
+            (to_annotate, zero_annotated): Passages to send to LLM, and 
+            pre-built zero assignments for passages without relevance keywords.
+        """
+        if not relevance_keywords:
+            return prepared, {}
+        
+        normalized_keywords = [kw.lower().strip() for kw in relevance_keywords if kw]
+        if not normalized_keywords:
+            return prepared, {}
+        
+        to_annotate: List[Tuple[str, str]] = []
+        zero_annotated: Dict[str, FrameAssignment] = {}
+        
+        for passage_id, text in prepared:
+            text_lower = text.lower()
+            has_keyword = any(kw in text_lower for kw in normalized_keywords)
+            
+            if has_keyword:
+                to_annotate.append((passage_id, text))
+            else:
+                zero_annotated[passage_id] = self._create_zero_assignment(
+                    passage_id, text, frame_ids
+                )
+        
+        return to_annotate, zero_annotated
+
+    def _create_zero_assignment(
+        self,
+        passage_id: str,
+        text: str,
+        frame_ids: List[str],
+    ) -> FrameAssignment:
+        """Create a zero-probability frame assignment for a passage."""
+        zero_probs = {fid: 0.0 for fid in frame_ids}
+        corpus_name, local_doc_id, _ = split_passage_id(passage_id)
+        metadata = {
+            "doc_id": local_doc_id,
+            "global_doc_id": make_global_doc_id(corpus_name, local_doc_id) if corpus_name else local_doc_id,
+            "bypassed_relevance": True,
+        }
+        if corpus_name:
+            metadata["corpus"] = corpus_name
+        
+        return FrameAssignment(
+            passage_id=passage_id,
+            passage_text=text,
+            probabilities=zero_probs,
+            top_frames=[],
+            rationale="",
+            evidence_spans=[],
+            metadata=metadata,
+        )
 
     def _split_passage(self, passage_id: str, text: str) -> List[Tuple[str, str]]:
         text = text.strip()
@@ -294,6 +375,7 @@ class LLMFrameAnnotator:
             "passages": ctx_passages,
             "passages_text": batch_lines,
             "top_k": top_k,
+            "guidance": getattr(self, "_current_guidance", None) or "",
         }
         sys_content = Template(self._system_template).render(**ctx)
         usr_content = Template(self._user_template).render(**ctx)

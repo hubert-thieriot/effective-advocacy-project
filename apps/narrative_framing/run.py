@@ -573,6 +573,8 @@ class NarrativeFramingWorkflow:
                         top_k=config.annotation.top_k,
                         show_progress=True,
                         progress_desc=f"Annotating frames ({annotator_client.config.model})",
+                        relevance_keywords=config.annotation.force_zero_if_no_keywords,
+                        guidance=config.annotation.guidance,
                     )
                     assignments.extend(new_assignments)
                     print(
@@ -819,6 +821,12 @@ class NarrativeFramingWorkflow:
             if not self.allow_new_aggregation:
                 print("⚠️ Skipping aggregation: cannot rebuild (read-only mode) and cache load failed.")
                 return
+            
+            # When classifier is disabled, use LLM annotations for aggregation
+            if not classifications and state.assignments:
+                print("ℹ️ Classifier disabled; using LLM annotations for aggregation.")
+                classifications = state.assignments.to_classifications()
+                
             if not schema or not classifications:
                 print("⚠️ Skipping aggregation: schema or classifications missing.")
                 return

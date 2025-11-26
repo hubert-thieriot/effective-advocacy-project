@@ -3,6 +3,11 @@ DOMAIN: {{ schema.domain }}
 
 Frames (id, name, short description, cues)
 {{ frames_text }}
+{% if guidance %}
+
+ADDITIONAL GUIDANCE
+{{ guidance }}
+{% endif %}
 
 TASK
 - Using only the passage text and the frames above:

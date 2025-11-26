@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import yaml
 
@@ -119,7 +119,13 @@ class AnnotationConfig:
     batch_size: int = DEFAULT_APPLICATION_BATCH
     top_k: int = DEFAULT_APPLICATION_TOP_K
     temperature: Optional[float] = None  # None = use model default
-    force_zero_if_no_keywords: Optional[List[str]] = None  # Bypass LLM with zero scores if chunk lacks these keywords
+    # Bypass LLM with zero scores if chunk lacks these keywords.
+    # Can be a flat list (applies to all languages) or dict by language code:
+    #   force_zero_if_no_keywords: [animal, welfare, ...]  # flat
+    #   force_zero_if_no_keywords:  # by language
+    #     en: [animal, welfare, ...]
+    #     de: [tier, tierschutz, ...]
+    force_zero_if_no_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
     guidance: Optional[str] = None  # Additional guidance for the annotator to reduce false positives
 
 
@@ -440,7 +446,15 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             keywords = annotation_data["force_zero_if_no_keywords"]
             if keywords is None:
                 config.annotation.force_zero_if_no_keywords = None
+            elif isinstance(keywords, dict):
+                # Dict by language code: {en: [...], de: [...], ...}
+                config.annotation.force_zero_if_no_keywords = {
+                    lang: [str(item).lower().strip() for item in kw_list if item]
+                    for lang, kw_list in keywords.items()
+                    if kw_list
+                }
             else:
+                # Flat list (language-agnostic)
                 config.annotation.force_zero_if_no_keywords = [str(item).lower().strip() for item in keywords if item]
         if "guidance" in annotation_data:
             config.annotation.guidance = str(annotation_data["guidance"]).strip() if annotation_data["guidance"] else None

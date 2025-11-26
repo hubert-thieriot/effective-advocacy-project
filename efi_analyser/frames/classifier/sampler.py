@@ -631,6 +631,7 @@ class CompositeCorpusSampler:
                         "url": merged_meta.get("url", ""),
                         "title": merged_meta.get("title", ""),
                         "published_at": merged_meta.get("published_at", ""),
+                        "language": merged_meta.get("language", ""),
                         "doc_folder_path": doc_folder_str,
                     }
 

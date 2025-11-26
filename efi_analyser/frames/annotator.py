@@ -6,7 +6,7 @@ import copy
 import hashlib
 import json
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional
+from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional, Union
 
 from pathlib import Path
 
@@ -80,7 +80,7 @@ class LLMFrameAnnotator:
         top_k: int = 3,
         show_progress: bool = False,
         progress_desc: Optional[str] = None,
-        relevance_keywords: Optional[List[str]] = None,
+        relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None,
         guidance: Optional[str] = None,
     ) -> List[FrameAssignment]:
         """Assign frame probabilities for each passage in order of input.
@@ -93,6 +93,8 @@ class LLMFrameAnnotator:
             progress_desc: Optional description for the progress bar.
             relevance_keywords: If provided, passages without these keywords get
                 zero frame scores without calling the LLM (cost optimization).
+                Can be a flat list (applies to all languages) or a dict mapping
+                language codes to keyword lists.
             guidance: Additional guidance text to help the annotator avoid false positives.
         """
         self._current_guidance = guidance  # Store for use in _build_messages
@@ -211,10 +213,16 @@ class LLMFrameAnnotator:
     def _partition_by_relevance(
         self,
         prepared: List[Tuple[str, str]],
-        relevance_keywords: Optional[List[str]],
+        relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]],
         frame_ids: List[str],
     ) -> Tuple[List[Tuple[str, str]], Dict[str, FrameAssignment]]:
         """Partition passages into those needing annotation vs auto-zero.
+        
+        Args:
+            prepared: List of (passage_id, text) tuples
+            relevance_keywords: Either a flat list of keywords (language-agnostic)
+                or a dict mapping language codes to keyword lists
+            frame_ids: List of frame IDs for zero assignments
         
         Returns:
             (to_annotate, zero_annotated): Passages to send to LLM, and 
@@ -223,16 +231,45 @@ class LLMFrameAnnotator:
         if not relevance_keywords:
             return prepared, {}
         
-        normalized_keywords = [kw.lower().strip() for kw in relevance_keywords if kw]
-        if not normalized_keywords:
-            return prepared, {}
+        # Normalize keywords - either flat list or dict by language
+        if isinstance(relevance_keywords, dict):
+            # Dict by language: normalize each language's keywords
+            keywords_by_lang = {
+                lang: [kw.lower().strip() for kw in kws if kw]
+                for lang, kws in relevance_keywords.items()
+            }
+            is_multilingual = True
+        else:
+            # Flat list
+            normalized_keywords = [kw.lower().strip() for kw in relevance_keywords if kw]
+            if not normalized_keywords:
+                return prepared, {}
+            is_multilingual = False
         
         to_annotate: List[Tuple[str, str]] = []
         zero_annotated: Dict[str, FrameAssignment] = {}
         
         for passage_id, text in prepared:
             text_lower = text.lower()
-            has_keyword = any(kw in text_lower for kw in normalized_keywords)
+            
+            if is_multilingual:
+                # Look up language from stored metadata
+                meta = self._current_metadata.get(passage_id, {})
+                lang = meta.get("language", "").lower()
+                # Try exact match, then partial match (e.g., "serbian-cyrillic" -> "serbian")
+                keywords = keywords_by_lang.get(lang)
+                if keywords is None:
+                    # Try language prefix (e.g., "sr" from "serbian-cyrillic")
+                    lang_prefix = lang.split("-")[0] if "-" in lang else lang[:2]
+                    keywords = keywords_by_lang.get(lang_prefix)
+                if keywords is None:
+                    # No keywords for this language - annotate it (don't skip)
+                    to_annotate.append((passage_id, text))
+                    continue
+            else:
+                keywords = normalized_keywords
+            
+            has_keyword = any(kw in text_lower for kw in keywords)
             
             if has_keyword:
                 to_annotate.append((passage_id, text))

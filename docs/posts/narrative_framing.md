@@ -15,7 +15,7 @@ tags: [narrative-framing]
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets/journalists to prioritize.
 
-This post includes two illustrative examples: one on air pollution in India and one on animal welfare in Canada.
+This post includes two illustrative examples: one on air pollution in India and one on animal welfare in European political manifestos.
 </div>
 
 
@@ -55,7 +55,7 @@ Narrative framing analysis focuses on message content — how issues are discuss
   </figure>
 </div>
 
-To see what this might look like in practice, I ran two small experiments. One asks how India’s largest English-language newspapers talk about air pollution — who gets blamed, and who doesn’t. The other looks at how media outlets frame meat and animal welfare in Canada.
+To see what this might look like in practice, I ran two small experiments. One asks how India's largest English-language newspapers talk about air pollution — who gets blamed, and who doesn't. The other examines how European political parties frame animal welfare in their manifestos.
 
 ## Example 1: Air pollution causes in Delhi, India
 
@@ -153,36 +153,59 @@ Such analysis could also be conducted at the outlet level -- for instance to pri
 
 
 
-## Example 2: Animal welfare in Canada
+## Example 2: Animal welfare in European political manifestos
 
-To test how adaptable the method is, I apply to mentions of meat production and consumption in Canada. The framing categories were developed with the animal welfare movement in mind, aiming to capture dimensions that might be strategically relevant. I provided the Frame Inducer with explicit guidance to focus on: factory farming, animal suffering, plant-based alternatives, environmental impacts, health effects, and epidemic risks.
+This second application shifts to political discourse by analysing political manifestos. Political manifestos are programmatic documents that parties commit to during elections. Understanding which parties prioritize animal welfare, and how they frame it, could help advocates identify allies, track the evolution of party positions across election cycles, and compare political landscapes across countries.
+
+In this quick analysis, I focused on the various framings/dimensions of animal welfare and the extent to which they are present in parties programmatic documents. Manifestos were retrieved from [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. I focused on European manifestos published since 2018, spanning 36 countries and 29 languages.
 
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">Frames used for classifying meat coverage in Canadian media</div>
-    <div class="chart-subtitle">Definitions for each frame category as determined in model induction and applied in this analysis</div>
+    <div class="chart-title">Animal welfare in European political manifestos</div>
+    <div class="chart-subtitle">Left: Overall attention to animal welfare by country. Right: Dominant frame by country.</div>
   </div>
-  {% include narrative_framing/meat_canada/frames_light.html %}
+  <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 300px;">
+      <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare/europe_map.png" class="modal" style="width: 100%; height: auto;">
+    </div>
+    <div style="flex: 1; min-width: 300px;">
+      <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare/europe_dominant_frame.png" class="modal" style="width: 100%; height: auto;">
+    </div>
+  </div>
+  <p class="chart-note">
+    <strong>Note:</strong> The left map shows the share of manifesto content dedicated to animal welfare topics (darker = more attention). The right map shows which specific frame dominates in each country's political discourse, excluding the generic "General animal welfare" frame to highlight more specific policy framings. Countries in grey have insufficient data.
+  </p>
+</div>
+
+The maps reveal notable geographic patterns. Nordic and Western European countries — particularly Sweden, Iceland, and the United Kingdom — dedicate the most manifesto space to animal welfare. The dominant frames also vary: while most countries focus on general animal welfare statements or anti-hunting discourse, the Netherlands stands out for its emphasis on factory farming (reflecting ongoing debates about intensive agriculture), and countries like Finland and Spain focus more on pet and companion animal policies.
+
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frames used for classifying animal welfare discourse in European manifestos</div>
+    <div class="chart-subtitle">Definitions for each frame category</div>
+  </div>
+  {% include narrative_framing/manifesto_europe_animalwelfare_v2/frames_light.html %}
   <div class="chart-note">
-    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on identifying distinct angles of meat coverage in Canadian media.
+    <strong>Note:</strong> These nine frames were defined to capture distinct aspects of animal welfare discourse in political manifestos, on top of a general animal welfare angle.
   </div>
 </div>
 
-Similar to the previous example, a smaller model (GPT-4.1-mini) was used to annotate a few thousand text segments. A BERT-based classifier (DistilBERT) was then trained and applied to the whole corpus. The results are shown in the figure below. For now, I leave it to animal welfare advocates to see whether any interesting signal emerges. I imagine it could be interesting to compare such patterns across countries as well.
+Unsurprisingly, Green parties tend to be amongst the "top-performers". But mainstream parties also appear in the rankings top, suggesting that animal welfare has broader political salience in some countries.
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">How Canadian media frames meat production and consumption</div>
-    <div class="chart-subtitle">This chart shows the frames mentioned in media articles about meat in Canada. The analysis is based on articles published between 2020 and 2025 in Canadian media (English and French), weighted by content length.</div>
+    <div class="chart-title">Parties with highest attention to animal welfare</div>
+    <div class="chart-subtitle">Share of manifesto content dedicated to animal welfare topics (top 30 parties)</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/meat_canada/yearly_weighted_wz.svg" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare_v2/all_parties.png" style="width: 100%; height: auto;">
   <p class="chart-note">
-    <strong>Note:</strong> The analysis identifies meat-related frames through natural language processing of Canadian media articles. Articles are included if they contain keywords related to meat ("meat" in English or "viande" in French). Each frame category (factory farming, animal suffering, plant-based alternatives, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each frame across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
+    <strong>Note:</strong> The chart shows the share of each party's manifesto dedicated to animal welfare topics, based on frame classification of manifesto text. Only parties with detectable animal welfare content are shown.
     <br><br>
-    <strong>Data Sources:</strong> The list of articles is retrieved from MediaCloud collection "Canada - National". Content has been scraped and processed locally for analysis.
+    <strong>Data Source:</strong> Manifestos retrieved via the <a href="https://manifestoproject.wzb.eu/">Manifesto Project API</a>. Content processed locally for frame classification.
     <br><br>
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of party positions. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
 </div>
 
@@ -191,7 +214,7 @@ Similar to the previous example, a smaller model (GPT-4.1-mini) was used to anno
 ## Looking forward
 These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
 
-- **Other mediums**: both examples have focused on media articles, but the same approach could be extended to TV and radio transcripts, social media, parliamentary debates and court decisions.
+- **Other mediums**: these examples have covered media articles and political manifestos, but the same approach could be extended to TV and radio transcripts, social media, parliamentary debates and court decisions.
 - **Valence and stance**: Understanding how issues are discussed matters as much as whether they are mentioned. Adding sentiment or stance detection could help distinguish between supportive, neutral, and dismissive framings.
 - **Conditional framing**: Beyond tracking which frames appear, future work could look at how they co-occur.
 - **Validation and reliability**: These are exploratory prototypes. Proper validation would probably require some manual annotation and validation, better uncertainty evaluation as well as better checks against overfitting.

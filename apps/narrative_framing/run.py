@@ -32,6 +32,7 @@ from apps.narrative_framing.config import ClassifierSettings, NarrativeFramingCo
 from apps.narrative_framing.report import ReportBuilder
 from apps.narrative_framing.filtering import Filter
 
+
 from efi_analyser.chunkers.sentence_chunker import SentenceChunker
 from efi_analyser.frames import (
     EmbeddedCorpora,
@@ -54,10 +55,8 @@ from efi_analyser.frames.classifier import (
 )
 from efi_analyser.scorers.openai_interface import OpenAIConfig, OpenAIInterface
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
-from efi_analyser.frames.identifiers import (
-    make_global_passage_id,
-    split_global_doc_id,
-)
+from efi_analyser.frames.plotting import PlotConfig, run_plots
+
 from efi_core.utils import normalize_date
 
 try:  # Prefer spaCy-based chunker when available.
@@ -445,13 +444,14 @@ class NarrativeFramingWorkflow:
     # Public orchestration entrypoint
     # --------------------------------------------------------------------- #
     def run(self) -> None:
-        """Execute the full workflow: induction → annotation → train → apply → aggregate → report."""
+        """Execute the full workflow: induction → annotation → train → apply → aggregate → report → plots."""
         self.run_induction()
         self.run_annotation()
         self.run_training()
         self.run_application()
         self.run_aggregation()
         self.run_report()
+        self.run_plots()
 
     # --------------------------------------------------------------------- #
     # Step 1 – Induction
@@ -900,7 +900,71 @@ class NarrativeFramingWorkflow:
             total_doc_ids=self.total_doc_ids,
         )
         report_builder.build()
-       
+
+    # --------------------------------------------------------------------- #
+    # Step 7 – Additional Plots
+    # --------------------------------------------------------------------- #
+    def run_plots(self) -> None:
+        """Generate additional plots configured via additional_plots."""
+        config = self.config
+        state = self.state
+        
+        if not config.additional_plots:
+            return
+        
+        print(f"\n📊 Generating {len(config.additional_plots)} additional plots...")
+        
+        # Convert config dicts to PlotConfig objects
+        plot_configs = []
+        for plot_dict in config.additional_plots:
+            plot_configs.append(PlotConfig(
+                type=plot_dict.get("type"),
+                output=plot_dict.get("output"),
+                options=plot_dict.get("options"),
+                export_as=plot_dict.get("export_as"),
+            ))
+        
+        # Run plots
+        results_dir = config.results_dir or Path("results")
+        generated = run_plots(
+            state=state,
+            config=config,
+            results_dir=results_dir,
+            plot_configs=plot_configs,
+            corpus_index=self._build_corpus_index(),
+            export_dir=config.export_dir,
+            export_plots_dir=config.report.export_plots_dir,
+        )
+        
+        if generated:
+            print(f"✅ Generated {len(generated)} plots")
+        else:
+            print("⚠️ No plots generated")
+    
+    def _build_corpus_index(self) -> Dict[str, dict]:
+        """Build corpus index from loaded corpora.
+        
+        Returns dict mapping doc_id to metadata for all documents.
+        """
+        index = {}
+        for doc_id in self.total_doc_ids:
+            # Parse global doc_id to get corpus name and local id
+            # Format is typically "corpus_name::local_id" 
+            if "::" in doc_id:
+                corpus_name, local_id = doc_id.split("::", 1)
+            else:
+                # Single corpus - use first corpus
+                corpus_name = self.corpus_names[0] if self.corpus_names else None
+                local_id = doc_id
+            
+            if corpus_name and corpus_name in self.corpora_map:
+                corpus = self.corpora_map[corpus_name].corpus
+                meta = corpus.get_metadata(local_id) or {}
+                index[doc_id] = meta
+            else:
+                index[doc_id] = {}
+        
+        return index
 
 
 def parse_args() -> argparse.Namespace:

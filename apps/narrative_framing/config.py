@@ -176,6 +176,23 @@ class NarrativeFramingConfig:
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
     report: ReportSettings = field(default_factory=ReportSettings)
     
+    # Additional plots to generate (list of plot configurations)
+    # Example:
+    #   additional_plots:
+    #     - type: europe_map
+    #       options:
+    #         cmap: Greens
+    #       export_as: manifesto_map.png  # optional: copy to export_dir
+    #     - type: dominant_frame_map
+    #     - type: party_bars
+    #     - type: frame_examples
+    #       options:
+    #         format: html
+    additional_plots: Optional[List[Dict[str, Any]]] = None
+    
+    # Directory to export generated plots (e.g., for docs/assets)
+    export_dir: Optional[Path] = None
+    
     # Legacy fields (deprecated, kept for backward compatibility)
     llm_model: str = DEFAULT_LLM_MODEL  # Deprecated: use induction.model and annotation.model
     induction_model: str = None  # Deprecated: use induction.model
@@ -796,6 +813,17 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                 except Exception:
                     config.report.include_yearly_bar_charts = True
 
+    # Parse additional_plots
+    if "additional_plots" in data and isinstance(data["additional_plots"], list):
+        config.additional_plots = []
+        for plot_item in data["additional_plots"]:
+            if isinstance(plot_item, dict) and "type" in plot_item:
+                config.additional_plots.append(plot_item)
+    
+    # Parse export_dir
+    if "export_dir" in data:
+        config.export_dir = Path(data["export_dir"])
+    
     config.normalize()
     return config
 

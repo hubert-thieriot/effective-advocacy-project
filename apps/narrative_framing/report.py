@@ -187,23 +187,23 @@ def export_frames_html(
     </div>
 </div>"""
     
-    if jekyll_format:
+    # if jekyll_format:
         # Jekyll include format: just CSS and content, no HTML document structure
-        html_content = css_styles + "\n" + content_html
-    else:
-        # Standalone HTML format: full document
-        html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frame Definitions - {html.escape(schema.domain)}</title>
-    {css_styles}
-</head>
-<body>
-    {content_html}
-</body>
-</html>"""
+    html_content = css_styles + "\n" + content_html
+    # else:
+    #     # Standalone HTML format: full document
+    #     html_content = f"""<!DOCTYPE html>
+# <html lang="en">
+# <head>
+#     <meta charset="UTF-8">
+#     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#     <title>Frame Definitions - {html.escape(schema.domain)}</title>
+#     {css_styles}
+# </head>
+# <body>
+#     {content_html}
+# </body>
+# </html>"""
     
     export_path.parent.mkdir(parents=True, exist_ok=True)
     export_path.write_text(html_content, encoding="utf-8")

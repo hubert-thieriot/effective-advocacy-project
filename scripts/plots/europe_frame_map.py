@@ -262,6 +262,65 @@ def aggregate_by_country(
     return result
 
 
+def aggregate_dominant_frame_by_country(
+    documents: List[dict],
+    corpus_index: Dict[str, dict],
+    exclude_frames: Optional[List[str]] = None,
+) -> Dict[str, str]:
+    """Find the dominant frame for each country.
+    
+    Args:
+        documents: List of document aggregates with frame_scores
+        corpus_index: Dict mapping doc_id to metadata
+        exclude_frames: Optional list of frame names to exclude from consideration
+    
+    Returns:
+        Dict mapping ISO3 country code to dominant frame name
+    """
+    from collections import defaultdict
+    
+    exclude_set = set(exclude_frames or [])
+    
+    # Accumulate frame scores per country
+    country_frame_scores: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    country_weights: Dict[str, float] = defaultdict(float)
+    
+    for doc in documents:
+        doc_id = doc.get("doc_id", "")
+        if not doc_id:
+            continue
+        
+        meta = corpus_index.get(doc_id, {})
+        country_name = meta.get("country_name")
+        if not country_name:
+            continue
+        
+        iso3 = COUNTRY_TO_ISO3.get(country_name)
+        if not iso3:
+            continue
+        
+        frame_scores = doc.get("frame_scores", {})
+        weight = doc.get("total_weight", 1)
+        
+        for frame, score in frame_scores.items():
+            if frame not in exclude_set:
+                country_frame_scores[iso3][frame] += score * weight
+        country_weights[iso3] += weight
+    
+    # Find dominant frame per country
+    result = {}
+    for iso3 in country_frame_scores:
+        frame_scores = country_frame_scores[iso3]
+        if frame_scores and country_weights[iso3] > 0:
+            # Normalize by weight
+            normalized = {f: s / country_weights[iso3] for f, s in frame_scores.items()}
+            dominant = max(normalized.items(), key=lambda x: x[1])
+            if dominant[1] > 0:
+                result[iso3] = dominant[0]
+    
+    return result
+
+
 def get_europe_geodata() -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """Load Natural Earth country boundaries for Europe (50m resolution)."""
     # Download Natural Earth countries data (50m = medium resolution, good balance)
@@ -397,19 +456,23 @@ def create_europe_map(
     ax.axis("off")
     
     # Save or show
+    _save_figure(output_path)
+
+
+def _save_figure(output_path: Optional[Path]) -> None:
+    """Save or show the current figure."""
     if output_path:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Determine format from extension
         fmt = output_path.suffix.lower().lstrip(".")
-        if fmt not in ("png", "svg", "pdf"):
+        if fmt not in ("png", "svg", "pdf", "jpg"):
             fmt = "png"
         
         plt.savefig(
             output_path,
             format=fmt,
-            dpi=150 if fmt == "png" else None,
+            dpi=150 if fmt in ("png", "jpg") else None,
             bbox_inches="tight",
             facecolor="white",
             edgecolor="none",
@@ -417,6 +480,124 @@ def create_europe_map(
         print(f"✅ Saved map to {output_path}")
     else:
         plt.show()
+    
+    plt.close()
+
+
+# Frame colors for categorical map (supports both IDs and names)
+# Colors by frame ID (1-9) and common name patterns
+FRAME_COLORS = {
+    # By ID
+    "1": "#a65628",       # brown - Slaughterhouses
+    "2": "#984ea3",       # purple - Cruel Treatments
+    "3": "#ff7f00",       # orange - Pet/Companion
+    "4": "#ffff33",       # yellow - Cage-Free
+    "5": "#377eb8",       # blue - Plant-Based
+    "6": "#e41a1c",       # red - Factory Farming
+    "7": "#4daf4a",       # green - Anti-Hunting
+    "8": "#f781bf",       # pink - Anti-Lab Experiments
+    "9": "#66c2a5",       # teal - General Animal Welfare
+    # By name (legacy)
+    "factory_farming": "#e41a1c",
+    "cruel_treatments": "#984ea3",
+    "anti_hunting": "#4daf4a",
+    "pet_companion": "#ff7f00",
+    "plant_based": "#377eb8",
+    "cage_free": "#ffff33",
+    "slaughterhouses": "#a65628",
+    "anti_lab_experiments": "#f781bf",
+    "general_animal_welfare": "#66c2a5",
+}
+
+FRAME_DISPLAY_NAMES = {
+    # By ID
+    "1": "Slaughterhouses",
+    "2": "Cruel Treatments",
+    "3": "Pet/Companion Animals",
+    "4": "Cage-Free",
+    "5": "Plant-Based",
+    "6": "Factory Farming",
+    "7": "Anti-Hunting",
+    "8": "Anti-Lab Experiments",
+    "9": "General Animal Welfare",
+    # By name (legacy)
+    "factory_farming": "Factory Farming",
+    "cruel_treatments": "Cruel Treatments",
+    "anti_hunting": "Anti-Hunting",
+    "pet_companion": "Pet/Companion Animals",
+    "plant_based": "Plant-Based",
+    "cage_free": "Cage-Free",
+    "slaughterhouses": "Slaughterhouses",
+    "anti_lab_experiments": "Anti-Lab Experiments",
+    "general_animal_welfare": "General Animal Welfare",
+}
+
+
+def create_dominant_frame_map(
+    dominant_frames: Dict[str, str],
+    output_path: Optional[Path] = None,
+    figsize: tuple = (12, 10),
+) -> None:
+    """Create a Europe map colored by dominant frame per country.
+    
+    Args:
+        dominant_frames: Dict mapping ISO3 code to dominant frame name
+        output_path: Path to save the figure
+        figsize: Figure size in inches
+    """
+    import matplotlib.patches as mpatches
+    
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Open Sans', 'Helvetica Neue', 'Arial', 'sans-serif']
+    
+    europe, context = get_europe_geodata()
+    europe = europe.to_crs(epsg=3857)
+    context = context.to_crs(epsg=3857)
+    
+    # Map dominant frame to color
+    europe["dominant_frame"] = europe["iso3"].map(dominant_frames)
+    europe["color"] = europe["dominant_frame"].map(FRAME_COLORS)
+    europe["color"] = europe["color"].fillna("#d0d0d0")  # Grey for no data
+    
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.set_facecolor("#f0f0f0")
+    
+    # Plot context countries
+    context.plot(ax=ax, color="#e8e8e8", edgecolor="#ffffff", linewidth=0.3)
+    
+    # Plot countries without data
+    no_data = europe[europe["dominant_frame"].isna()]
+    if len(no_data) > 0:
+        no_data.plot(ax=ax, color="#d0d0d0", edgecolor="#ffffff", linewidth=0.5)
+    
+    # Plot countries with data (colored by frame)
+    with_data = europe[europe["dominant_frame"].notna()]
+    if len(with_data) > 0:
+        with_data.plot(ax=ax, color=with_data["color"], edgecolor="#ffffff", linewidth=0.5)
+    
+    # Create legend
+    frames_present = set(dominant_frames.values())
+    legend_patches = [
+        mpatches.Patch(color=FRAME_COLORS.get(f, "#888"), label=FRAME_DISPLAY_NAMES.get(f, f))
+        for f in sorted(frames_present)
+        if f in FRAME_COLORS
+    ]
+    if legend_patches:
+        ax.legend(
+            handles=legend_patches,
+            loc='lower left',
+            fontsize=9,
+            framealpha=0.9,
+            title="Dominant Frame",
+            title_fontsize=10,
+        )
+    
+    # Crop to mainland Europe
+    ax.set_xlim(-2_800_000, 5_000_000)
+    ax.set_ylim(4_000_000, 11_500_000)
+    ax.axis("off")
+    
+    _save_figure(output_path)
     
     plt.close()
 
@@ -438,9 +619,9 @@ def main():
     )
     parser.add_argument(
         "--metric",
-        choices=["sum", "mean"],
-        default="sum",
-        help="Aggregation metric: sum (total presence) or mean (average per document)",
+        choices=["mean", "sum"],
+        default="mean",
+        help="Aggregation metric: mean (average per document) or sum (total presence)",
     )
     parser.add_argument(
         "--frame",
@@ -459,6 +640,12 @@ def main():
         action="store_true",
         help="Use random scores for testing visualization",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["score", "dominant"],
+        default="score",
+        help="Map mode: 'score' (continuous colormap) or 'dominant' (categorical by dominant frame)",
+    )
     
     args = parser.parse_args()
     
@@ -475,35 +662,48 @@ def main():
     documents = load_document_aggregates(args.results_dir)
     print(f"   Loaded {len(documents)} document aggregates")
     
-    # Aggregate by country (or use random for testing)
-    if args.random:
-        # Generate random scores for all European countries
-        country_scores = {iso3: np.random.uniform(0.1, 1.0) for iso3 in ISO3_TO_NAME.keys()}
-        print(f"   Generated random scores for {len(country_scores)} countries")
+    if args.mode == "dominant":
+        # Dominant frame map
+        dominant_frames = aggregate_dominant_frame_by_country(documents, corpus_index)
+        print(f"   Found dominant frames for {len(dominant_frames)} countries")
+        
+        # Print summary
+        print("\n📊 Dominant frames by country:")
+        for iso3, frame in sorted(dominant_frames.items(), key=lambda x: x[1]):
+            name = ISO3_TO_NAME.get(iso3, iso3)
+            display = FRAME_DISPLAY_NAMES.get(frame, frame)
+            print(f"   {name}: {display}")
+        
+        print(f"\n🗺️  Generating dominant frame map...")
+        create_dominant_frame_map(dominant_frames, output_path=args.output)
     else:
-        country_scores = aggregate_by_country(
-            documents,
-            corpus_index,
-            metric=args.metric,
-            frame=args.frame,
+        # Score-based map
+        if args.random:
+            country_scores = {iso3: np.random.uniform(0.1, 1.0) for iso3 in ISO3_TO_NAME.keys()}
+            print(f"   Generated random scores for {len(country_scores)} countries")
+        else:
+            country_scores = aggregate_by_country(
+                documents,
+                corpus_index,
+                metric=args.metric,
+                frame=args.frame,
+            )
+            print(f"   Aggregated scores for {len(country_scores)} countries")
+        
+        # Print summary
+        if country_scores:
+            sorted_scores = sorted(country_scores.items(), key=lambda x: x[1], reverse=True)
+            print("\n📊 Top countries by score:")
+            for country, score in sorted_scores[:10]:
+                name = ISO3_TO_NAME.get(country, country)
+                print(f"   {name}: {score:.4f}")
+        
+        print(f"\n🗺️  Generating map...")
+        create_europe_map(
+            country_scores,
+            output_path=args.output,
+            cmap=args.cmap,
         )
-        print(f"   Aggregated scores for {len(country_scores)} countries")
-    
-    # Print summary
-    if country_scores:
-        sorted_scores = sorted(country_scores.items(), key=lambda x: x[1], reverse=True)
-        print("\n📊 Top countries by score:")
-        for country, score in sorted_scores[:10]:
-            name = ISO3_TO_NAME.get(country, country)
-            print(f"   {name}: {score:.4f}")
-    
-    # Create map
-    print(f"\n🗺️  Generating map...")
-    create_europe_map(
-        country_scores,
-        output_path=args.output,
-        cmap=args.cmap,
-    )
     
     return 0
 

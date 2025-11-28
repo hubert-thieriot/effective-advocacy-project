@@ -37,25 +37,26 @@ class OpenAIConfig:
     ignore_cache: bool = False
     verbose: bool = False
     
-    # Models that only support default temperature (1.0)
-    _DEFAULT_TEMP_MODELS = {"gpt-5-nano"}
+    # Models that don't support custom temperature (must use default or omit parameter)
+    _NO_TEMP_MODELS = {"gpt-5-nano", "gpt-5-mini"}
     
     def __post_init__(self):
         """Validate and adjust temperature based on model capabilities."""
-        if self.model in self._DEFAULT_TEMP_MODELS and self.temperature != 1.0:
-            if self.verbose:
-                print(f"⚠️ Model {self.model} only supports default temperature (1.0), overriding {self.temperature} -> 1.0")
-            self.temperature = 1.0
+        if self.model in self._NO_TEMP_MODELS:
+            # These models don't support temperature parameter - it will be omitted from API calls
+            if self.verbose and self.temperature != 1.0:
+                print(f"⚠️ Model {self.model} doesn't support custom temperature, will omit temperature parameter (requested: {self.temperature})")
+            # Store the requested value but it won't be used in API calls
     
     @classmethod
     def get_default_temperature(cls, model: str) -> float:
         """Get the default temperature for a given model."""
-        return 1.0 if model in cls._DEFAULT_TEMP_MODELS else 0.0
+        return 1.0 if model in cls._NO_TEMP_MODELS else 0.0
     
     @classmethod
     def supports_custom_temperature(cls, model: str) -> bool:
         """Check if a model supports custom temperature values."""
-        return model not in cls._DEFAULT_TEMP_MODELS
+        return model not in cls._NO_TEMP_MODELS
 
 
 class OpenAIInterface:
@@ -168,12 +169,18 @@ class OpenAIInterface:
         """Make OpenAI API call with retry logic and error handling."""
         for attempt in range(self.config.max_retries):
             try:
-                response = self.client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages,
-                    temperature=self.config.temperature,
-                    timeout=self.config.timeout
-                )
+                # Build API call parameters
+                api_params = {
+                    "model": self.config.model,
+                    "messages": messages,
+                    "timeout": self.config.timeout
+                }
+                
+                # Only include temperature if the model supports it
+                if self.config.supports_custom_temperature(self.config.model):
+                    api_params["temperature"] = self.config.temperature
+                
+                response = self.client.chat.completions.create(**api_params)
                 
                 return response.choices[0].message.content
                 

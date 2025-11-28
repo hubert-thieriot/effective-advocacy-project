@@ -109,6 +109,7 @@ class InductionConfig:
     frame_target: str = "between 5 and 10"
     temperature: Optional[float] = None  # None = use model default
     guidance: Optional[str] = None
+    batch_size: Optional[int] = None  # Max passages per LLM call (default: auto-sized)
 
 
 @dataclass
@@ -155,6 +156,14 @@ class NarrativeFramingConfig:
     reload_classifier: bool = False
     reload_classifications: bool = False
     reload_aggregates: bool = True
+    
+    # Top-level relevance keywords (used for both induction sampling and annotation bypass).
+    # Can be a flat list (applies to all languages) or dict by language code:
+    #   relevance_keywords: [animal, welfare, ...]  # flat
+    #   relevance_keywords:  # by language
+    #     english: [animal, welfare, ...]
+    #     german: [tier, tierschutz, ...]
+    relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
     
     # Nested configuration sections
     filter: FilterConfig = field(default_factory=FilterConfig)
@@ -406,6 +415,22 @@ def load_config(path: Path) -> NarrativeFramingConfig:
     if "reload_aggregates" in data:
         config.reload_aggregates = bool(data["reload_aggregates"])
     
+    # Parse top-level relevance_keywords (used for both induction and annotation)
+    if "relevance_keywords" in data:
+        keywords = data["relevance_keywords"]
+        if keywords is None:
+            config.relevance_keywords = None
+        elif isinstance(keywords, dict):
+            # Dict by language code: {english: [...], german: [...], ...}
+            config.relevance_keywords = {
+                lang: [str(item).lower().strip() for item in kw_list if item]
+                for lang, kw_list in keywords.items()
+                if kw_list
+            }
+        else:
+            # Flat list (language-agnostic)
+            config.relevance_keywords = [str(item).lower().strip() for item in keywords if item]
+    
     # Parse nested chunking config
     if "chunking" in data and isinstance(data["chunking"], dict):
         chunking_data = data["chunking"]
@@ -428,6 +453,8 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.induction.temperature = float(induction_data["temperature"]) if induction_data["temperature"] is not None else None
         if "guidance" in induction_data:
             config.induction.guidance = str(induction_data["guidance"]).strip() if induction_data["guidance"] else None
+        if "batch_size" in induction_data:
+            config.induction.batch_size = int(induction_data["batch_size"]) if induction_data["batch_size"] else None
     
     # Parse nested annotation config
     if "annotation" in data and isinstance(data["annotation"], dict):

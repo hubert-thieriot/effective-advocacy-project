@@ -119,9 +119,14 @@ class OpenAIInterface:
         if not self.config.ignore_cache:
             cached_entry = self.cache_manager.get(self.config.model, messages, parameters)
             if cached_entry is not None:
-                if self.config.verbose:
-                    print(f"📋 Using cached response for {self.name} ({self.config.model})")
-                return cached_entry.response
+                # Skip cached error responses (re-fetch them)
+                if self._is_error_response(cached_entry.response):
+                    if self.config.verbose:
+                        print(f"⚠️ Skipping cached error response, will re-fetch")
+                else:
+                    if self.config.verbose:
+                        print(f"📋 Using cached response for {self.name} ({self.config.model})")
+                    return cached_entry.response
         
         # Make API call
         if self.config.verbose:
@@ -134,16 +139,30 @@ class OpenAIInterface:
         if self.config.verbose:
             print(f"✅ OpenAI API call completed in {inference_time:.2f}s for {self.name} ({self.config.model})")
         
-        # Cache the response using centralized cache manager
-        self.cache_manager.put(
-            model=self.config.model,
-            messages=messages,
-            parameters=parameters,
-            response=response,
-            inference_time=inference_time
-        )
+        # Don't cache error responses (429 rate limit, insufficient credits, etc.)
+        if not self._is_error_response(response):
+            self.cache_manager.put(
+                model=self.config.model,
+                messages=messages,
+                parameters=parameters,
+                response=response,
+                inference_time=inference_time
+            )
+        else:
+            if self.config.verbose:
+                print(f"⚠️ Skipping cache for error response")
         
         return response
+    
+    def _is_error_response(self, response: str) -> bool:
+        """Check if response is an error that should not be cached."""
+        error_indicators = [
+            "rate_limit",
+            "insufficient_quota",
+            "RateLimitError",
+            "API error"
+        ]
+        return any(indicator in response for indicator in error_indicators)
 
     def _safe_infer(self, messages: List[Dict[str, str]]) -> str:
         """Make OpenAI API call with retry logic and error handling."""

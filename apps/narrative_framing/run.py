@@ -10,7 +10,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 
 import os
@@ -420,6 +420,28 @@ class NarrativeFramingWorkflow:
         self.app_usr_t = _read_text_or_fail(prompt_paths["application_user"])
 
     # --------------------------------------------------------------------- #
+    # Helper methods
+    # --------------------------------------------------------------------- #
+    @staticmethod
+    def _flatten_keywords(
+        keywords: Optional[Union[List[str], Dict[str, List[str]]]]
+    ) -> Optional[List[str]]:
+        """Flatten language-specific keywords dict to a single list for sampling.
+        
+        The sampler uses substring matching, so we dedupe and return all keywords
+        across all languages as a flat list.
+        """
+        if keywords is None:
+            return None
+        if isinstance(keywords, list):
+            return keywords
+        # Dict: flatten all language lists into one unique set
+        all_kw = set()
+        for kw_list in keywords.values():
+            all_kw.update(kw_list)
+        return list(all_kw) if all_kw else None
+
+    # --------------------------------------------------------------------- #
     # Public orchestration entrypoint
     # --------------------------------------------------------------------- #
     def run(self) -> None:
@@ -458,23 +480,39 @@ class NarrativeFramingWorkflow:
 
         if state.schema is None and self.allow_new_induction:
             print("Collecting passages for frame induction...")
+            # Use relevance_keywords to filter induction sample (flatten if dict)
+            induction_keywords = self._flatten_keywords(config.relevance_keywords)
+            if induction_keywords:
+                print(f"   Filtering induction sample to passages with {len(induction_keywords)} relevance keywords")
+            
+            # Get base sampler kwargs and override keywords with relevance_keywords if provided
+            sampler_kwargs = self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist)
+            if induction_keywords:
+                sampler_kwargs["keywords"] = induction_keywords
+            
             induction_samples = self.sampler.collect_chunks(
                 SamplerConfig(
                     sample_size=config.induction.size,
                     seed=config.seed,
                     date_from=config.filter.date_from,
                     require_document_keywords=config.filter.document.keywords,
-                    **self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist),
+                    **sampler_kwargs,
                 )
             )
             print(f"Collected {len(induction_samples)} passages for induction.")
             induction_passages = [text for _, text in induction_samples]
             inducer_client = OpenAIInterface(name="frame_induction", config=self.openai_induction_config)
+            # Determine max passages per induction call
+            if config.induction.batch_size:
+                max_per_call = config.induction.batch_size
+            else:
+                max_per_call = min(config.induction.size, 40)
+            
             inducer = FrameInducer(
                 llm_client=inducer_client,
                 domain=config.domain,
                 frame_target=config.induction.frame_target,
-                max_passages_per_call=max(20, min(config.induction.size, 80)),
+                max_passages_per_call=max_per_call,
                 max_total_passages=config.induction.size * 2,
                 induction_guidance=config.induction.guidance,
                 system_template=self.ind_sys_t,
@@ -573,7 +611,7 @@ class NarrativeFramingWorkflow:
                         top_k=config.annotation.top_k,
                         show_progress=True,
                         progress_desc=f"Annotating frames ({annotator_client.config.model})",
-                        relevance_keywords=config.annotation.force_zero_if_no_keywords,
+                        relevance_keywords=config.annotation.force_zero_if_no_keywords or config.relevance_keywords,
                         guidance=config.annotation.guidance,
                     )
                     assignments.extend(new_assignments)

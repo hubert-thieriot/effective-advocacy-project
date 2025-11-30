@@ -131,6 +131,8 @@ This type of analysis could inform advocacy and funding strategies in several wa
 This second application shifts from media analysis to political discourse, examining how European political parties frame animal welfare in their electoral manifestos. The analysis covers manifestos published since 2018 spanning 36 countries and 29 languages, and were collected from the [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. It is important to note though that **these manifestos may represent different types of elections** and may therefore lead to biased cross-country comparisons; a more thorough analysis would further discriminate by election type.
 
 
+The left map shows how much attention each country's manifestos give to animal welfare. The right map highlights the dominant frame in each country, excluding the catch-all "General animal welfare" category to emphasize more specific narratives. *Frames definitions are detailed [below](#frames-manifesto)*.
+
 <div class="chart-item">
   <div class="chart-heading">
     <div class="chart-title">Animal welfare in European political manifestos</div>
@@ -149,12 +151,10 @@ This second application shifts from media analysis to political discourse, exami
   </p>
 </div>
 
-The left map shows how much attention each country's manifestos give to animal welfare (darker = more attention). The right map highlights the dominant frame in each country, excluding the catch-all "General animal welfare" category to emphasize more specific narratives. *Frames definitions are detailed [below](#frames-manifesto)*.
-
 A central belt (Germany, Netherlands, Belgium, Austria) gives animal welfare more space and mostly leads with factory farming critiques. France, Spain, and Poland mention animal welfare less overall but surface cruelty more often.
 
 
-Looking across all European parties, Green parties consistently rank among the highest in attention to animal welfare. 
+Looking across all European parties, Green and animalist parties unsurprisingly rank among the highest in attention to animal welfare.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -190,7 +190,7 @@ Examining parties within each country reveals more nuanced patterns and even som
 
 ### Strategic applications
 
-For advocacy organizations and strategic funders working on animal welfare, this type of analysis can support several strategic functions:
+For advocacy organizations and strategic funders working on animal welfare, this type of analysis could support several strategic functions:
 
 **Map the political landscape**: The geographic patterns revealed in the analysis can help advocates and funders understand where certain framings have more political traction. This information can guide decisions about where to invest resources, which messages to prioritize in different contexts, and where there might be opportunities to introduce new frames.
 

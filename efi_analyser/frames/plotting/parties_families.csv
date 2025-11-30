@@ -1,0 +1,279 @@
+party_id,country,abbrev,name,name_english,family
+11110,Sweden,MP,Miljöpartiet de Gröna,Green Ecology Party,green
+11220,Sweden,V,Vänsterpartiet,Left Party,far-left
+11320,Sweden,SAP,Socialdemokratiska Arbetareparti,Social Democratic Labour Party,unknown
+11420,Sweden,L,Liberalerna,Liberals,liberal
+11520,Sweden,Kd,Kristdemokraterna,Christian Democrats,centre-right
+11620,Sweden,MSP,Moderata Samlingspartiet,Moderate Coalition Party,unknown
+11710,Sweden,SD,Sverigedemokraterna,Sweden Democrats,far-right
+11810,Sweden,CP,Centerpartiet,Centre Party,centre
+13001,Denmark,NA,Liberal Alliance,Liberal Alliance,liberal
+13110,Denmark,NA,Alternativet,Alternativ,centre-right
+13229,Denmark,EL,Enhedslisten - De Rød-Grønne,Red-Green Unity List,far-left
+13230,Denmark,SF,Socialistisk Folkeparti,Socialist People’s Party,centre-left
+13320,Denmark,SD,Socialdemokratiet,Social Democratic Party,unknown
+13410,Denmark,RV,Det Radikale Venstre,Danish Social-Liberal Party,liberal
+13420,Denmark,V,Venstre,Liberals,liberal
+13620,Denmark,KF,Konservative Folkeparti,Conservative People’s Party,centre-right
+13720,Denmark,DF,Dansk Folkeparti,Danish People’s Party,far-right
+13730,Denmark,NA,Nye Borgerlige,The New Right,unknown
+14110,Finland,VL,Vihreä Liitto,Green Union,green
+14223,Finland,VAS,Vasemmistoliitto,Left Wing Alliance,unknown
+14320,Finland,SSDP,Suomen Sosialidemokraattinen Puolue,Finnish Social Democrats,unknown
+14440,Finland,NA,Liike Nyt,Movement Now,unknown
+14520,Finland,KD,Suomen Kristillisdemokraatit,Christian Democrats in Finland,centre-right
+14620,Finland,KK,Kansallinen Kokoomus,National Coalition,unknown
+14810,Finland,SK,Suomen Keskusta,Finnish Centre,unknown
+14820,Finland,PS,Perussuomalaiset,True Finns,far-right
+14901,Finland,RKP/SFP,Ruotsalainen Kansanpuolue/Svenska Folkpartiet,Swedish People’s Party,unknown
+15111,Iceland,VGF,Vinstrihreyfing - Grænt Framboð,Left Green Movement,far-left
+15328,Iceland,S,Samfylkingin - Jafnaðarmannaflokkur Íslands,The Alliance - Social Democratic Party of Iceland,unknown
+15450,Iceland,NA,Viðreisn,Reform Party,liberal
+15620,Iceland,Sj,Sjálfstæðisflokkurinn,Independence Party,centre-right
+15630,Iceland,NA,Miðflokkurinn,Centre Party,unknown
+15810,Iceland,F,Framsóknarflokkurinn,Progressive Party,centre
+15952,Iceland,Þ,Pírataflokkurinn,Pirate Party,other
+15953,Iceland,NA,Flokkur fólksins,People’s Party,unknown
+21111,Belgium,ECOLO,Écologistes Confédérés pour l’Organisation de Luttes Originales,Ecologists,green
+21112,Belgium,groen!,Groen!,Green!,green
+21230,Belgium,PTB/PVDA,Partij van de Arbeid van België/Parti du Travail de Belgique,Workers' Party of Belgium,far-left
+21321,Belgium,NA,Vooruit,Onward,centre-left
+21322,Belgium,PS,Parti Socialiste,Francophone Socialist Party,centre-left
+21421,Belgium,openVLD,Open Vlaamse Liberalen en Demokraten,Open Flemish Liberals and Democrats,liberal
+21426,Belgium,MR,Mouvement Réformateur,Reform Movement,liberal
+21521,Belgium,CD&V,Christen-Democratisch en Vlaams,Christian Democratic and Flemish,centre-right
+21522,Belgium,LE,Les Engagés,The Committed Ones,centre-right
+21912,Belgium,DéFI,Démocrate fédéraliste indépendant,"Democratic, Federalist, Independent",liberal
+21916,Belgium,N-VA,Nieuw-Vlaamse Alliantie,New Flemish Alliance,far-right
+21917,Belgium,VB,Vlaams Belang,Flemish Interest,far-right
+22110,Netherlands,GL,GroenLinks,Green Left,green
+22220,Netherlands,SP,Socialistische Partij,Socialist Party,unknown
+22235,Netherlands,Volt,Volt Nederland,Volt Netherlands,liberal
+22240,Netherlands,NA,BIJ1,Together,unknown
+22320,Netherlands,PvdA,Partij van de Arbeid,Labour Party,centre-left
+22321,Netherlands,DENK,DENK,DENK,centre-left
+22330,Netherlands,D’66,Democraten‘66,Democrats‘66,liberal
+22420,Netherlands,VVD,Volkspartij voor Vrijheid en Democratie,People’s Party for Freedom and Democracy,centre-right
+22521,Netherlands,CDA,Christen-Democratisch Appèl,Christian Democratic Appeal,centre-right
+22526,Netherlands,CU,ChristenUnie,Christian Union,unknown
+22722,Netherlands,PVV,Partij voor de Vrijheid,Party of Freedom,far-right
+22730,Netherlands,FvD,Forum voor Democratie,Forum for Democracy,far-right
+22731,Netherlands,JA21,Juiste Antwoord 21,Right Answer 21,far-right
+22820,Netherlands,BBB,BoerBurgerBewegning,Farmer-Citizen Movement,centre-right
+22951,Netherlands,PvdD,Partij voor de Dieren,Party for the Animals,animalist
+22952,Netherlands,SGP,Staatskundig Gereformeerde Partij,Reformed Political Party,unknown
+22953,Netherlands,50PLUS,50Plus,50Plus,unknown
+31022,France,NUPES,Nouvelle Union populaire écologique et sociale,New Ecologic and Social People's Union,centre-left
+31041,France,EPR,Ensemble pour la République,Together for the Republic,liberal
+31061,France,UDC,Union de la droite et du centre,Union of the Right and Centre,centre-right
+31320,France,PS,Parti Socialiste,Socialist Party,centre-left
+31425,France,NA,Renaissance,Renaissance,far-right
+31430,France,UDI,Union des démocrates et indépendants,Union of Democrats and Independents,centre-right
+31440,France,NA,Horizons,Horizons,centre-right
+31624,France,MoDem,Mouvement Démocrate,Democratic Movement,centre-right
+31720,France,RN,Rassemblement national,National Rally,far-right
+32022,Italy,I,Italia Europa Insieme,Italy Europe Together,liberal
+32031,Italy,LeU,Liberi e Uguali,Free and Equal,centre-left
+32051,Italy,CP,Civica Popolare,Popular Civic List,unknown
+32055,Italy,NcL,Noi con l'Italia,Us with Italy,unknown
+32090,Italy,SVP-PATT,Coalizione Südtiroler Volkspartei e Partito Autonomista Trentino Tirolese,Coalition of South Tyrolean People’s Party and Trentino Tyrolean Autonomist Party,unknown
+32440,Italy,PD,Partito Democratico,Democratic Party,centre-left
+32451,Italy,E,Più Europa,More Europe,liberal
+32610,Italy,FI,Forza Italia,Go Italy,centre-right
+32630,Italy,FDI,Fratelli d'Italia,Brothers of Italy,far-right
+32720,Italy,L,Lega,League,far-right
+32956,Italy,M5S,MoVimento 5 Stelle,Five Star Movement,other
+33021,Spain,NA,Sumar,Unite,centre-left
+33095,Spain,EH Bildu,Euskal Herria Bildu,Basque Country Unite,far-left
+33096,Spain,NA,En Comú Podem,In Common We Can,unknown
+33210,Spain,NA,Podemos,We can,far-left
+33220,Spain,IU,Izquierda Unida,United Left,far-left
+33230,Spain,NA,Más País-Equo,More Country - Equo,unknown
+33320,Spain,PSOE,Partido Socialista Obrero Español,Spanish Socialist Workers’ Party,centre-left
+33420,Spain,C's,Ciudadanos - Partido de la Ciudadania,Citizens - Party of the Citizens,unknown
+33610,Spain,PP,Partido Popular,People's Party,centre-right
+33710,Spain,VOX,Vox,Voice,far-right
+33902,Spain,PNV/EAJ,Partido Nacionalista Vasco/Euzko Alderdi Jeltzalea,Basque Nationalist Party,centre-right
+33905,Spain,ERC,Esquerra Republicana de Catalunya,Catalan Republican Left,centre-left
+33907,Spain,CCa-PNC-NC,Coalición Canaria - Nueva Canarias,Canarian Coalition–New Canaries,centre
+33908,Spain,BNG,Bloque Nacionalista Galego,Galician Nationalist Bloc,centre-left
+33910,Spain,UPN,Unión del Pueblo Navarro,Navarrese People's Union,centre-right
+33912,Spain,JxCat,Junts per Catalunya,Together for Catalonia,centre-left
+33913,Spain,PRC,Partido Regionalista de Cantabria,Regionalist Party of Cantabria,centre
+33914,Spain,NA,Més Compromís,More Commitment,centre-left
+33915,Spain,CUP,Cadidatura d'Unitat Popular,Popular Unity Candidacy,far-left
+33916,Spain,NA,¡Teruel Existe!,Teruel exists,unknown
+34210,Greece,KKE,Kommounistikó Kómma Elládas,Communist Party of Greece,unknown
+34212,Greece,SYRIZA,Synaspismós Rizospastikís Aristerás,Coalition of the Radical Left,far-left
+34215,Greece,MeRA25,Μétopo Evropaikís Realistikís Anypakoís,European Realistic Disobedience Front,unknown
+34315,Greece,PASOK-KINAL,PASOK – Kínima Allagís,PASOK – Movement for Change,unknown
+34511,Greece,ND,Nea Dimokratia,New Democracy,centre-right
+34711,Greece,EL,Ellinikí Lýsi,Greek Solution,far-right
+34720,Greece,XA,Chrysi Avgi,Golden Dawn,far-right
+35110,Portugal,PEV,Partido Ecologista ‘Os Verdes’,Ecologist Party ‘The Greens',green
+35120,Portugal,PAN,Pessoas-Animais-Natureza,People-Animals-Nature,green
+35130,Portugal,L,LIVRE,Free,green
+35211,Portugal,BE,Bloco de Esquerda,Left Bloc,far-left
+35220,Portugal,PCP,Partido Comunista Português,Portuguese Communist Party,far-left
+35311,Portugal,PS,Partido Socialista,Socialist Party,centre-left
+35313,Portugal,PSD,Partido Social Democrata,Social Democratic Party,centre-right
+35410,Portugal,IL,Iniciativa Liberal,Liberal Iniciative,liberal
+35520,Portugal,CDS-PP,Centro Democrático Social-Partido Popular,Social Democratic Center-Popular Party,centre-right
+35720,Portugal,,Chega,Enough,far-right
+41113,Germany,90/Greens,Bündnis‘90/Die Grünen,Alliance‘90/Greens,green
+41223,Germany,LINKE,Die Linke,The Left,centre-right
+41320,Germany,SPD,Sozialdemokratische Partei Deutschlands,Social Democratic Party of Germany,centre-left
+41420,Germany,FDP,Freie Demokratische Partei,Free Democratic Party,liberal
+41521,Germany,CDU/CSU,Christlich-Demokratische Union/Christlich-Soziale Union,Christian Democratic Union/Christian Social Union,unknown
+41730,Germany,BSW,Bündnis Sahra Wagenknecht – Vernunft und Gerechtigkeit,Sahra Wagenknecht Alliance – Reason and Justice,far-left
+41912,Germany,SSW,Südschleswigscher Wählerverband - Sydslesvigsk Vælgerforening,South Schleswig Voters’ Union,other
+41953,Germany,AfD,Alternative für Deutschland,Alternative for Germany,far-right
+42110,Austria,GRÜNE,Die Grünen,The Greens,green
+42320,Austria,SPÖ,Sozialdemokratische Partei Österreichs,Austrian Social Democratic Party,centre-left
+42420,Austria,FPÖ,Freiheitliche Partei Österreichs,Austrian Freedom Party,far-right
+42430,Austria,NEOS,Das Neue Österreich und Liberales Forum,The New Austria and Liberal Forum,liberal
+42520,Austria,ÖVP,Österreichische Volkspartei,Austrian People’s Party,centre-right
+43020,Switzerland,EAG,Ensemble à Gauche,Together on the Left,unknown
+43110,Switzerland,GPS/PES,Grüne Partei der Schweiz/Parti écologiste suisse,Green Party of Switzerland,green
+43120,Switzerland,GLP,Grünliberale Partei der Schweiz,Green Liberal Party,liberal
+43220,Switzerland,PdAS/PdTS,Partei der Arbeit der Schweiz/Parti suisse du travail,Swiss Labour Party,unknown
+43320,Switzerland,SPS/PSS,Sozialdemokratische Partei der Schweiz/Parti socialiste suisse,Social Democratic Party of Switzerland,centre-left
+43420,Switzerland,FDP/PLR,FDP.Die Liberalen/PLR.Les Libéraux-Radicaux,FDP.The Liberals,unknown
+43520,Switzerland,CVP/PDC,Christlichdemokratische Volkspartei der Schweiz/Parti démocrate-chrétien suisse,Christian Democratic People’s Party of Switzerland,centre-right
+43530,Switzerland,EVP/PEV,Evangelische Volkspartei der Schweiz/Parti Evangélique Suisse,Protestant People’s Party of Switzerland,unknown
+43711,Switzerland,EDU/UDF,Eidgenössisch-Demokratische Union/Union Démocratique Fédérale,Federal Democratic Union,far-right
+43810,Switzerland,SVP/UDC,Schweizerische Volkspartei/Union démocratique du centre,Swiss People’s Party,far-right
+43811,Switzerland,BDP/PBD,Bürgerlich-Demokratische Partei Schweiz/Parti Bourgeois Démocratique Suisse,Conservative Democratic Party of Switzerland,centre-right
+43901,Switzerland,LdT,Lega dei Ticinesi,Ticino League,far-right
+51110,United Kingdom,GPEW,Green Party of England and Wales,Green Party of England and Wales,green
+51210,United Kingdom,SF,Sinn Féin,We Ourselves,unknown
+51320,United Kingdom,Labour,Labour Party,Labour Party,centre-left
+51340,United Kingdom,SDLP,Social Democratic and Labour Party,Social Democratic and Labour Party,centre-left
+51421,United Kingdom,LibDems,Liberal Democrats,Liberal Democrats,liberal
+51430,United Kingdom,Alliance,Alliance Party of Northern Ireland,Alliance Party of Northern Ireland,centre-left
+51620,United Kingdom,Conservatives,Conservative Party,Conservative Party,centre-right
+51621,United Kingdom,UUP,Ulster Unionist Party,Ulster Unionist Party,centre-right
+51701,United Kingdom,NA,Reform UK,Reform UK,far-right
+51901,United Kingdom,PC,Plaid Cymru,The Party of Wales,centre-left
+51902,United Kingdom,SNP,Scottish National Party,Scottish National Party,centre-left
+51903,United Kingdom,DUP,Democratic Unionist Party,Democratic Unionist Party,centre-right
+51904,United Kingdom,TUV,Traditional Unionist Voice,Traditional Unionist Voice,far-right
+53110,Ireland,Greens,Green Party/Comhaontas Glas,Green Party,green
+53231,Ireland,PBP,People Before Profit,People Before Profit,unknown
+53320,Ireland,Labour,Páirti Lucht Oibre,Labour Party,centre-left
+53321,Ireland,NA,Social Democrats,Social Democrats,unknown
+53520,Ireland,NA,Fine Gael,Family of the Irish,centre-right
+53620,Ireland,NA,Fianna Fáil,Soldiers of Destiny,centre-right
+53951,Ireland,SF,Sinn Féin,We Ourselves,unknown
+53952,Ireland,NA,Aontú,Unite,unknown
+54320,Malta,PL,Partit Laburista,Labour Party,centre-left
+54620,Malta,PN,Partit Nazzjonalista,Nationalist Party,centre-right
+75220,Albania,PSSh,Partia Socialiste e Shqipërisë,Albanian Socialist Party,centre-left
+75230,Albania,PL,Partia e Lirisë,Freedom Party of Albania,centre-left
+75624,Albania,PD,Partia Demokratike e Shqipërisë,Democratic Party of Albania,centre-right
+79030,Bosnia-Herzegovina,DF-GS,Demokratska Fronta - Građanski Savez,Democratic Front - Civic Alliance,centre-left
+79321,Bosnia-Herzegovina,SDP BiH,Socijaldemokratska partija Bosne i Hercegovine,Social Democratic Party of Bosnia and Herzegovina,centre-left
+79322,Bosnia-Herzegovina,DF,Demokratska fronta,Democratic Front,centre-left
+79422,Bosnia-Herzegovina,PDP RS,Partija demokratskog progresa Republike Srpske,Party of Democratic Progress of the Republika Srpska,centre-right
+79440,Bosnia-Herzegovina,NS/HC,Naša stranka,Our Party,liberal
+79441,Bosnia-Herzegovina,ZNG,Za Nove Generacije,For New Generations,other
+79610,Bosnia-Herzegovina,SBB BiH,Savez za bolju budućnost Bosne i Hercegovine,Alliance for a Better Future of Bosnia and Herzegovina,liberal
+79620,Bosnia-Herzegovina,NiP,Narod i Pravda,People and Justice,centre-right
+79625,Bosnia-Herzegovina,NES,Narodni evropski savez Bosne i Hercegovine,The People's European Union of Bosnia and Herzegovina,centre
+79730,Bosnia-Herzegovina,SNSD,Savez nezavisnih socijaldemokrata,Alliance of Independent Social Democrats,centre-left
+79951,Bosnia-Herzegovina,SDA,Stranka demokratske akcije,Party of Democratic Action,centre-right
+79953,Bosnia-Herzegovina,HDZ BiH,Hrvatska demokratska zajednica Bosne i Hercegovine,Croatian Democratic Union of Bosnia and Herzegovina,centre-right
+81032,Croatia,NA,Rijeke pravde,Rivers of Justice,unknown
+81044,Croatia,SSIP-P-F,Stranka s Imenom i Prezimenom - Pametno - Fokus,Party with a First and Last Name - Smart - Focus,unknown
+81240,Croatia,NA,Možemo! - politička platforma,We can!-political platform,unknown
+81245,Croatia,RF,Radnička fronta,Workers' Front,unknown
+81310,Croatia,NL,Nova ljevica,New Left,far-left
+81450,Croatia,NS-R,Narodna stranka - Reformisti,People's Party - Reformists,unknown
+81460,Croatia,Most,Most,Bridge,centre-right
+81711,Croatia,HDZ,Hrvatska demokratska zajednica,Croatian Democratic Union,centre-right
+81712,Croatia,HNS,Hrvatska narodna stranka - liberalni demokrati,Croatian People’s Party - Liberal Democrats,liberal
+81714,Croatia,DP,Domovinski pokret,Homeland Movement,far-right
+81910,Croatia,SDSS,Samostalna demokratska srpska stranka,Independent Democratic Serbian Party,centre-left
+83410,Estonia,SDE,Sotsiaaldemokraatlik Erakond,Social Democratic Party,unknown
+83411,Estonia,K,Eesti Keskerakond,Estonian Center Party,unknown
+83430,Estonia,ER,Eesti Reformierakond,Estonian Reform Party,unknown
+83611,Estonia,NA,Isamaa,Pro Patria,centre-right
+83720,Estonia,EKRE,Eesti Konservatiivne Rahvaerakond,Conservative People's Party of Estonia,far-right
+86001,Hungary,NA,Egységben Magyarországért,United for Hungary,unknown
+86110,Hungary,LMP,Lehet Más Politika!,Politics Can Be Different,unknown
+86111,Hungary,PM,Párbeszéd Magyarországért,Dialogue for Hungary,unknown
+86220,Hungary,MSzP,Magyar Szocialista Párt,Hungarian Socialist Party,centre-left
+86221,Hungary,DK,Demokratikus Koalícío,Democratic Coalition,centre-left
+86340,Hungary,E14-PM,Együtt 2014 – Párbeszéd Magyarországért Választási Szövetség,Together 2014 -Dialogue for Hungary Electoral Alliance,unknown
+86421,Hungary,FiDeSz-KDNP,Szövetség Fiatal Demokraták Szövetsége - Kereszténydemokrata Néppárt,Alliance of Federation of Young Democrats - Christian Democratic People's Party,far-right
+86710,Hungary,Jobbik,Jobbik Magyarországért Mozgalom,Movement for a Better Hungary,far-right
+86711,Hungary,NA,Mi Hazánk Mozgalom,Our Homeland Movement,unknown
+87011,Latvia,AS,Apvienotais saraksts,United List,centre
+87042,Latvia,NA,Attīstībai/Par!,Development/For!,unknown
+87062,Latvia,NA,Vienotība,Unity,unknown
+87063,Latvia,JV,Jaunā Vienotība,New Unity,liberal
+87071,Latvia,NA,Nacionālā apvienība ‘Visu Latvijai!' – ‘Apvienība Tēvzemei un brīvībai - Latvijas Nacionālās neatkaribas kustība',National Alliance ‘All For Latvia!' – ‘For Fatherland and Freedom - Latvian National Independence Movement',unknown
+87110,Latvia,ZZS,Zaļo un Zemnieku savienība,Greens' and Farmers’ Union,green
+87312,Latvia,NA,Progresīvie,The Progressives,centre-left
+87340,Latvia,SDPS,"Sociāldemokrātiskā Partija ""Saskaņa""","Social Democratic Party ""Harmony""",centre-left
+87640,Latvia,NA,Jaunā konservatīvā partija,New Conservative Party,unknown
+87730,Latvia,KPV LV,Kam pieder valsts?,Who owns the state?,unknown
+87735,Latvia,S!,Stabilitātei!,For Stability,unknown
+87736,Latvia,LPV,Latvija pirmajā vietā,Latvia First,far-right
+88320,Lithuania,LSDP,Lietuvos socialdemokratų partija,Lithuanian Social Democratic Party,centre-left
+88322,Lithuania,LSDDP,Lietuvos socialdemokratų darbo partija,Social Democratic Labour Party of Lithuania,unknown
+88440,Lithuania,DP,Darbo Partija,Labour Party,centre-left
+88450,Lithuania,LRLS,Lietuvos respublikos Liberalų sąjūdis,Liberal Movement,liberal
+88451,Lithuania,LP,Laisvės partija,Freedom Party,liberal
+88621,Lithuania,TS-LKD,Tėvynės sąjunga- Lietuvos krikščionys demokratai,Homeland Union - Lithuanian Christian Democrats,centre-right
+88820,Lithuania,LVŽS,Lietuvos valstiečių ir žaliųjų sąjunga,Lithuanian Peasant and Green Union,centre
+88951,Lithuania,LLRA/AWPL,Lietuvos lenkų rinkimų akcija/Akcja Wyborcza Polaków na Litwie,Election Action of Lithuania’s Poles,unknown
+90040,Moldova,ACUM,Blocul electoral „ACUM Platforma DA și PAS”,"Electoral bloc ""NOW  Platform DA and PAS""",unknown
+90231,Moldova,PSRM,Partidul Socialiştilor din Republica Moldova,Party of Socialists of the Republic of Moldova,unknown
+90330,Moldova,PDM,Partidul Democrat din Moldova,Democratic Party of Moldova,unknown
+90620,Moldova,PL,Partidul Liberal,Liberal Party,unknown
+90630,Moldova,ȘOR,Partidul Șor,Șor Party,unknown
+91021,Montenegro,Zajedno,Zajedno!,Together!,liberal
+91040,Montenegro,Mir,Mir je naša nacija,Peace is our Nation,unknown
+91041,Montenegro,Aleksa,Aleksa i Dritan – Hrabro se broji!,Aleksa and Dritan – Count Bravely!,unknown
+91090,Montenegro,ZBCG,Za budućnost Crne Gore,For the Future of Montenegro,unknown
+91220,Montenegro,DPS CG,Demokratska Partija Socijalista Crne Gore,Democratic Party of Socialists of Montenegro,centre-left
+91321,Montenegro,SDP CG,Socijaldemokratska Partija Crne Gore,Social Democratic Party of Montenegro,centre-left
+91322,Montenegro,URA,Ujedinjena reformska akcija,United Reform Action,liberal
+91324,Montenegro,SD CG,Socijaldemokrate Crne Gore,Social Democrats of Montenegro,unknown
+91445,Montenegro,PES,Pokret Evropa sad,Europe Now Movement,liberal
+91920,Montenegro,BS,Bošnjačka Stranka,Bosniak Party,centre-right
+92022,Poland,NA,Lewica,The Left,centre-left
+92050,Poland,PSL,Koalicja Polska,Polish Coalition,unknown
+92070,Poland,KWiN,Konfederacja Wolność i Niepodległość,Confederation Liberty and Independence,unknown
+92435,Poland,KO,Koalicja Obywatelska,Civic Coalition,unknown
+92436,Poland,PiS,Prawo i Sprawiedliwość,Law and Justice,unknown
+92455,Poland,NA,Wiosna,Spring,unknown
+92953,Poland,MN,Mniejszość Niemiecka,German Minority,unknown
+95011,Serbia,MORAMO,"Moramo,",We must,unknown
+95021,Serbia,SPS/JS/ZS,Ivica Dačić — Premijer Srbije,Ivica Dačić — Prime Minister of Serbia,unknown
+95046,Serbia,UZPS,Ujedinjeni za pobedu Srbije,United for the Victory of Serbia,unknown
+95047,Serbia,SPN,Srbija protiv nasilja,Serbia Against Violence,unknown
+95067,Serbia,NADA,Nacionalno demokratska alternativa,National Democratic Alternative,unknown
+95071,Serbia,AV–SNSDS,Aleksandar Vučić – Srbija ne sme da stane,Aleksandar Vučić – Serbia Must Not Stop,unknown
+95072,Serbia,Dveri-POKS,Srpski pokret Dveri - Pokret obnove Kraljevine Srbije,Serbian Movement Dveri - Movement for the Restoration of the Kingdom of Seria,unknown
+95093,Serbia,NA,Akademik Muamer Zukorlić - Samo Pravo - Stranka pravde i pomirenja (SPP) - Demokratska partija Makedonaca (DPM),Academician Muamer Zukorlic - Straight ahead - Party of Justice and Reconciliation SPP - Democratic Party of Macedonians DPM,unknown
+95730,Serbia,SPAS,Srpski patriotski savez,Serbian Partiotic Alliance,unknown
+95740,Serbia,MI–GIN,Mi—Glas iz naroda,We–The Voice from the People,unknown
+95902,Serbia,VMSZ,Vajdasági Magyar Szövetség,Alliance of Vojvodina Hungarians,other
+95952,Serbia,SDA,Stranka Demokratske Akcije,Party of Democratic Action,unknown
+97230,Slovenia,NA,Levica,The Left,unknown
+97322,Slovenia,SD,Socialni Demokrati,Social Democratic Party,unknown
+97330,Slovenia,SDS,Slovenska Demokratska Stranka,Slovenian Democratic Party,unknown
+97341,Slovenia,LMŠ,Lista Marjana Šarca,List of Marjan Šarec,unknown
+97460,Slovenia,SAB,Stranka Alenke Bratušek,Party of Alenka Bratušek,unknown
+97461,Slovenia,SMC,Stranka modernega centra,Modern Centre Party,unknown
+97522,Slovenia,Nsi,Nova Slovenija Krščanski Ljudska Stranka,New Slovenian Christian People’s Party,unknown
+97710,Slovenia,SNS,Slovenska Nacionalna Stranka,Slovenian National Party,unknown
+97951,Slovenia,DeSUS,Demokraticna Stranka Upokojencev Slovenije,Democratic Party of Pensioners of Slovenia,unknown
+98340,Ukraine,NA,Opozycijna platforma - Za žittja,Opposition Platform - For Life,unknown
+98350,Ukraine,NA,Opozycijnyj blok,Opposition Bloc,unknown
+98440,Ukraine,NA,Sluha Narodu,Servant of the People,unknown
+98450,Ukraine,NA,Holos,Voice,unknown
+98617,Ukraine,NA,Vseukrayins'ke Obyednannya Bat'kivshchyna,All-Ukrainian Union ‘Fatherland',unknown
+98631,Ukraine,NA,Yevropeys'ka Solidarnist',European Solidarity,unknown

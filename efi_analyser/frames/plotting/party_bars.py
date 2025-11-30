@@ -67,15 +67,15 @@ _PARTY_FAMILIES_CACHE: Optional[Dict[str, str]] = None  # party_id -> family
 # Political family color palette
 POLITICAL_FAMILY_COLORS: Dict[str, str] = {
     "green": "#2ca25f",  # green
-    "animalist": "#1d9147",  # slightly darker green, very similar to green
+    "animalist": "#1d9147",  # slightly darker green
     "centre-left": "#e75480",  # rose
     "centre": "#d4a5a5",  # light rose
     "centre-right": "#1f78b4",  # blue
-    "far-left": "#b2182b",  # red
-    "far-right": "#8c2d04",  # dark brown
+    "far-left": "#d73027",  # bright red
+    "far-right": "#67000d",  # darker brown
     "liberal": "#f6c344",  # yellow
-    "Federalist": "#1b9e77",  # teal
     "other": "#9e9e9e",  # grey
+    "unknown": "#cccccc",  # light grey for unknown families
 }
 
 
@@ -83,7 +83,7 @@ def _load_party_names() -> Dict[str, Dict[str, str]]:
     """Load party names from parties_MPDataset_MPDS2025a.csv.
     
     Returns:
-        Dict mapping party_id (as string) to dict with 'name_english' and 'abbrev' keys
+        Dict mapping party_id (as string) to dict with 'name', 'name_english', and 'abbrev' keys
     """
     global _PARTY_NAMES_CACHE
     if _PARTY_NAMES_CACHE is not None:
@@ -100,11 +100,13 @@ def _load_party_names() -> Dict[str, Dict[str, str]]:
                 reader = csv.DictReader(f)
                 for row in reader:
                     party_id = str(row.get("party", "")).strip()
+                    name = row.get("name", "").strip()
                     name_english = row.get("name_english", "").strip()
                     abbrev = row.get("abbrev", "").strip()
                     
                     if party_id:
                         party_names[party_id] = {
+                            "name": name,
                             "name_english": name_english,
                             "abbrev": abbrev,
                         }
@@ -140,7 +142,8 @@ def _load_party_families() -> Dict[str, str]:
             with csv_path.open('r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    party_id = str(row.get("party_id", "")).strip()
+                    # Try both "party" and "party_id" column names
+                    party_id = str(row.get("party", "") or row.get("party_id", "")).strip()
                     family = row.get("family", "").strip()
                     
                     if party_id and family:
@@ -177,26 +180,51 @@ def get_party_name(
     
     party_names = _load_party_names()
     if party_id in party_names:
-        name_english = party_names[party_id].get("name_english", "")
-        abbrev = party_names[party_id].get("abbrev", "")
+        name = party_names[party_id].get("name", "").strip()  # Original language name
+        name_english_raw = party_names[party_id].get("name_english", "").strip()
+        abbrev = party_names[party_id].get("abbrev", "").strip()
+        
+        # If name_english is "NA" or empty, use original name
+        if not name_english_raw or name_english_raw.upper() == "NA":
+            name_english = name
+        else:
+            name_english = name_english_raw
+        
+        # Ensure we have a valid name (not "NA")
+        if not name_english or name_english.upper() == "NA":
+            name_english = name
         
         if use_english_name:
-            # Use full English name, but fall back to abbrev if name is too long
-            if name_english:
-                if len(name_english) > max_length and abbrev:
+            # Use full English name (or original if English is NA), but fall back to abbrev if name is too long
+            # name_english is already set to name if it was "NA", so we can use it directly
+            if name_english and name_english.upper() != "NA":
+                if len(name_english) > max_length and abbrev and abbrev.upper() != "NA":
                     return abbrev
+                # Enforce max_length even if we use the original name
+                if len(name_english) > max_length:
+                    return name_english[:max_length-1] + "…"
                 return name_english
-            elif abbrev:
+            elif abbrev and abbrev.upper() != "NA":
                 return abbrev
+            elif name:
+                # Enforce max_length on original name
+                if len(name) > max_length:
+                    return name[:max_length-1] + "…"
+                return name
         else:
-            # Prefer abbrev, but fall back to name_english if abbrev is not available
-            if abbrev:
+            # Prefer abbrev, but fall back to name_english (or original name) if abbrev is not available
+            if abbrev and abbrev.upper() != "NA":
                 return abbrev
-            elif name_english:
+            elif name_english and name_english.upper() != "NA":
                 # Even if use_english_name is False, use name if abbrev is missing
                 if len(name_english) > max_length:
                     return name_english[:max_length-1] + "…"
                 return name_english
+            elif name:
+                # Enforce max_length on original name
+                if len(name) > max_length:
+                    return name[:max_length-1] + "…"
+                return name
     
     # Fallback to party_id if not found
     return party_id
@@ -282,8 +310,8 @@ def aggregate_by_party(
         party_names[party_id] = party_name
         
         # Map to political family color
-        family = family_map.get(party_id, "other")
-        party_colors[party_id] = POLITICAL_FAMILY_COLORS.get(family, POLITICAL_FAMILY_COLORS["other"])
+        family = family_map.get(party_id, "unknown")
+        party_colors[party_id] = POLITICAL_FAMILY_COLORS.get(family, POLITICAL_FAMILY_COLORS["unknown"])
     
     return dict(country_party_scores), party_names, party_colors
 
@@ -328,7 +356,8 @@ def create_party_bar_charts(
     n_cols = min(max_cols, n_countries)
     n_rows = (n_countries + n_cols - 1) // n_cols
     
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(figsize_per_country[0] * n_cols, figsize_per_country[1] * n_rows))
+    # Make charts bigger
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(figsize_per_country[0] * n_cols * 1.2, figsize_per_country[1] * n_rows * 1.2))
     
     if n_countries == 1:
         axes = [axes]
@@ -407,7 +436,7 @@ def create_party_bar_charts(
         for country, parties in country_party_scores.items():
             for party_id in parties.keys():
                 if party_id in party_colors and party_colors[party_id]:
-                    family = family_map.get(party_id, "other")
+                    family = family_map.get(party_id, "unknown")
                     families_in_data.add(family)
                     family_to_color[family] = party_colors[party_id]
         
@@ -426,7 +455,7 @@ def create_party_bar_charts(
             fig.legend(
                 handles=legend_elements,
                 loc='lower center',
-                bbox_to_anchor=(0.5, -0.02),
+                bbox_to_anchor=(0.5, 0.01),  # Moved up from -0.02 to reduce space above
                 ncol=len(legend_elements),  # All items in one row
                 frameon=False,
                 fontsize=10,
@@ -435,8 +464,8 @@ def create_party_bar_charts(
                 handletextpad=0.5
             )
             
-            # Adjust layout to leave space for legend
-            plt.tight_layout(rect=[0, 0.08, 1, 1])
+            # Adjust layout to leave space for legend (reduced bottom margin)
+            plt.tight_layout(rect=[0, 0.05, 1, 1], hspace=0.4, wspace=0.3)
         else:
             plt.tight_layout()
     else:

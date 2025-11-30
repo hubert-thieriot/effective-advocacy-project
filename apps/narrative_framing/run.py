@@ -56,7 +56,6 @@ from efi_analyser.frames.classifier import (
 from efi_analyser.scorers.openai_interface import OpenAIConfig, OpenAIInterface
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_analyser.frames.plotting import PlotConfig, run_plots
-
 from efi_core.utils import normalize_date
 
 try:  # Prefer spaCy-based chunker when available.

@@ -1,10 +1,10 @@
 party_id,country,abbrev,name,name_english,family
 11110,Sweden,MP,Miljöpartiet de Gröna,Green Ecology Party,green
 11220,Sweden,V,Vänsterpartiet,Left Party,far-left
-11320,Sweden,SAP,Socialdemokratiska Arbetareparti,Social Democratic Labour Party,unknown
+11320,Sweden,SAP,Socialdemokratiska Arbetareparti,Social Democratic Labour Party,centre-left
 11420,Sweden,L,Liberalerna,Liberals,liberal
 11520,Sweden,Kd,Kristdemokraterna,Christian Democrats,centre-right
-11620,Sweden,MSP,Moderata Samlingspartiet,Moderate Coalition Party,unknown
+11620,Sweden,MSP,Moderata Samlingspartiet,Moderate Coalition Party,liberal
 11710,Sweden,SD,Sverigedemokraterna,Sweden Democrats,far-right
 11810,Sweden,CP,Centerpartiet,Centre Party,centre
 13001,Denmark,NA,Liberal Alliance,Liberal Alliance,liberal
@@ -18,12 +18,12 @@ party_id,country,abbrev,name,name_english,family
 13720,Denmark,DF,Dansk Folkeparti,Danish People’s Party,far-right
 13730,Denmark,NA,Nye Borgerlige,The New Right,unknown
 14110,Finland,VL,Vihreä Liitto,Green Union,green
-14223,Finland,VAS,Vasemmistoliitto,Left Wing Alliance,unknown
-14320,Finland,SSDP,Suomen Sosialidemokraattinen Puolue,Finnish Social Democrats,unknown
+14223,Finland,VAS,Vasemmistoliitto,Left Wing Alliance,centre-left
+14320,Finland,SSDP,Suomen Sosialidemokraattinen Puolue,Finnish Social Democrats,centre-left
 14440,Finland,NA,Liike Nyt,Movement Now,unknown
 14520,Finland,KD,Suomen Kristillisdemokraatit,Christian Democrats in Finland,centre-right
 14620,Finland,KK,Kansallinen Kokoomus,National Coalition,unknown
-14810,Finland,SK,Suomen Keskusta,Finnish Centre,unknown
+14810,Finland,SK,Suomen Keskusta,Finnish Centre,liberal
 14820,Finland,PS,Perussuomalaiset,True Finns,far-right
 14901,Finland,RKP/SFP,Ruotsalainen Kansanpuolue/Svenska Folkpartiet,Swedish People’s Party,unknown
 15111,Iceland,VGF,Vinstrihreyfing - Grænt Framboð,Left Green Movement,far-left
@@ -47,7 +47,7 @@ party_id,country,abbrev,name,name_english,family
 21916,Belgium,N-VA,Nieuw-Vlaamse Alliantie,New Flemish Alliance,far-right
 21917,Belgium,VB,Vlaams Belang,Flemish Interest,far-right
 22110,Netherlands,GL,GroenLinks,Green Left,green
-22220,Netherlands,SP,Socialistische Partij,Socialist Party,unknown
+22220,Netherlands,SP,Socialistische Partij,Socialist Party,centre-left
 22235,Netherlands,Volt,Volt Nederland,Volt Netherlands,liberal
 22240,Netherlands,NA,BIJ1,Together,unknown
 22320,Netherlands,PvdA,Partij van de Arbeid,Labour Party,centre-left
@@ -55,7 +55,7 @@ party_id,country,abbrev,name,name_english,family
 22330,Netherlands,D’66,Democraten‘66,Democrats‘66,liberal
 22420,Netherlands,VVD,Volkspartij voor Vrijheid en Democratie,People’s Party for Freedom and Democracy,centre-right
 22521,Netherlands,CDA,Christen-Democratisch Appèl,Christian Democratic Appeal,centre-right
-22526,Netherlands,CU,ChristenUnie,Christian Union,unknown
+22526,Netherlands,CU,ChristenUnie,Christian Union,centre-right
 22722,Netherlands,PVV,Partij voor de Vrijheid,Party of Freedom,far-right
 22730,Netherlands,FvD,Forum voor Democratie,Forum for Democracy,far-right
 22731,Netherlands,JA21,Juiste Antwoord 21,Right Answer 21,far-right
@@ -105,8 +105,8 @@ party_id,country,abbrev,name,name_english,family
 33916,Spain,NA,¡Teruel Existe!,Teruel exists,unknown
 34210,Greece,KKE,Kommounistikó Kómma Elládas,Communist Party of Greece,unknown
 34212,Greece,SYRIZA,Synaspismós Rizospastikís Aristerás,Coalition of the Radical Left,far-left
-34215,Greece,MeRA25,Μétopo Evropaikís Realistikís Anypakoís,European Realistic Disobedience Front,unknown
-34315,Greece,PASOK-KINAL,PASOK – Kínima Allagís,PASOK – Movement for Change,unknown
+34215,Greece,MeRA25,Μétopo Evropaikís Realistikís Anypakoís,European Realistic Disobedience Front,far-left
+34315,Greece,PASOK-KINAL,PASOK – Kínima Allagís,PASOK – Movement for Change,centre-left
 34511,Greece,ND,Nea Dimokratia,New Democracy,centre-right
 34711,Greece,EL,Ellinikí Lýsi,Greek Solution,far-right
 34720,Greece,XA,Chrysi Avgi,Golden Dawn,far-right
@@ -133,7 +133,7 @@ party_id,country,abbrev,name,name_english,family
 42420,Austria,FPÖ,Freiheitliche Partei Österreichs,Austrian Freedom Party,far-right
 42430,Austria,NEOS,Das Neue Österreich und Liberales Forum,The New Austria and Liberal Forum,liberal
 42520,Austria,ÖVP,Österreichische Volkspartei,Austrian People’s Party,centre-right
-43020,Switzerland,EAG,Ensemble à Gauche,Together on the Left,unknown
+43020,Switzerland,EAG,Ensemble à Gauche,Together on the Left,far-left
 43110,Switzerland,GPS/PES,Grüne Partei der Schweiz/Parti écologiste suisse,Green Party of Switzerland,green
 43120,Switzerland,GLP,Grünliberale Partei der Schweiz,Green Liberal Party,liberal
 43220,Switzerland,PdAS/PdTS,Partei der Arbeit der Schweiz/Parti suisse du travail,Swiss Labour Party,unknown
@@ -161,10 +161,10 @@ party_id,country,abbrev,name,name_english,family
 53110,Ireland,Greens,Green Party/Comhaontas Glas,Green Party,green
 53231,Ireland,PBP,People Before Profit,People Before Profit,unknown
 53320,Ireland,Labour,Páirti Lucht Oibre,Labour Party,centre-left
-53321,Ireland,NA,Social Democrats,Social Democrats,unknown
+53321,Ireland,NA,Social Democrats,Social Democrats,centre-left
 53520,Ireland,NA,Fine Gael,Family of the Irish,centre-right
 53620,Ireland,NA,Fianna Fáil,Soldiers of Destiny,centre-right
-53951,Ireland,SF,Sinn Féin,We Ourselves,unknown
+53951,Ireland,SF,Sinn Féin,We Ourselves,centre-left
 53952,Ireland,NA,Aontú,Unite,unknown
 54320,Malta,PL,Partit Laburista,Labour Party,centre-left
 54620,Malta,PN,Partit Nazzjonalista,Nationalist Party,centre-right
@@ -199,15 +199,15 @@ party_id,country,abbrev,name,name_english,family
 83430,Estonia,ER,Eesti Reformierakond,Estonian Reform Party,unknown
 83611,Estonia,NA,Isamaa,Pro Patria,centre-right
 83720,Estonia,EKRE,Eesti Konservatiivne Rahvaerakond,Conservative People's Party of Estonia,far-right
-86001,Hungary,NA,Egységben Magyarországért,United for Hungary,unknown
-86110,Hungary,LMP,Lehet Más Politika!,Politics Can Be Different,unknown
+86001,Hungary,NA,Egységben Magyarországért,United for Hungary,liberal
+86110,Hungary,LMP,Lehet Más Politika!,Politics Can Be Different,green
 86111,Hungary,PM,Párbeszéd Magyarországért,Dialogue for Hungary,unknown
 86220,Hungary,MSzP,Magyar Szocialista Párt,Hungarian Socialist Party,centre-left
 86221,Hungary,DK,Demokratikus Koalícío,Democratic Coalition,centre-left
 86340,Hungary,E14-PM,Együtt 2014 – Párbeszéd Magyarországért Választási Szövetség,Together 2014 -Dialogue for Hungary Electoral Alliance,unknown
 86421,Hungary,FiDeSz-KDNP,Szövetség Fiatal Demokraták Szövetsége - Kereszténydemokrata Néppárt,Alliance of Federation of Young Democrats - Christian Democratic People's Party,far-right
 86710,Hungary,Jobbik,Jobbik Magyarországért Mozgalom,Movement for a Better Hungary,far-right
-86711,Hungary,NA,Mi Hazánk Mozgalom,Our Homeland Movement,unknown
+86711,Hungary,NA,Mi Hazánk Mozgalom,Our Homeland Movement,far-right
 87011,Latvia,AS,Apvienotais saraksts,United List,centre
 87042,Latvia,NA,Attīstībai/Par!,Development/For!,unknown
 87062,Latvia,NA,Vienotība,Unity,unknown
@@ -221,7 +221,7 @@ party_id,country,abbrev,name,name_english,family
 87735,Latvia,S!,Stabilitātei!,For Stability,unknown
 87736,Latvia,LPV,Latvija pirmajā vietā,Latvia First,far-right
 88320,Lithuania,LSDP,Lietuvos socialdemokratų partija,Lithuanian Social Democratic Party,centre-left
-88322,Lithuania,LSDDP,Lietuvos socialdemokratų darbo partija,Social Democratic Labour Party of Lithuania,unknown
+88322,Lithuania,LSDDP,Lietuvos socialdemokratų darbo partija,Social Democratic Labour Party of Lithuania,centre-left
 88440,Lithuania,DP,Darbo Partija,Labour Party,centre-left
 88450,Lithuania,LRLS,Lietuvos respublikos Liberalų sąjūdis,Liberal Movement,liberal
 88451,Lithuania,LP,Laisvės partija,Freedom Party,liberal

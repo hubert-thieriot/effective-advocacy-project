@@ -42,19 +42,6 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 - **Measure change over time**: Tracking how narratives evolve — across repeated studies or advocacy campaigns — could help observe whether certain framings gain or lose prominence. This might support both strategic reflection (for advocates seeking feedback on their efforts) and broader research on how public conversations shift around key issues.
 
-<!-- ### What it can't (yet) do?
-
-Narrative framing analysis focuses on message content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it is a way to observe the stories circulating in public space.
-
-<div style="text-align: center; margin: 2em 0 0 0;">
-  <figure style="margin: 0;">
-    <img src="{{ site.baseurl }}/assets/narrative_framing_scope_diagram.svg" style="max-width: 100%; height: auto;">
-    <figcaption>
-      The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
-    </figcaption>
-  </figure>
-</div> -->
-
 To see what this might look like in practice, I ran two small experiments. One asks how India's largest English-language newspapers talk about air pollution — who gets blamed, and who doesn't. The other examines how European political parties frame animal welfare in their manifestos.
 
 ## Example 1: Air pollution causes in Delhi, India

@@ -13,9 +13,9 @@ tags: [narrative-framing]
 ---
 
 
-<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets/journalists to prioritize.
+<div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets or messages to prioritize.
 
-This post includes two illustrative examples: one on air pollution in India and one on animal welfare in European political manifestos.
+To illustrate this methodology, this post includes two illustrative examples: one on air pollution in India and one on animal welfare in European political manifestos.
 </div>
 
 
@@ -42,7 +42,7 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 - **Measure change over time**: Tracking how narratives evolve — across repeated studies or advocacy campaigns — could help observe whether certain framings gain or lose prominence. This might support both strategic reflection (for advocates seeking feedback on their efforts) and broader research on how public conversations shift around key issues.
 
-### What it can't (yet) do?
+<!-- ### What it can't (yet) do?
 
 Narrative framing analysis focuses on message content — how issues are discussed in media and public discourse, whether in newspapers, TV, radio, social platforms, or political debates. It doesn’t directly tell us how these narratives shape what advisors, experts, or citizens think, or whether they ultimately influence decisions and policy. For now, it is a way to observe the stories circulating in public space.
 
@@ -53,15 +53,26 @@ Narrative framing analysis focuses on message content — how issues are discuss
       The dashed box highlights what narrative framing analysis covers. The influence pathways are not directly measured by this method.
     </figcaption>
   </figure>
-</div>
+</div> -->
 
 To see what this might look like in practice, I ran two small experiments. One asks how India's largest English-language newspapers talk about air pollution — who gets blamed, and who doesn't. The other examines how European political parties frame animal welfare in their manifestos.
 
 ## Example 1: Air pollution causes in Delhi, India
 
-In this first exploration, I looked at how leading English-language newspapers discuss air pollution in Delhi, particularly which **sources of pollution** are mentioned. Such application could be used to highlight any discrepancy between the overal weight of sources in media framing and their actual contribution to air pollution as estimated by source apportionment studies, and in turn inform research and communication strategies. Vital Strategies had conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) in the past, though with a different technique.
+In this first exploration, I analyzed how leading English-language newspapers discuss air pollution in Delhi, focusing on which **sources of pollution** receive attention in coverage. I collected 20,000 articles published between January 2015 and November 2025 across five prominent national newspapers (The Times of India, Hindustan Times, The Hindu, The Indian Express, and The New Indian Express). The analysis identifies distinct narrative frames around pollution sources—from vehicle emissions to industrial activity to seasonal crop burning. This type of application can help advocates compare media framing against scientific evidence to identify narrative gaps and guide communication strategies. (Vital Strategies has conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) using different techniques. For technical details on the methodology used here, see the [Method overview](#method-overview) section below.)
 
-I collected 20,000 articles published between January 2015 and November 2025 across five prominent national newspapers (The Times of India, Hindustan Times, The Hindu, The Indian Express, and The New Indian Express). All pieces were written in English, but the same method can be applied to virtually any language.
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Frames used for classifying air pollution sources in Delhi coverage</div>
+    <div class="chart-subtitle">Definitions for each framing as determined by the framing induction step</div>
+  </div>
+  {% include narrative_framing/delhi_airpollution_selected_newspapers/frames_light.html %}
+  <div class="chart-note">
+    <strong>Note:</strong> These frames and their definitions were generated through frame induction from the corpus content, focusing on distinct air pollution sources.
+  </div>
+</div>
+
+Media attention to air pollution in Delhi follows a distinct seasonal pattern, with coverage surging dramatically during the post-monsoon months (October–November) when pollution levels peak. This pattern is driven by two key factors: agricultural stubble burning in neighboring states, which sends smoke across the region, and weather conditions that trap pollutants close to the ground. The chart below illustrates how this seasonal cycle has shaped media attention over the past decade, with periodic spikes drawing public and policy focus during the worst air quality episodes.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -74,45 +85,7 @@ I collected 20,000 articles published between January 2015 and November 2025 acr
   </p>
 </div>
 
-To analyse this corpus, we follow a six-step process: chunking, frame induction, frame annotation, model training, classification and aggregation (for more details, see [Methodology section below](#method-overview)).
-
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#e8f1f8','primaryTextColor':'#1E3D58','primaryBorderColor':'#4f6081','lineColor':'#4f6081','secondaryColor':'#d4e3f0','tertiaryColor':'#fff','fontFamily':'Open Sans, Arial, sans-serif'}}}%%
-flowchart LR
-    A[Semantic Chunking] --> B[Frame Induction]
-    B --> C[Frame Annotation]
-    C --> D[Model Training]
-    D --> E[Classification]
-    E --> F[Aggregation]
-    
-    style A fill:#f7f9fc,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    style B fill:#eff4f9,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    style C fill:#e7eff6,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    style D fill:#dfe9f3,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    style E fill:#d7e4f0,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    style F fill:#cfdeed,stroke:#4f6081,stroke-width:2.5px,color:#1E3D58,rx:5,ry:5
-    
-    linkStyle default stroke:#4f6081,stroke-width:2.5px
-```
-<figcaption>Schematic view of the analysis workflow</figcaption>
-
-First, each article was split into smaller, coherent segments called **chunks** using linguistic models. Next comes the **frame induction** in which an LLM is used to identify the main frames that appear across a sample of chunks. The idea is to let the model propose a compact set of recurring ways the issue is discussed. This can be done with little or no guidance (letting the model discover patterns freely) or with direction around a specific question. In this case, I guided it toward sources of air pollution, which resulted in eight frames. The model then generated short descriptions, examples, and keywords for each, forming the schema used in the next steps.
-
-<div class="chart-item">
-  <div class="chart-heading">
-    <div class="chart-title">Frames used for classifying air pollution sources in Delhi coverage</div>
-    <div class="chart-subtitle">Definitions for each framing as determined by the framing induction step</div>
-  </div>
-{% include narrative_framing/delhi_airpollution_selected_newspapers/frames_light.html %}
-<div class="chart-note">
-    <strong>Note:</strong> These frames and their definitions were generated by an LLM-based "frame inducer," which generated names, examples, keywords and semantic cues for each frame. The inducer was provided with a sample of 200 passages from the dataset and guided with plain-text instructions focusing on distinct air pollution sources.
-  </div>
-</div>
-
-Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to **annotate** a few thousand text segments according to those categories. These labelled examples then served to **train** a BERT-based classifier that could scale the analysis to the full corpus. In the final step, each chunk was **classified** according to the likelihood of each frame and then aggregated by article, year, or outlet, weighting by text length and article to estimate how much attention each framing received over time. This led to the results shown in the image below.
-
-
+When examining which pollution sources receive attention in coverage, the results reveal a clear pattern: public conversations about air pollution in Delhi focus heavily on stubble burning, traffic and dust, while year-round emissions from industry and coal-fired power plants receive relatively less attention. This imbalance is reinforced by official narratives that downplay the sector's role, such as CSIR-NEERI's [claim](https://www.downtoearth.org.in/pollution/where-is-indias-so-control-from-tpps-headed-niti-aayogs-memo-over-fgds-fuels-debate) that SO₂ from power plants is "not significantly affecting ambient air quality" and the environment ministry's assertion that sulphate aerosols account for only up to 5% of PM2.5. This happens in the context of repeatedly [relaxed deadlines](https://healthpolicy-watch.news/india-reverses-key-policy-exempting-most-coal-fired-power-plants-from-emission-rules/) for pollution-control equipment. [CREA](https://energyandcleanair.org/publication/enforcing-so2-norms-in-indias-coal-power-plants-is-non-negotiable/) and independent [researchers](https://www.healtheffects.org/system/files/GBD-MAPS-SpecRep21-India-revised_0.pdf) highlight that these conclusions ignore broader evidence that coal burning contributes 10–15% of India's total PM2.5 burden, while universal installation of flue-gas-desulphurisation systems could prevent tens of thousands of premature deaths.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -121,24 +94,24 @@ Once the frames were defined, I used a lighter language model (GPT-4.1-mini) to 
   </div>
   <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/yearly_weighted_woz_annotated.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
-    <strong>Note:</strong> The analysis identifies air pollution sources through natural language processing of English-language articles from the five selected newspapers. Each source category (vehicles, industry, crop burning, etc.) is identified through frame classification of article content. The chart shows the relative frequency of mentions for each pollution source across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
+    <strong>Note:</strong> The chart shows the relative frequency with which different pollution sources are mentioned across all analyzed articles, weighted by article length to reflect the prominence of each frame in the coverage.
     <br><br>
     <strong>Data Sources:</strong> Articles are retrieved from MediaCloud. Content has been scraped and processed locally for analysis.
     <br><br>
     <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
   </p>
-</div>
+</div> 
+
+### Strategic applications
+
+This type of analysis could inform advocacy and funding strategies in several ways:
+
+**Identify narrative gaps**: By comparing media framing against scientific evidence (e.g., source apportionment studies and emission inventories), advocates can pinpoint where public discourse diverges from reality, creating an opportunity for targeted communication campaigns to shift the conversation.
 
 
+**Compare framing across outlets**: Analyzing frame distribution by outlet (shown below) can help identify which media sources already cover under-discussed pollution sources, or conversely, which outlets might be most receptive to new messaging. This enables more targeted media outreach and helps advocates understand whether certain perspectives are systematically absent from specific publications.
 
-As can be seen, public conversations about air pollution in Delhi focus heavily on stubble burning, traffic and dust, while the year-round emissions from industry coal-fired power plants receive relatively less attention. This imbalance is reinforced by official narratives that downplay the sector’s role, such as CSIR-NEERI’s [claim](https://www.downtoearth.org.in/pollution/where-is-indias-so-control-from-tpps-headed-niti-aayogs-memo-over-fgds-fuels-debate) that SO₂ from power plants is “not significantly affecting ambient air quality” and the environment ministry's assertion that sulphate aerosols account for only up to 5% of PM2.5. This happens in the context of repeatedly [relaxed deadlines](https://healthpolicy-watch.news/india-reverses-key-policy-exempting-most-coal-fired-power-plants-from-emission-rules/) for pollution-control equipment.
-
-[CREA](https://energyandcleanair.org/publication/enforcing-so2-norms-in-indias-coal-power-plants-is-non-negotiable/) and independent [researchers](https://www.healtheffects.org/system/files/GBD-MAPS-SpecRep21-India-revised_0.pdf) highlight that these conclusions ignore broader evidence that coal burning contributes 10–15 % of India’s total PM2.5 burden, while universal installation of flue-gas-desulphurisation systems could prevent tens of thousands of premature deaths. 
-
-Bringing the power sector’s true impact into greater public prominence is potentially an effective way to increase regulatory pressure on one of Delhi’s most significant but least-discussed pollution sources. If so, narrative framing analysis could be used to **track progress** in that direction by providing a measurable **intermediate outcome**.
-
-
-Such analysis could also be conducted at the outlet level -- for instance to prioritise outreach or identify biases or external influences. In the Delhi case, the distribution seems consistent across all selected media outlets, as shown in the figure below.
+**Track change over time**: By repeating the analysis periodically, advocates can measure whether their communication efforts are shifting public discourse—for instance, whether coal plant emissions gain more prominence in coverage over time. This creates a feedback loop for strategy refinement and provides funders with evidence of progress toward narrative change goals.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -147,7 +120,7 @@ Such analysis could also be conducted at the outlet level -- for instance to pri
   </div>
   <img src="{{ site.baseurl }}/assets/narrative_framing/delhi_airpollution_selected_newspapers/domain_frame_distribution.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of media framing trends. Further validation and methodological refinement are needed before these results can be used for research or advocacy purposes.
   </p>
 </div>
 
@@ -155,9 +128,7 @@ Such analysis could also be conducted at the outlet level -- for instance to pri
 
 ## Example 2: Animal welfare in European political manifestos
 
-This second application shifts to political discourse by analysing political manifestos. Political manifestos are programmatic documents that parties commit to during elections. Understanding which parties prioritize animal welfare, and how they frame it, could help advocates identify allies, track the evolution of party positions across election cycles, and compare political landscapes across countries.
-
-In this quick analysis, I focused on the various framings/dimensions of animal welfare and the extent to which they are present in parties programmatic documents. Manifestos were retrieved from [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. I focused on European manifestos published since 2018, spanning 36 countries and 29 languages.
+This second application shifts from media analysis to political discourse, examining how European political parties frame animal welfare in their electoral manifestos. The analysis covers manifestos published since 2018 spanning 36 countries and 29 languages, and were collected from the [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. It is important to note though that **these manifestos may represent different types of elections** and may therefore lead to biased cross-country comparisons; a more thorough analysis would further discriminate by election type.
 
 
 <div class="chart-item">
@@ -174,40 +145,73 @@ In this quick analysis, I focused on the various framings/dimensions of animal w
     </div>
   </div>
   <p class="chart-note">
-    <strong>Note:</strong> The left map shows the share of manifesto content dedicated to animal welfare topics (darker = more attention). The right map shows which specific frame dominates in each country's political discourse, excluding the generic "General animal welfare" frame to highlight more specific policy framings. Countries in grey have insufficient data.
+   <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of party positions. Further validation and methodological refinement are needed before these results can be used for research or advocacy purposes. 
   </p>
 </div>
 
-The maps reveal notable geographic patterns. Nordic and Western European countries — particularly Sweden, Iceland, and the United Kingdom — dedicate the most manifesto space to animal welfare. The dominant frames also vary: while most countries focus on general animal welfare statements or anti-hunting discourse, the Netherlands stands out for its emphasis on factory farming (reflecting ongoing debates about intensive agriculture), and countries like Finland and Spain focus more on pet and companion animal policies.
+The left map shows how much attention each country's manifestos give to animal welfare (darker = more attention). The right map highlights the dominant frame in each country, excluding the catch-all "General animal welfare" category to emphasize more specific narratives. *Frames definitions are detailed [below](#frames-manifesto)*.
+
+A central belt (Germany, Netherlands, Belgium, Austria) gives animal welfare more space and mostly leads with factory farming critiques. France, Spain, and Poland mention animal welfare less overall but surface cruelty more often.
+
+
+Looking across all European parties, Green parties consistently rank among the highest in attention to animal welfare. 
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Parties with highest attention to animal welfare</div>
+    <div class="chart-subtitle">Share of manifesto content dedicated to animal welfare topics (top 30 parties across Europe)</div>
+  </div>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare/all_parties.png" style="width: 100%; height: auto;">
+  <p class="chart-note">
+    <strong>Note:</strong> The chart shows the share of each party's manifesto dedicated to animal welfare topics, based on frame classification of manifesto text. Only parties with detectable animal welfare content are shown.
+    <br><br>
+    <strong>Data Source:</strong> Manifestos retrieved via the <a href="https://manifestoproject.wzb.eu/">Manifesto Project</a>.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of party positions. Further validation and methodological refinement are needed before these results can be used for research or advocacy purposes.
+  </p>
+</div>
+
+Examining parties within each country reveals more nuanced patterns and even some surprises: **in Austria, Denmark and France, for instance, the far-right manifestos refer to animal welfare and its frames the most** (see chart below). If confirmed by more in-depth inspection, this surprising pattern could inform advocacy strategy.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Animal welfare attention by party and country</div>
+    <div class="chart-subtitle">Share of manifesto content dedicated to animal welfare topics, organized by country</div>
+  </div>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare/party_bars.png"  class="modal" style="width: 100%; height: auto;">
+  <p class="chart-note">
+    <strong>Note:</strong> Each panel shows parties from a single country, with bars indicating the share of each party's manifesto dedicated to animal welfare topics. Countries are ordered by total attention to animal welfare across all parties.
+    <br><br>
+    <strong>Data Source:</strong> Manifestos retrieved via the <a href="https://manifestoproject.wzb.eu/">Manifesto Project</a>.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of party positions. Further validation and methodological refinement are needed before these results can be used for research or advocacy purposes.
+  </p>
+</div>
+
+### Strategic applications
+
+For advocacy organizations and strategic funders working on animal welfare, this type of analysis can support several strategic functions:
+
+**Map the political landscape**: The geographic patterns revealed in the analysis can help advocates and funders understand where certain framings have more political traction. This information can guide decisions about where to invest resources, which messages to prioritize in different contexts, and where there might be opportunities to introduce new frames.
+
+**Track party position evolution**: By repeating this analysis across election cycles, advocates can monitor whether parties are strengthening, weakening, or shifting their positions on animal welfare. This could provide an evidence base for evaluating the impact of advocacy efforts and identifying which parties might be responsive to further engagement.
+
+**Create peer pressure**: Comparing party positions within and across countries can help advocates create peer pressure by highlighting which parties lag behind on animal welfare commitments. Publicly mapping party positions relative to their peers can create incentives for parties to strengthen their platforms.
+
 
 
 <div class="chart-item">
   <div class="chart-heading">
-    <div class="chart-title">Frames used for classifying animal welfare discourse in European manifestos</div>
+    <div class="chart-title" id="frames-manifesto">Frames used for classifying animal welfare discourse in European manifestos</div>
     <div class="chart-subtitle">Definitions for each frame category</div>
   </div>
-  {% include narrative_framing/manifesto_europe_animalwelfare_v2/frames_light.html %}
+  {% include narrative_framing/manifesto_europe_animalwelfare/frames_light.html %}
   <div class="chart-note">
     <strong>Note:</strong> These nine frames were defined to capture distinct aspects of animal welfare discourse in political manifestos, on top of a general animal welfare angle.
   </div>
 </div>
 
-Unsurprisingly, Green parties tend to be amongst the "top-performers". But mainstream parties also appear in the rankings top, suggesting that animal welfare has broader political salience in some countries.
 
-<div class="chart-item">
-  <div class="chart-heading">
-    <div class="chart-title">Parties with highest attention to animal welfare</div>
-    <div class="chart-subtitle">Share of manifesto content dedicated to animal welfare topics (top 30 parties)</div>
-  </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/manifesto_europe_animalwelfare_v2/all_parties.png" style="width: 100%; height: auto;">
-  <p class="chart-note">
-    <strong>Note:</strong> The chart shows the share of each party's manifesto dedicated to animal welfare topics, based on frame classification of manifesto text. Only parties with detectable animal welfare content are shown.
-    <br><br>
-    <strong>Data Source:</strong> Manifestos retrieved via the <a href="https://manifestoproject.wzb.eu/">Manifesto Project API</a>. Content processed locally for frame classification.
-    <br><br>
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of party positions. Further validation and methodological refinement are needed before these results can be used for research or policy purposes.
-  </p>
-</div>
 
 
 

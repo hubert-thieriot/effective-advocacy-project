@@ -120,6 +120,7 @@ class AnnotationConfig:
     batch_size: int = DEFAULT_APPLICATION_BATCH
     top_k: int = DEFAULT_APPLICATION_TOP_K
     temperature: Optional[float] = None  # None = use model default
+    verbose: Optional[bool] = None  # None = False (disable verbose logging by default)
     # Bypass LLM with zero scores if chunk lacks these keywords.
     # Can be a flat list (applies to all languages) or dict by language code:
     #   force_zero_if_no_keywords: [animal, welfare, ...]  # flat
@@ -128,6 +129,7 @@ class AnnotationConfig:
     #     de: [tier, tierschutz, ...]
     force_zero_if_no_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
     guidance: Optional[str] = None  # Additional guidance for the annotator to reduce false positives
+    export_annotated_html: bool = False  # When true, export per-document HTML highlighting annotated spans
 
 
 @dataclass
@@ -502,6 +504,10 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                 config.annotation.force_zero_if_no_keywords = [str(item).lower().strip() for item in keywords if item]
         if "guidance" in annotation_data:
             config.annotation.guidance = str(annotation_data["guidance"]).strip() if annotation_data["guidance"] else None
+        if "verbose" in annotation_data:
+            config.annotation.verbose = bool(annotation_data["verbose"]) if annotation_data["verbose"] is not None else None
+        if "export_annotated_html" in annotation_data:
+            config.annotation.export_annotated_html = bool(annotation_data["export_annotated_html"])
     
     # Parse nested classification config
     if "classification" in data and isinstance(data["classification"], dict):

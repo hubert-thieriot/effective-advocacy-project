@@ -406,7 +406,7 @@ class NarrativeFramingWorkflow:
             temperature=application_temp,
             timeout=600.0,
             ignore_cache=False,
-            verbose=False,  # Disable verbose logging to simplify output
+            verbose=config.annotation.verbose if config.annotation.verbose is not None else False,
         )
 
         # Resolve and validate default prompt templates; copy raw templates into results
@@ -898,6 +898,7 @@ class NarrativeFramingWorkflow:
             config=config,
             paths=paths,
             total_doc_ids=self.total_doc_ids,
+            corpora_map=self.corpora_map,
         )
         report_builder.build()
 

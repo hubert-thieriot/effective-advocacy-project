@@ -5,8 +5,9 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional, Union
 
 from pathlib import Path
 
@@ -210,6 +211,53 @@ class LLMFrameAnnotator:
                 prepared.extend(segments)
         return prepared
 
+    def _compile_keyword_matcher(self, keyword: str) -> Callable[[str], bool]:
+        """Compile a keyword into a matcher function.
+        
+        Matching modes (specified in config):
+        - Default: substring match (case-insensitive) - matches anywhere in text
+        - 'word:keyword' - word boundary match (only matches whole words)
+        - 'regex:pattern' - full regex pattern matching
+        
+        Examples:
+        - 'veget' -> matches "végétarien", "végétalien", etc. (substring)
+        - 'word:lov' -> only matches standalone "lov", not "djelovanje" (word boundary)
+        - 'regex:veget|végét' -> custom regex pattern
+        """
+        keyword = keyword.strip()
+        if not keyword:
+            return lambda text: False
+        
+        # Check if it's a regex pattern (starts with 'regex:')
+        if keyword.startswith('regex:'):
+            pattern_str = keyword[6:].strip()
+            try:
+                pattern = re.compile(pattern_str, re.IGNORECASE)
+                return lambda text: pattern.search(text) is not None
+            except re.error:
+                # Fallback to substring if regex is invalid
+                return lambda text: pattern_str.lower() in text.lower()
+        
+        # Check if it's a word boundary match (starts with 'word:')
+        if keyword.startswith('word:'):
+            keyword_str = keyword[5:].strip()
+            # Escape special regex characters and add word boundaries
+            escaped = re.escape(keyword_str)
+            pattern = re.compile(r'\b' + escaped + r'\b', re.IGNORECASE)
+            return lambda text: pattern.search(text) is not None
+        
+        # Default: substring matching (case-insensitive)
+        keyword_lower = keyword.lower()
+        return lambda text: keyword_lower in text.lower()
+    
+    def _matches_any_keyword(self, text: str, keywords: List[str]) -> bool:
+        """Check if text matches any of the keywords using appropriate matching strategy.
+        
+        Uses _compile_keyword_matcher to handle regex patterns and word boundaries.
+        """
+        matchers = [self._compile_keyword_matcher(kw) for kw in keywords]
+        return any(matcher(text) for matcher in matchers)
+
     def _partition_by_relevance(
         self,
         prepared: List[Tuple[str, str]],
@@ -232,16 +280,30 @@ class LLMFrameAnnotator:
             return prepared, {}
         
         # Normalize keywords - either flat list or dict by language
+        # Preserve 'word:' and 'regex:' prefixes, lowercase others
+        def normalize_kw_list(kws):
+            normalized = []
+            for kw in kws:
+                if not kw or not kw.strip():
+                    continue
+                kw_stripped = kw.strip()
+                # Preserve prefixes (word:, regex:) as-is, lowercase others
+                if kw_stripped.startswith('word:') or kw_stripped.startswith('regex:'):
+                    normalized.append(kw_stripped)
+                else:
+                    normalized.append(kw_stripped.lower())
+            return normalized
+        
         if isinstance(relevance_keywords, dict):
             # Dict by language: normalize each language's keywords
             keywords_by_lang = {
-                lang: [kw.lower().strip() for kw in kws if kw]
+                lang: normalize_kw_list(kws)
                 for lang, kws in relevance_keywords.items()
             }
             is_multilingual = True
         else:
             # Flat list
-            normalized_keywords = [kw.lower().strip() for kw in relevance_keywords if kw]
+            normalized_keywords = normalize_kw_list(relevance_keywords)
             if not normalized_keywords:
                 return prepared, {}
             is_multilingual = False
@@ -269,7 +331,7 @@ class LLMFrameAnnotator:
             else:
                 keywords = normalized_keywords
             
-            has_keyword = any(kw in text_lower for kw in keywords)
+            has_keyword = self._matches_any_keyword(text, keywords)
             
             if has_keyword:
                 to_annotate.append((passage_id, text))

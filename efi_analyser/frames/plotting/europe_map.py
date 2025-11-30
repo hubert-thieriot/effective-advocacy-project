@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 
 from .base import BasePlotter, PlotConfig
@@ -66,6 +67,11 @@ FRAME_DISPLAY_NAMES = {
     "general_animal_welfare": "General Animal Welfare",
 }
 
+# Common map dimensions and bounding box (EPSG:3857 coordinates)
+EUROPE_MAP_FIGSIZE = (12, 10)
+EUROPE_MAP_XLIM = (-2_800_000, 4_500_000)  # Cropped on east (was 5_000_000)
+EUROPE_MAP_YLIM = (4_000_000, 11_000_000)  # Cropped on south (was 11_500_000)
+
 
 def _aggregates_to_dicts(aggregates) -> List[dict]:
     """Convert Aggregates.documents_weighted to list of dicts."""
@@ -94,7 +100,9 @@ def aggregate_by_country(
         if not doc_id:
             continue
         
-        country_name = corpus_index.get(doc_id, {}).get("extra", {}).get("country_name")
+        # Try both direct country_name and nested under extra
+        doc_meta = corpus_index.get(doc_id, {})
+        country_name = doc_meta.get("country_name") or doc_meta.get("extra", {}).get("country_name")
         if not country_name:
             continue
         
@@ -139,7 +147,9 @@ def aggregate_dominant_frame_by_country(
         if not doc_id:
             continue
         
-        country_name = corpus_index.get(doc_id, {}).get("extra", {}).get("country_name")
+        # Try both direct country_name and nested under extra
+        doc_meta = corpus_index.get(doc_id, {})
+        country_name = doc_meta.get("country_name") or doc_meta.get("extra", {}).get("country_name")
         if not country_name:
             continue
         
@@ -160,9 +170,12 @@ def aggregate_dominant_frame_by_country(
         frame_scores = country_frame_scores[iso3]
         if frame_scores and country_weights[iso3] > 0:
             normalized = {f: s / country_weights[iso3] for f, s in frame_scores.items()}
-            dominant = max(normalized.items(), key=lambda x: x[1])
-            if dominant[1] > 0:
+            # Filter out frames with zero scores before finding dominant
+            non_zero_frames = {f: s for f, s in normalized.items() if s > 0}
+            if non_zero_frames:
+                dominant = max(non_zero_frames.items(), key=lambda x: x[1])
                 result[iso3] = dominant[0]
+            # Note: Countries with all zero scores are not included (no dominant frame)
     
     return result
 
@@ -217,7 +230,7 @@ def create_europe_map(
     country_scores: Dict[str, float],
     output_path: Optional[Path] = None,
     cmap: str = "Greens",
-    figsize: tuple = (12, 10),
+    figsize: tuple = EUROPE_MAP_FIGSIZE,
     colorbar_label: str = "Weight of animal-welfare related frames",
 ) -> None:
     """Create a Europe map colored by country scores."""
@@ -232,21 +245,38 @@ def create_europe_map(
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     ax.set_facecolor("#f0f0f0")
     
-    valid_scores = [s for s in europe["score"] if s is not None and s > 0]
-    if valid_scores:
-        vmin, vmax = 0, max(valid_scores)
+    # Separate countries with no data (NaN) from countries with data (including 0)
+    countries_with_data = europe[europe["score"].notna()]
+    countries_no_data = europe[europe["score"].isna()]
+    
+    # Calculate color scale range from all countries with data (including 0)
+    if len(countries_with_data) > 0:
+        valid_scores = countries_with_data["score"].tolist()
+        vmin, vmax = 0, max(valid_scores) if valid_scores else 1
     else:
         vmin, vmax = 0, 1
     
     context.plot(ax=ax, color="#e8e8e8", edgecolor="#ffffff", linewidth=0.3)
-    europe[europe["score"].isna() | (europe["score"] == 0)].plot(
-        ax=ax, color="#d0d0d0", edgecolor="#ffffff", linewidth=0.5
-    )
     
-    countries_with_data = europe[(europe["score"].notna()) & (europe["score"] > 0)]
+    # Plot countries with no data in light grey
+    if len(countries_no_data) > 0:
+        countries_no_data.plot(
+            ax=ax, color="#d0d0d0", edgecolor="#ffffff", linewidth=0.5
+        )
+    
+    # Plot countries with data (including score = 0) using the color scale
     if len(countries_with_data) > 0:
+        # Create a custom colormap that starts with a very light green for 0
+        base_cmap = plt.cm.get_cmap(cmap)
+        # For "Greens" colormap, create a version that starts with a very light green
+        # Use a very light green color (almost white with slight green tint)
+        very_light_green = (0.95, 0.98, 0.95, 1.0)  # Very light green, almost white
+        # Get colors from the base colormap
+        colors = [very_light_green] + [base_cmap(i) for i in np.linspace(0.1, 1.0, 255)]
+        custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_' + cmap, colors, N=256)
+        
         countries_with_data.plot(
-            column="score", ax=ax, legend=False, cmap=cmap,
+            column="score", ax=ax, legend=False, cmap=custom_cmap,
             edgecolor="#ffffff", linewidth=0.5, vmin=vmin, vmax=vmax,
         )
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
@@ -258,8 +288,8 @@ def create_europe_map(
         cbar_ax.text(1.05, 0.5, colorbar_label, transform=cbar_ax.transAxes,
                      fontsize=10, va='center', ha='left', color='#666666')
     
-    ax.set_xlim(-2_800_000, 5_000_000)
-    ax.set_ylim(4_000_000, 11_500_000)
+    ax.set_xlim(EUROPE_MAP_XLIM[0], EUROPE_MAP_XLIM[1])
+    ax.set_ylim(EUROPE_MAP_YLIM[0], EUROPE_MAP_YLIM[1])
     ax.axis("off")
     _save_figure(output_path)
 
@@ -267,7 +297,7 @@ def create_europe_map(
 def create_dominant_frame_map(
     dominant_frames: Dict[str, str],
     output_path: Optional[Path] = None,
-    figsize: tuple = (12, 10),
+    figsize: tuple = EUROPE_MAP_FIGSIZE,
 ) -> None:
     """Create a Europe map colored by dominant frame per country."""
     plt.rcParams['font.family'] = 'sans-serif'
@@ -326,8 +356,8 @@ def create_dominant_frame_map(
         )
         
     
-    ax.set_xlim(-2_800_000, 5_000_000)
-    ax.set_ylim(4_000_000, 11_500_000)
+    ax.set_xlim(EUROPE_MAP_XLIM[0], EUROPE_MAP_XLIM[1])
+    ax.set_ylim(EUROPE_MAP_YLIM[0], EUROPE_MAP_YLIM[1])
     ax.axis("off")
     _save_figure(output_path)
 

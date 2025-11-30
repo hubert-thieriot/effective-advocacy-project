@@ -56,10 +56,79 @@ def _normalize_list(items: Optional[Sequence[str]]) -> Optional[List[str]]:
     return out or None
 
 
+def _compile_keyword_matcher(keyword: str) -> callable:
+    """Compile a keyword into a matcher function.
+    
+    Matching modes (specified in config):
+    - Default: substring match (case-insensitive) - matches anywhere in text
+    - 'word:keyword' - word boundary match (only matches whole words)
+    - 'regex:pattern' - full regex pattern matching
+    
+    Examples:
+    - 'veget' -> matches "végétarien", "végétalien", etc. (substring)
+    - 'word:lov' -> only matches standalone "lov", not "djelovanje" (word boundary)
+    - 'regex:veget|végét' -> custom regex pattern
+    
+    Args:
+        keyword: The keyword string (may include 'word:' or 'regex:' prefix)
+        
+    Returns:
+        A function that takes text and returns True if it matches
+    """
+    keyword = keyword.strip()
+    if not keyword:
+        return lambda text: False
+    
+    # Check if it's a regex pattern (starts with 'regex:')
+    if keyword.startswith('regex:'):
+        pattern_str = keyword[6:].strip()
+        try:
+            pattern = re.compile(pattern_str, re.IGNORECASE)
+            return lambda text: pattern.search(text) is not None
+        except re.error:
+            # Fallback to substring if regex is invalid
+            return lambda text: pattern_str.lower() in text.lower()
+    
+    # Check if it's a word boundary match (starts with 'word:')
+    if keyword.startswith('word:'):
+        keyword_str = keyword[5:].strip()
+        # Escape special regex characters and add word boundaries
+        escaped = re.escape(keyword_str)
+        pattern = re.compile(r'\b' + escaped + r'\b', re.IGNORECASE)
+        return lambda text: pattern.search(text) is not None
+    
+    # Default: substring matching (case-insensitive)
+    keyword_lower = keyword.lower()
+    return lambda text: keyword_lower in text.lower()
+
+
+def _matches_any_keyword(text: str, keywords: List[str]) -> bool:
+    """Check if text matches any of the keywords using appropriate matching strategy.
+    
+    Uses _compile_keyword_matcher to handle regex patterns and word boundaries.
+    """
+    matchers = [_compile_keyword_matcher(kw) for kw in keywords]
+    return any(matcher(text) for matcher in matchers)
+
+
 def _normalize_keywords(keywords: Optional[Sequence[str]]) -> Optional[List[str]]:
+    """Normalize keywords (preserve original format, just strip whitespace).
+    
+    Note: Keywords with 'word:' or 'regex:' prefixes are preserved as-is.
+    Other keywords are lowercased for consistent matching.
+    """
     if not keywords:
         return None
-    normalized = [kw.strip().lower() for kw in keywords if kw and kw.strip()]
+    normalized = []
+    for kw in keywords:
+        if not kw or not kw.strip():
+            continue
+        kw_stripped = kw.strip()
+        # Preserve prefixes (word:, regex:) as-is, lowercase others
+        if kw_stripped.startswith('word:') or kw_stripped.startswith('regex:'):
+            normalized.append(kw_stripped)
+        else:
+            normalized.append(kw_stripped.lower())
     return normalized or None
 
 
@@ -125,14 +194,14 @@ def filter_chunks(chunks: Sequence[Dict[str, object]], spec: FilterSpec) -> List
 
 
 def any_chunk_matches_keywords(chunks: Sequence[Dict[str, object]], spec: FilterSpec) -> bool:
-    """Return True if any chunk contains any keyword (case-insensitive)."""
+    """Return True if any chunk contains any keyword using regex-aware matching."""
     if not spec.keywords:
         return True
     for ch in chunks or []:
         if not isinstance(ch, dict):
             continue
-        text = str(ch.get("text", "")).lower()
-        if any(kw in text for kw in spec.keywords):
+        text = str(ch.get("text", ""))
+        if _matches_any_keyword(text, spec.keywords):
             return True
     return False
 

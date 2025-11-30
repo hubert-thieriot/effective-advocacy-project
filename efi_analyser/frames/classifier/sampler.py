@@ -210,14 +210,64 @@ class CorpusSampler:
         return collected
 
     def _normalize_keywords(self, keywords: Optional[Sequence[str]]) -> Optional[List[str]]:
+        """Normalize keywords, preserving 'word:' and 'regex:' prefixes."""
         if not keywords:
             return None
-        normalized = [kw.strip().lower() for kw in keywords if kw and kw.strip()]
+        normalized = []
+        for kw in keywords:
+            if not kw or not kw.strip():
+                continue
+            kw_stripped = kw.strip()
+            # Preserve prefixes (word:, regex:) as-is, lowercase others
+            if kw_stripped.startswith('word:') or kw_stripped.startswith('regex:'):
+                normalized.append(kw_stripped)
+            else:
+                normalized.append(kw_stripped.lower())
         return normalized or None
 
+    def _compile_keyword_matcher(self, keyword: str) -> callable:
+        """Compile a keyword into a matcher function.
+        
+        Matching modes (specified in config):
+        - Default: substring match (case-insensitive) - matches anywhere in text
+        - 'word:keyword' - word boundary match (only matches whole words)
+        - 'regex:pattern' - full regex pattern matching
+        
+        Examples:
+        - 'veget' -> matches "végétarien", "végétalien", etc. (substring)
+        - 'word:lov' -> only matches standalone "lov", not "djelovanje" (word boundary)
+        - 'regex:veget|végét' -> custom regex pattern
+        """
+        keyword = keyword.strip()
+        if not keyword:
+            return lambda text: False
+        
+        # Check if it's a regex pattern (starts with 'regex:')
+        if keyword.startswith('regex:'):
+            pattern_str = keyword[6:].strip()
+            try:
+                pattern = re.compile(pattern_str, re.IGNORECASE)
+                return lambda text: pattern.search(text) is not None
+            except re.error:
+                # Fallback to substring if regex is invalid
+                return lambda text: pattern_str.lower() in text.lower()
+        
+        # Check if it's a word boundary match (starts with 'word:')
+        if keyword.startswith('word:'):
+            keyword_str = keyword[5:].strip()
+            # Escape special regex characters and add word boundaries
+            escaped = re.escape(keyword_str)
+            pattern = re.compile(r'\b' + escaped + r'\b', re.IGNORECASE)
+            return lambda text: pattern.search(text) is not None
+        
+        # Default: substring matching (case-insensitive)
+        keyword_lower = keyword.lower()
+        return lambda text: keyword_lower in text.lower()
+    
     def _matches_keywords(self, text: str, keywords: Sequence[str]) -> bool:
-        lowered = text.lower()
-        return any(keyword in lowered for keyword in keywords)
+        """Check if text matches any keyword using regex-aware matching."""
+        matchers = [self._compile_keyword_matcher(kw) for kw in keywords]
+        return any(matcher(text) for matcher in matchers)
 
     # ------------------------- new helpers for filtering ---------------------
     def _normalize_list(self, items: Optional[Sequence[str]]) -> Optional[List[str]]:

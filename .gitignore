@@ -3,6 +3,9 @@ docs/_includes_cayman/
 docs/_sass/bourbon
 docs/assets
 
+# Except for the following directories:
+!docs/assets/narrative_framing/manifesto_europe_animalwelfare/
+
 # Cache and corpus
 cache/
 corpora/

@@ -406,9 +406,9 @@ def create_party_bar_charts(
         y_pos = np.arange(len(party_name_list))
         ax.barh(y_pos, scores, height=bar_height, color=colors, edgecolor=colors, linewidth=0.8)
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(party_name_list, fontsize=9)
+        ax.set_yticklabels(party_name_list, fontsize=7)  # Reduced from 9
         ax.invert_yaxis()
-        ax.set_title(country, fontsize=12, fontweight='bold', pad=5)
+        ax.set_title(country, fontsize=10, fontweight='bold', pad=5)  # Reduced from 12
         ax.set_ylim(max_parties - 0.5, -0.5)
         
         # Style the axes
@@ -455,7 +455,7 @@ def create_party_bar_charts(
             fig.legend(
                 handles=legend_elements,
                 loc='lower center',
-                bbox_to_anchor=(0.5, 0.01),  # Moved up from -0.02 to reduce space above
+                bbox_to_anchor=(0.5, -0.01),  # Reduced margin at top of legend
                 ncol=len(legend_elements),  # All items in one row
                 frameon=False,
                 fontsize=10,
@@ -464,8 +464,9 @@ def create_party_bar_charts(
                 handletextpad=0.5
             )
             
-            # Adjust layout to leave space for legend (reduced bottom margin)
-            plt.tight_layout(rect=[0, 0.05, 1, 1], hspace=0.4, wspace=0.3)
+            # Adjust layout with more spacing between charts and reduced bottom margin for legend
+            plt.subplots_adjust(hspace=0.8, wspace=0.7, bottom=0.06)
+            plt.tight_layout(rect=[0, 0.06, 1, 1])
         else:
             plt.tight_layout()
     else:

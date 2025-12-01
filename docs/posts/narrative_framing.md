@@ -59,7 +59,7 @@ In this first exploration, I analyzed how leading English-language newspapers di
   </div>
 </div>
 
-Media attention to air pollution in Delhi follows a distinct seasonal pattern, with coverage surging dramatically during the post-monsoon months (October–November) when pollution levels peak. This pattern is driven by two key factors: agricultural stubble burning in neighboring states, which sends smoke across the region, and weather conditions that trap pollutants close to the ground. The chart below illustrates how this seasonal cycle has shaped media attention over the past decade, with periodic spikes drawing public and policy focus during the worst air quality episodes.
+Media attention to air pollution in Delhi follows a distinct seasonal pattern, with coverage surging dramatically during the post-monsoon months (October–November) when pollution levels peak. This pattern is driven several factors: weather conditions that trap pollutants close to the ground, agricultural stubble burning in neighboring states which sends smoke across the region, and year-long local sources whose importance should not be underestimated. The chart below illustrates how this seasonal cycle has shaped media attention over the past decade, with periodic spikes drawing public and policy focus during the worst air quality episodes.
 
 <div class="chart-item">
   <div class="chart-heading">

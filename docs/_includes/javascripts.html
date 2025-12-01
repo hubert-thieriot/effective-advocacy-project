@@ -86,6 +86,14 @@
         $('body').css('overflow', ''); // Restore body scroll
       }
     });
+    
+    // Add "Click to enlarge" hint text under modal images
+    $('.post-content img.modal, .chart-item img.modal').each(function() {
+      // Check if hint already exists to avoid duplicates
+      if ($(this).next('.modal-enlarge-hint').length === 0) {
+        $(this).after('<span class="modal-enlarge-hint">Click to enlarge</span>');
+      }
+    });
   });
 }(jQuery));
 </script>

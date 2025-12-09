@@ -1809,8 +1809,15 @@ def collect_top_stories_by_frame(
     document_aggregates_weighted: Optional[Sequence[DocumentFrameAggregate]],
     *,
     top_n: int = 3,
+    corpus_index: Optional[Dict[str, dict]] = None,
 ) -> Dict[str, List[Dict[str, object]]]:
-    """Collect top stories by frame."""
+    """Collect top stories by frame.
+    
+    Args:
+        document_aggregates_weighted: Document aggregates with frame scores
+        top_n: Number of top stories to return per frame
+        corpus_index: Optional corpus index mapping doc_id to metadata (for looking up titles)
+    """
     top_stories: Dict[str, List[Dict[str, object]]] = {}
     if not document_aggregates_weighted:
         return top_stories
@@ -1820,11 +1827,33 @@ def collect_top_stories_by_frame(
             value = float(score)
             if value <= 0:
                 continue
+            
+            # Try to get title from aggregate, then from corpus index, then fall back to doc_id
+            title = aggregate.title
+            if not title and corpus_index:
+                # Try direct lookup first
+                doc_meta = corpus_index.get(aggregate.doc_id, {})
+                title = doc_meta.get("title") or doc_meta.get("name")
+                
+                # If not found and doc_id is in global format, try local_id
+                if not title:
+                    local_id = aggregate.doc_id
+                    # Handle global doc_id formats: corpus@@local_id or corpus::local_id
+                    if "@@" in aggregate.doc_id:
+                        from efi_analyser.frames.identifiers import split_global_doc_id
+                        _, local_id = split_global_doc_id(aggregate.doc_id)
+                    elif "::" in aggregate.doc_id:
+                        local_id = aggregate.doc_id.split("::", 1)[1]
+                    
+                    if local_id != aggregate.doc_id:
+                        doc_meta = corpus_index.get(local_id, {})
+                        title = doc_meta.get("title") or doc_meta.get("name")
+            
             stories = top_stories.setdefault(frame_id, [])
             stories.append(
                 {
                     "score": value,
-                    "title": aggregate.title or aggregate.doc_id,
+                    "title": title or aggregate.doc_id,
                     "url": aggregate.url or "",
                     "published_at": aggregate.published_at or "",
                     "doc_id": aggregate.doc_id,

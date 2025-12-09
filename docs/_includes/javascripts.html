@@ -38,6 +38,65 @@
   });
 }(jQuery));
 </script>
+
+<script>
+// Image modal functionality
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+    // Create modal structure
+    var modalHTML = '<div id="imageModal" class="image-modal">' +
+                      '<span class="modal-close">&times;</span>' +
+                      '<img class="modal-content" id="modalImage">' +
+                    '</div>';
+    $('body').append(modalHTML);
+    
+    var modal = $('#imageModal');
+    var modalImg = $('#modalImage');
+    var closeBtn = $('.modal-close');
+    
+    // Open modal on image click (only for images with 'modal' class)
+    $('.post-content img.modal').on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var imgSrc = $(this).attr('src');
+      modalImg.attr('src', imgSrc);
+      modal.addClass('active');
+      $('body').css('overflow', 'hidden'); // Prevent body scroll
+    });
+    
+    // Close modal on close button click
+    closeBtn.on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      modal.removeClass('active');
+      $('body').css('overflow', ''); // Restore body scroll
+    });
+    
+    // Close modal on any click (background, image, or anywhere)
+    modal.on('click', function(e) {
+      modal.removeClass('active');
+      $('body').css('overflow', ''); // Restore body scroll
+    });
+    
+    // Close modal on ESC key
+    $(document).on('keydown', function(e) {
+      if (e.key === 'Escape' && modal.hasClass('active')) {
+        modal.removeClass('active');
+        $('body').css('overflow', ''); // Restore body scroll
+      }
+    });
+    
+    // Add "Click to enlarge" hint text under modal images
+    $('.post-content img.modal, .chart-item img.modal').each(function() {
+      // Check if hint already exists to avoid duplicates
+      if ($(this).next('.modal-enlarge-hint').length === 0) {
+        $(this).after('<span class="modal-enlarge-hint">Click to enlarge</span>');
+      }
+    });
+  });
+}(jQuery));
+</script>
 {% if site.google_analytics %}
 {% include google_analytics.html %}
 {% endif %}

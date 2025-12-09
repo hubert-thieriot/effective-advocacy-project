@@ -7,12 +7,13 @@ import json
 import textwrap
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 import re
 
 if TYPE_CHECKING:
     from apps.narrative_framing.run import WorkflowState, ResultPaths
     from apps.narrative_framing.config import NarrativeFramingConfig
+    from efi_analyser.frames import EmbeddedCorpora
 from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
 from apps.narrative_framing.aggregation_temporal import TemporalAggregator
 from apps.narrative_framing.plots import (
@@ -41,6 +42,7 @@ from apps.narrative_framing.plots import (
     render_yearly_bar_chart,
 )
 from efi_analyser.frames import FrameAssignment, FrameSchema
+from efi_analyser.frames.identifiers import split_passage_id
 from efi_core.utils import normalize_date
 import shutil
 
@@ -134,7 +136,7 @@ def export_frames_html(
 }
 
 .frame-card-name {
-    font-size: 18px;
+    font-size: 18px !important;
     font-weight: 600 !important;
     color: var(--accent-color);
     margin-bottom: 0 !important;
@@ -187,23 +189,23 @@ def export_frames_html(
     </div>
 </div>"""
     
-    if jekyll_format:
+    # if jekyll_format:
         # Jekyll include format: just CSS and content, no HTML document structure
-        html_content = css_styles + "\n" + content_html
-    else:
-        # Standalone HTML format: full document
-        html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frame Definitions - {html.escape(schema.domain)}</title>
-    {css_styles}
-</head>
-<body>
-    {content_html}
-</body>
-</html>"""
+    html_content = css_styles + "\n" + content_html
+    # else:
+    #     # Standalone HTML format: full document
+    #     html_content = f"""<!DOCTYPE html>
+# <html lang="en">
+# <head>
+#     <meta charset="UTF-8">
+#     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#     <title>Frame Definitions - {html.escape(schema.domain)}</title>
+#     {css_styles}
+# </head>
+# <body>
+#     {content_html}
+# </body>
+# </html>"""
     
     export_path.parent.mkdir(parents=True, exist_ok=True)
     export_path.write_text(html_content, encoding="utf-8")
@@ -256,6 +258,7 @@ class ReportBuilder:
         config: "NarrativeFramingConfig",
         paths: "ResultPaths",
         total_doc_ids: List[str],
+        corpora_map: Optional["EmbeddedCorpora"] = None,
     ):
         """Initialize the ReportBuilder with state and config.
         
@@ -264,11 +267,13 @@ class ReportBuilder:
             config: Configuration for the narrative framing workflow
             paths: Result paths for output files
             total_doc_ids: List of all document IDs in the corpus
+            corpora_map: Optional corpora map for fetching full document text
         """
         self.state = state
         self.config = config
         self.paths = paths
         self.total_doc_ids = total_doc_ids
+        self.corpora_map = corpora_map
     
     def build(self) -> None:
         """Generate the HTML report from the workflow state."""
@@ -296,6 +301,13 @@ class ReportBuilder:
                 if dt and dt.date().isoformat() >= df_norm:
                     filtered_as.append(a)
             assignments = filtered_as
+
+        # Optional per-document HTML export (works with cached annotations)
+        if self.config.annotation.export_annotated_html and schema:
+            try:
+                self._export_annotated_documents(schema, assignments)
+            except Exception as exc:
+                print(f"⚠️ Failed to export annotated documents: {exc}")
 
         # Check if we have document aggregates (either loaded from cache or newly created)
         has_document_aggregates = document_aggregates_weighted and len(document_aggregates_weighted) > 0
@@ -418,6 +430,253 @@ class ReportBuilder:
                             f"   Note: No document aggregates available "
                             f"(count: {len(document_aggregates_weighted) if document_aggregates_weighted else 0})."
                         )
+
+    # ------------------------------------------------------------------ Annotated HTML export
+    @staticmethod
+    def _sanitize_filename(name: str) -> str:
+        cleaned = (
+            name.replace("@@", "__")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+            .replace(" ", "_")
+        )
+        return cleaned or "document"
+    
+    @staticmethod
+    def _get_nested_metadata_value(metadata: Dict[str, Any], field_path: str) -> Optional[str]:
+        """Extract a value from nested metadata using a dot-separated path.
+        
+        Examples:
+            - "country_name" -> metadata.get("country_name")
+            - "extra.country_name" -> metadata.get("extra", {}).get("country_name")
+            - "extra.party_name" -> metadata.get("extra", {}).get("party_name")
+        
+        Returns the value as a string, or None if not found.
+        """
+        parts = field_path.split(".")
+        value = metadata
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                return None
+            if value is None:
+                return None
+        # Convert to string, handling None and empty values
+        if value is None or value == "":
+            return None
+        return str(value).strip()
+
+    @staticmethod
+    def _hex_to_rgb(color: str) -> Tuple[int, int, int]:
+        c = color.lstrip("#")
+        if len(c) == 6:
+            return tuple(int(c[i : i + 2], 16) for i in (0, 2, 4))
+        return (0, 0, 0)
+
+    @staticmethod
+    def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+        return not (a_end <= b_start or a_start >= b_end)
+
+    def _find_span_with_fallback(
+        self, text: str, chunk_text: str, used_ranges: List[Tuple[int, int]]
+    ) -> Optional[Tuple[int, int]]:
+        """Find chunk span in text, allowing for ellipses/whitespace differences."""
+        if not chunk_text or not chunk_text.strip():
+            return None
+
+        text_lower = text.lower()
+        chunk_lower = chunk_text.lower()
+        chunk_len = len(chunk_text)
+
+        def available_start(start_idx: int) -> bool:
+            return all(not self._spans_overlap(start_idx, start_idx + chunk_len, s, e) for s, e in used_ranges)
+
+        # First: direct substring match
+        start = text_lower.find(chunk_lower)
+        while start != -1:
+            if available_start(start):
+                return start, start + chunk_len
+            start = text_lower.find(chunk_lower, start + 1)
+
+        # Fallback: build regex that tolerates whitespace differences and ellipses
+        escaped = re.escape(chunk_text)
+        escaped = re.sub(r"\\s+", r"\\s+", escaped)  # allow flexible whitespace
+        escaped = escaped.replace(r"\.\.\.", r".{0,160}?")  # allow gaps where ellipses were inserted
+        try:
+            pattern = re.compile(escaped, re.IGNORECASE | re.DOTALL)
+            for m in pattern.finditer(text):
+                s, e = m.start(), m.end()
+                if all(not self._spans_overlap(s, e, us, ue) for us, ue in used_ranges):
+                    return s, e
+        except re.error:
+            return None
+        return None
+
+    def _export_annotated_documents(self, schema: FrameSchema, assignments: Sequence[FrameAssignment]) -> None:
+        if not assignments or not self.corpora_map:
+            return
+
+        # Determine output directory under results
+        if self.paths.assignments:
+            base_dir = self.paths.assignments.parent
+        elif self.config.results_dir:
+            base_dir = Path(self.config.results_dir)
+        else:
+            base_dir = Path("results") / "narrative_framing"
+        out_dir = base_dir / "annotated_documents"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        color_map = build_color_map(schema.frames)
+        frame_titles = {frame.frame_id: frame.name or frame.short_name or frame.frame_id for frame in schema.frames}
+
+        from collections import defaultdict
+
+        doc_assignments: Dict[Tuple[Optional[str], str], List[FrameAssignment]] = defaultdict(list)
+        for assignment in assignments:
+            corpus_name, local_doc_id, _ = split_passage_id(assignment.passage_id)
+            doc_assignments[(corpus_name, local_doc_id)].append(assignment)
+
+        for (corpus_name, local_doc_id), doc_items in doc_assignments.items():
+            try:
+                embedded = self.corpora_map.get_embedded(corpus_name)
+            except Exception:
+                continue
+            try:
+                doc = embedded.corpus.get_document(local_doc_id)
+            except Exception:
+                continue
+            if not doc or not getattr(doc, "text", None):
+                continue
+
+            text = doc.text
+            text_lower = text.lower()
+            spans: List[Tuple[int, int, str, float]] = []
+            used_ranges: List[Tuple[int, int]] = []
+
+            for assignment in doc_items:
+                if not assignment.probabilities:
+                    continue
+                frame_id, prob = max(assignment.probabilities.items(), key=lambda kv: kv[1])
+                if prob <= 0:
+                    continue
+                chunk_text = assignment.passage_text or ""
+                span = self._find_span_with_fallback(text, chunk_text, used_ranges)
+                if span is None:
+                    continue
+                start, end = span
+                spans.append((start, end, frame_id, float(prob)))
+                used_ranges.append((start, end))
+
+            if not spans:
+                continue
+
+            spans.sort(key=lambda x: x[0])
+            highlighted_parts: List[str] = []
+            cursor = 0
+            used_frame_ids: List[str] = []
+
+            for start, end, frame_id, prob in spans:
+                if start > cursor:
+                    highlighted_parts.append(html.escape(text[cursor:start]))
+                rgb = self._hex_to_rgb(color_map.get(frame_id, "#000000"))
+                opacity = max(0.2, min(0.95, prob))
+                segment = html.escape(text[start:end])
+                highlighted_parts.append(
+                    f'<span class="frame" style="background-color: rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {opacity:.2f});" title="{html.escape(frame_id)} ({prob:.2f})">{segment}</span>'
+                )
+                cursor = end
+                used_frame_ids.append(frame_id)
+            if cursor < len(text):
+                highlighted_parts.append(html.escape(text[cursor:]))
+
+            doc_body = "".join(highlighted_parts).replace("\n", "<br>\n")
+            legend_items: List[str] = []
+            for frame_id in sorted(set(used_frame_ids)):
+                r, g, b = self._hex_to_rgb(color_map.get(frame_id, "#000000"))
+                title = frame_titles.get(frame_id, frame_id)
+                legend_items.append(
+                    f'<span class="legend-item"><span class="swatch" style="background-color: rgb({r}, {g}, {b});"></span>{html.escape(frame_id)} – {html.escape(title)}</span>'
+                )
+            legend_html = "\n".join(legend_items)
+
+            title = getattr(doc, "title", None) or local_doc_id
+            global_doc_id = (
+                f"{corpus_name}@@{local_doc_id}" if corpus_name else local_doc_id
+            )
+            filename = self._sanitize_filename(global_doc_id) + ".html"
+            
+            # Get document metadata (including extra field)
+            doc_metadata = {}
+            try:
+                doc_metadata = embedded.corpus.get_metadata(local_doc_id) or {}
+            except Exception:
+                pass
+            
+            # Build subfolder path if configured
+            subfolder_path = Path("")
+            if self.config.annotation.annotated_html_subfolder_fields:
+                subfolder_parts = []
+                for field_path in self.config.annotation.annotated_html_subfolder_fields:
+                    value = self._get_nested_metadata_value(doc_metadata, field_path)
+                    if value:
+                        # Sanitize folder name
+                        sanitized = self._sanitize_filename(str(value))
+                        subfolder_parts.append(sanitized)
+                    else:
+                        # Use "unknown" for missing values
+                        subfolder_parts.append("unknown")
+                if subfolder_parts:
+                    subfolder_path = Path(*subfolder_parts)
+            
+            # Create full output path
+            final_out_dir = out_dir / subfolder_path
+            final_out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = final_out_dir / filename
+            
+            # Format metadata for display
+            metadata_html_parts = []
+            metadata_html_parts.append(f"<strong>Doc ID:</strong> {html.escape(global_doc_id)}")
+            
+            # Add all metadata fields
+            for key, value in doc_metadata.items():
+                if key == "extra" and isinstance(value, dict):
+                    # Handle extra field specially
+                    for extra_key, extra_value in value.items():
+                        if extra_value is not None and extra_value != "":
+                            metadata_html_parts.append(f"<strong>{html.escape(str(extra_key))}:</strong> {html.escape(str(extra_value))}")
+                elif value is not None and value != "":
+                    metadata_html_parts.append(f"<strong>{html.escape(str(key))}:</strong> {html.escape(str(value))}")
+            
+            metadata_html = "<br>\n".join(metadata_html_parts)
+
+            html_doc = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{html.escape(title)}</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; line-height: 1.5; margin: 1.5rem; max-width: 960px; }}
+    .legend {{ margin-bottom: 1rem; }}
+    .legend-item {{ margin-right: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.95rem; }}
+    .swatch {{ width: 14px; height: 14px; display: inline-block; border-radius: 3px; border: 1px solid #e0e0e0; }}
+    .frame {{ border-radius: 3px; padding: 1px 2px; }}
+    .meta {{ color: #666; font-size: 0.9rem; margin-bottom: 1rem; padding: 1rem; background-color: #f5f5f5; border-radius: 4px; }}
+    .meta strong {{ color: #333; }}
+  </style>
+</head>
+<body>
+  <h1>{html.escape(title)}</h1>
+  <div class="meta">{metadata_html}</div>
+  <div class="legend">{legend_html}</div>
+  <div class="document">{doc_body}</div>
+</body>
+</html>
+"""
+            out_path.write_text(html_doc, encoding="utf-8")
+        print(f"✅ Exported annotated documents to {out_dir}")
+
 
 
 def _slugify(value: str) -> str:
@@ -1358,7 +1617,16 @@ def write_html_report(
         </section>
         """
 
-    top_stories_by_frame = collect_top_stories_by_frame(document_aggregates_weighted)
+    # Build corpus index to look up titles
+    corpus_index: Dict[str, dict] = {}
+    if output_path:
+        from efi_analyser.frames.plotting._utils import load_corpus_index
+        corpus_index = load_corpus_index(output_path.parent)
+    
+    top_stories_by_frame = collect_top_stories_by_frame(
+        document_aggregates_weighted,
+        corpus_index=corpus_index,
+    )
     story_cards: List[str] = []
     for frame in schema.frames:
         stories = top_stories_by_frame.get(frame.frame_id)

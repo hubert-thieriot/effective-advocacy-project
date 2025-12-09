@@ -21,7 +21,8 @@ figcaption {
    Previous Cayman-specific rules backed up in custom.css.cayman.bak */
 
 a {
-  color: #1E3D58 !important;
+  color: #057D9F !important;
+  text-decoration: none;
 }
 
 .blog-title {
@@ -379,5 +380,18 @@ code.language-plaintext {
 .bottom-closer .inner .btn:hover {
   background: #88919a !important; /* Lighter shade on hover */
   color: white !important;        /* Keep text color consistent */
+}
+
+/* Add "Click to enlarge" text under modal images */
+.modal-enlarge-hint {
+  display: block;
+  text-align: center;
+  font-size: 0.65rem;
+  color: rgba(0, 0, 0, 0.45);
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  font-style: italic;
+  font-family: 'Open Sans', 'Inter', 'Segoe UI', sans-serif;
+  line-height: 1.2;
 }
 

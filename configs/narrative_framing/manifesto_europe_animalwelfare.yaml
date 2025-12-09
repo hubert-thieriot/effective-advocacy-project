@@ -1,0 +1,740 @@
+# Narrative framing for European political manifestos on animal welfare
+
+corpus: manifesto_europe
+corpora_root: corpora
+workspace_root: workspace
+results_dir: results/narrative_framing/manifesto_europe_animalwelfare
+
+# Narrative framing parameters
+domain: "Animal welfare discourse in European political manifestos"
+seed: 42
+
+# Reload settings
+reload_induction: true
+reload_annotation: true
+reload_classifier: false
+reload_classifications: false
+reload_aggregates: false
+
+
+chunking:
+  target_words: 200
+
+induction:
+  size: 150
+  model: gpt-4.1
+  frame_target: "around 8"
+  guidance: |
+    Identify narrative frames used in European political manifestos to discuss animal welfare 
+    and animal rights. The corpus includes manifestos in multiple European languages.
+    
+    Use these 8 specific frames as the basis (refine wording for clarity if needed, but
+    preserve their essential meaning and scope):
+
+    1. Slaughterhouses: Discourse around slaughtering practices, abattoirs, humane killing,
+       stunning requirements, and conditions in slaughter facilities.
+
+    2. Cruel treatments: General framing of cruelty, abuse, suffering, and inhumane treatment
+       of animals across various contexts.
+
+    3. Pet/companion animals: Discourse specifically about pets, companion animals, domestic
+       animals, breeding practices, pet shops, and animal abandonment.
+
+    4. Cage-free: Framing around cage-free systems, battery cages, confinement, housing
+       conditions, and freedom of movement for farmed animals.
+
+    5. Plant-based proteins: Discourse on plant-based alternatives, meat substitutes,
+       reducing animal consumption, vegan/vegetarian options, and protein transition.
+
+    6. Factory farming: Framing of industrial raising of animals for food production (not covering farming of plants).
+
+    7. Anti-hunting and snaring: Discourse opposing hunting, trapping, snaring, and
+       other wildlife killing practices, including traditional and sport hunting.
+
+    8. Anti-laboratory experiments: Framing against animal testing, vivisection,
+       laboratory experiments on animals, and the push for alternative testing methods.
+
+    IMPORTANT: 
+    - These frames should NOT necessarily be treated as non-overlapping categories
+    - Assign chunks to the most specific applicable frame
+    - Treat all European languages as part of the same conceptual space
+
+
+classification:
+  size: 0
+
+classifier:
+  enabled: false
+  model_name: distilbert-base-uncased
+  batch_size: 8
+  inference_batch_size: 1
+
+report:
+   hide_empty_passages: true
+
+
+annotation:
+  size: 20000
+  model: gpt-4.1-mini
+  batch_size: 8
+  top_k: 3
+  guidance: |
+   This analysis is specifically about ANIMAL WELFARE discourse. DO NOT assign frames to passages that do not explicitly pertain to animals.
+   Factory farming is about the intensive raising of animals.
+   Hunting is about the killing of animals.
+   Keywords are only indicated for a few languages, but extend them to the language of the passage.
+   
+  force_zero_if_no_keywords:
+    # English (18 core terms)
+    english:
+      - animal
+      - welfare
+      - humane
+      - cruelty
+      - slaughter
+      - abattoir
+      - cage
+      - hunting
+      - vegan
+      - vegetarian
+      - fur
+      - pet
+      - livestock
+      - poultry
+      - vivisection
+      - factory farm
+      - meat
+      - breeding
+      - laboratory
+      - free-range
+      - protein
+    
+    # Dutch (20 terms)
+    dutch:
+      - dier           # animal
+      - welzijn        # welfare
+      - humaan         # humane
+      - wreed          # cruel
+      - slacht         # slaughter
+      - kooi           # cage
+      - jacht          # hunting
+      - veganis        # vegan
+      - vegetari       # vegetarian
+      - bont           # fur
+      - huisdier       # pet
+      - vee            # livestock
+      - pluimvee       # poultry
+      - vlees          # meat
+      - fok            # breeding
+      - proef          # testing/experiment
+      - laboratorium   # laboratory
+      - bio-industrie  # factory farming
+      - vrije uitloop  # free-range
+      - dierenwelzijn  # animal welfare
+      - eiwit          # protein
+    
+    # German (20 terms)
+    german:
+      - tier           # animal
+      - tierschutz     # animal welfare
+      - tierwohl       # animal welfare
+      - human          # humane
+      - grausam        # cruel
+      - schlacht       # slaughter
+      - käfig          # cage
+      - jagd           # hunting
+      - vegan
+      - vegetari
+      - pelz           # fur
+      - haustier       # pet
+      - vieh           # livestock
+      - geflügel       # poultry
+      - fleisch        # meat
+      - zucht          # breeding
+      - tierversuch    # animal testing
+      - labor          # laboratory
+      - massentierhaltung  # factory farming
+      - freiland       # free-range
+      - protein        # protein
+    
+    # Serbian-Cyrillic (18 terms)
+    serbian-cyrillic:
+      - животињ        # animal
+      - добробит       # welfare
+      - хуман          # humane
+      - свиреп         # cruel
+      - клање          # slaughter
+      - кавез          # cage
+      - лов            # hunting
+      - веган
+      - вегетариј
+      - крзно          # fur
+      - љубимац        # pet
+      - стока          # livestock
+      - живина         # poultry
+      - месо           # meat
+      - узгој          # breeding
+      - експеримент    # experiment
+      - лабораториј    # laboratory
+      - фарма          # farm
+      - протеин        # protein
+    
+    # Serbian-Latin (18 terms)
+    serbian-latin:
+      - životinj       # animal
+      - dobrobit       # welfare
+      - human          # humane
+      - svirep         # cruel
+      - klanje         # slaughter
+      - kavez          # cage
+      - lov            # hunting
+      - vegan
+      - vegetarij
+      - krzno          # fur
+      - ljubimac       # pet
+      - stoka          # livestock
+      - živina         # poultry
+      - meso           # meat
+      - uzgoj          # breeding
+      - eksperiment    # experiment
+      - laboratorij    # laboratory
+      - farma          # farm
+      - protein        # protein
+    
+    # Croatian (18 terms)
+    croatian:
+      - životinj       # animal
+      - dobrobit       # welfare
+      - human          # humane
+      - okrutan        # cruel
+      - klanje         # slaughter
+      - kavez          # cage
+      - lov            # hunting
+      - vegan
+      - vegetarij
+      - krzno          # fur
+      - ljubimac       # pet
+      - stoka          # livestock
+      - perad          # poultry
+      - meso           # meat
+      - uzgoj          # breeding
+      - pokus          # experiment
+      - laboratorij    # laboratory
+      - industrijski uzgoj  # factory farming
+      - protein        # protein
+    
+    # Montenegrin (18 terms)
+    montenegrin:
+      - životinj
+      - dobrobit
+      - human
+      - svirep
+      - klanje
+      - kavez
+      - lov
+      - vegan
+      - vegetarij
+      - krzno
+      - ljubimac
+      - stoka
+      - živina
+      - meso
+      - uzgoj
+      - eksperiment
+      - laboratorij
+      - farma
+      - protein
+    
+    # Bosnian (18 terms)
+    bosnian:
+      - životinj
+      - dobrobit
+      - human
+      - svirep
+      - klanje
+      - kavez
+      - lov
+      - vegan
+      - vegetarij
+      - krzno
+      - ljubimac
+      - stoka
+      - živina
+      - meso
+      - uzgoj
+      - eksperiment
+      - laboratorij
+      - farma
+      - protein
+    
+    # Spanish (20 terms)
+    spanish:
+      - animal
+      - bienestar      # welfare
+      - humano         # humane
+      - crueldad       # cruelty
+      - matadero       # slaughterhouse
+      - sacrificio     # slaughter
+      - jaula          # cage
+      - caza           # hunting
+      - vegan
+      - vegetarian
+      - piel           # fur/skin
+      - mascota        # pet
+      - ganado         # livestock
+      - aves           # poultry
+      - carne          # meat
+      - cría           # breeding
+      - experimento    # experiment
+      - laboratorio    # laboratory
+      - granja industrial  # factory farm
+      - ganadería intensiva  # intensive farming
+      - proteína       # protein
+    
+    # Portuguese (20 terms)
+    portuguese:
+      - animal
+      - bem-estar      # welfare
+      - humano         # humane
+      - crueldade      # cruelty
+      - abate          # slaughter
+      - matadouro      # slaughterhouse
+      - gaiola         # cage
+      - caça           # hunting
+      - vegan
+      - vegetarian
+      - pele           # fur
+      - animal de estimação  # pet
+      - gado           # livestock
+      - aves           # poultry
+      - carne          # meat
+      - criação        # breeding
+      - experiência    # experiment
+      - laboratório    # laboratory
+      - pecuária intensiva  # factory farming
+      - ao ar livre    # free-range
+      - proteína       # protein
+    
+    # French (20 terms)
+    french:
+      - animal
+      - bien-être      # welfare
+      - humain         # humane
+      - cruauté        # cruelty
+      - abattoir
+      - abattage       # slaughter
+      - cage
+      - chasse         # hunting
+      - végan
+      - végétari
+      - fourrure       # fur
+      - animal de compagnie  # pet
+      - bétail         # livestock
+      - volaille       # poultry
+      - viande         # meat
+      - élevage        # breeding/farming
+      - expérimentation  # experimentation
+      - laboratoire    # laboratory
+      - élevage industriel  # factory farming
+      - plein air      # free-range
+      - protéine       # protein
+    
+    # Swedish (20 terms)
+    swedish:
+      - djur           # animal
+      - djurskydd      # animal welfare
+      - djurvård       # animal care
+      - human          # humane
+      - grymhet        # cruelty
+      - slakt          # slaughter
+      - bur            # cage
+      - jakt           # hunting
+      - vegan
+      - vegetarian
+      - päls           # fur
+      - husdjur        # pet
+      - boskap         # livestock
+      - fjäderfä       # poultry
+      - kött           # meat
+      - avel           # breeding
+      - djurförsök     # animal testing
+      - laboratorium   # laboratory
+      - fabriksdjur    # factory farming
+      - frigående      # free-range
+      - protein        # protein
+    
+    # Icelandic (18 terms)
+    icelandic:
+      - dýr            # animal
+      - dýravelferð    # animal welfare
+      - mannúðleg      # humane
+      - grimmd         # cruelty
+      - slátrun        # slaughter
+      - búr            # cage
+      - veiði          # hunting
+      - vegan
+      - grænmetis      # vegetarian
+      - loðdýr         # fur animal
+      - gæludýr        # pet
+      - búfé           # livestock
+      - alifuglar      # poultry
+      - kjöt           # meat
+      - ræktun         # breeding
+      - tilraun        # experiment
+      - rannsóknarstofa  # laboratory
+      - iðnaðarbúskapur  # factory farming
+      - prótein        # protein
+    
+    # Latvian (18 terms)
+    latvian:
+      - dzīvniek       # animal
+      - labturība      # welfare
+      - humān          # humane
+      - cietsirdība    # cruelty
+      - kaušan         # slaughter
+      - būris          # cage
+      - medības        # hunting
+      - vegān
+      - veģetār
+      - kažokāda       # fur
+      - mājdzīvniek    # pet
+      - lopkop         # livestock
+      - putnu          # poultry
+      - gaļa           # meat
+      - audzēšan       # breeding
+      - eksperiment    # experiment
+      - laboratorij    # laboratory
+      - rūpniecisk     # industrial
+      - olbaltumviel   # protein
+    
+    # Lithuanian (18 terms)
+    lithuanian:
+      - gyvūn          # animal
+      - gerovė         # welfare
+      - human          # humane
+      - žiaurumas      # cruelty
+      - skerdykl       # slaughterhouse
+      - narvas         # cage
+      - medžiokl       # hunting
+      - vegan
+      - vegetar
+      - kailis         # fur
+      - augintinis     # pet
+      - gyvuliai       # livestock
+      - paukštien      # poultry
+      - mėsa           # meat
+      - veisimas       # breeding
+      - eksperiment    # experiment
+      - laboratorij    # laboratory
+      - pramonin       # industrial
+      - baltym         # protein
+    
+    # Greek (18 terms)
+    greek:
+      - ζώο            # animal
+      - ευζωία         # welfare
+      - ανθρώπιν       # humane
+      - σκληρότητα     # cruelty
+      - σφαγ           # slaughter
+      - κλουβί         # cage
+      - κυνήγι         # hunting
+      - vegan
+      - χορτοφάγ       # vegetarian
+      - γούνα          # fur
+      - κατοικίδιο     # pet
+      - ζώα            # animals
+      - πουλερικά      # poultry
+      - κρέας          # meat
+      - εκτροφή        # breeding
+      - πείραμα        # experiment
+      - εργαστήρι      # laboratory
+      - βιομηχανικ     # industrial
+      - πρωτεΐν        # protein
+    
+    # Hungarian (20 terms)
+    hungarian:
+      - állat          # animal
+      - állatjólét     # animal welfare
+      - jólét          # welfare
+      - humánus        # humane
+      - kegyetlen      # cruel
+      - vágóhíd        # slaughterhouse
+      - ketrec         # cage
+      - vadász         # hunting
+      - vegán
+      - vegetáriánus
+      - szőrme         # fur
+      - háziállat      # pet
+      - haszonállat    # livestock
+      - baromfi        # poultry
+      - hús            # meat
+      - tenyészt       # breeding
+      - kísérlet       # experiment
+      - labor          # laboratory
+      - ipar           # industrial
+      - szabadtart     # free-range
+      - fehérje        # protein
+    
+    # Albanian (18 terms)
+    albanian:
+      - kafshë         # animal
+      - mirëqen        # welfare
+      - human          # humane
+      - mizori         # cruelty
+      - therje         # slaughter
+      - kafaz          # cage
+      - gjueti         # hunting
+      - vegan
+      - vegjetarian
+      - gëzof          # fur
+      - kafshë shtëpiake  # pet
+      - bagëti         # livestock
+      - shpend         # poultry
+      - mish           # meat
+      - mbarështim     # breeding
+      - eksperiment    # experiment
+      - laborator      # laboratory
+      - industrial     # industrial
+      - proteinë       # protein
+    
+    # Catalan (18 terms)
+    catalan:
+      - animal
+      - benestar       # welfare
+      - humà           # humane
+      - crueltat       # cruelty
+      - escorxador     # slaughterhouse
+      - gàbia          # cage
+      - caça           # hunting
+      - vegà
+      - vegetarià
+      - pell           # fur
+      - mascota        # pet
+      - bestiar        # livestock
+      - aviram         # poultry
+      - carn           # meat
+      - cria           # breeding
+      - experiment     # experiment
+      - laboratori     # laboratory
+      - intensiu       # intensive
+      - proteïna       # protein
+    
+    # Galician (18 terms)
+    galician:
+      - animal
+      - benestar       # welfare
+      - humano         # humane
+      - crueldade      # cruelty
+      - matadoiro      # slaughterhouse
+      - gaiola         # cage
+      - caza           # hunting
+      - vegan
+      - vexetarian
+      - pel            # fur
+      - mascota        # pet
+      - gando          # livestock
+      - aves           # poultry
+      - carne          # meat
+      - cría           # breeding
+      - experimento    # experiment
+      - laboratorio    # laboratory
+      - intensivo      # intensive
+      - proteína       # protein
+    
+    # Maltese (18 terms)
+    maltese:
+      - annimal        # animal
+      - benesseri      # welfare
+      - uman           # humane
+      - krudeltà       # cruelty
+      - qatla          # slaughter
+      - gaġġa          # cage
+      - kaċċa          # hunting
+      - vegan
+      - veġetarjan
+      - fer            # fur
+      - annimal domestiku  # pet
+      - bhejjem        # livestock
+      - tjur           # poultry
+      - laħam          # meat
+      - trobbija       # breeding
+      - esperiment     # experiment
+      - laboratorju    # laboratory
+      - industrijali   # industrial
+      - proteina       # protein
+    
+    # Italian (19 terms)
+    italian:
+      - animale        # animal
+      - benessere      # welfare
+      - umano          # humane
+      - crudeltà       # cruelty
+      - macello        # slaughterhouse
+      - macellazione   # slaughter
+      - gabbia         # cage
+      - caccia         # hunting
+      - vegano
+      - vegetariano
+      - pelliccia      # fur
+      - animale domestico  # pet
+      - bestiame       # livestock
+      - pollame        # poultry
+      - carne          # meat
+      - allevamento    # breeding/farming
+      - esperimento    # experiment
+      - laboratorio    # laboratory
+      - proteina       # protein
+    
+    # Danish (19 terms)
+    danish:
+      - dyr            # animal
+      - dyrevelfærd    # animal welfare
+      - human          # humane
+      - grusomhed      # cruelty
+      - slagteri       # slaughterhouse
+      - slagtning      # slaughter
+      - bur            # cage
+      - jagt           # hunting
+      - vegan
+      - vegetar
+      - pels           # fur
+      - kæledyr        # pet
+      - husdyr         # livestock
+      - fjerkræ        # poultry
+      - kød            # meat
+      - avl            # breeding
+      - forsøg         # experiment
+      - laboratorium   # laboratory
+      - protein        # protein
+    
+    # Finnish (19 terms)
+    finnish:
+      - eläin          # animal
+      - hyvinvointi    # welfare
+      - inhimillinen   # humane
+      - julmuus        # cruelty
+      - teurastamo     # slaughterhouse
+      - teurastus      # slaughter
+      - häkki          # cage
+      - metsästys      # hunting
+      - vegaani
+      - kasvissyöjä    # vegetarian
+      - turkis         # fur
+      - lemmikki       # pet
+      - karja          # livestock
+      - siipikarja     # poultry
+      - liha           # meat
+      - jalostus       # breeding
+      - koe            # experiment
+      - laboratorio    # laboratory
+      - proteiini      # protein
+    
+    # Slovenian (19 terms)
+    slovenian:
+      - žival          # animal
+      - dobrobit       # welfare
+      - human          # humane
+      - krutost        # cruelty
+      - klavnica       # slaughterhouse
+      - zakol          # slaughter
+      - kletka         # cage
+      - lov            # hunting
+      - vegan
+      - vegetarijan
+      - krzno          # fur
+      - hišni ljubljenček  # pet
+      - živina         # livestock
+      - perutnina      # poultry
+      - meso           # meat
+      - reja           # breeding
+      - poskus         # experiment
+      - laboratorij    # laboratory
+      - protein        # protein
+    
+    # Polish (19 terms)
+    polish:
+      - zwierzę        # animal
+      - dobrostan      # welfare
+      - humanitarn     # humane
+      - okrucieństwo   # cruelty
+      - rzeźnia        # slaughterhouse
+      - ubój           # slaughter
+      - klatka         # cage
+      - polowanie      # hunting
+      - wegańsk
+      - wegetarian
+      - futro          # fur
+      - zwierzę domowe # pet
+      - bydło          # livestock
+      - drób           # poultry
+      - mięso          # meat
+      - hodowla        # breeding
+      - eksperyment    # experiment
+      - laboratorium   # laboratory
+      - białko         # protein
+    
+    # Ukrainian (19 terms)
+    ukrainian:
+      - тварин         # animal
+      - добробут       # welfare
+      - гуманн         # humane
+      - жорстокість    # cruelty
+      - бійня          # slaughterhouse
+      - забій          # slaughter
+      - клітка         # cage
+      - полювання      # hunting
+      - веган
+      - вегетаріан
+      - хутро          # fur
+      - домашня тварина  # pet
+      - худоба         # livestock
+      - птиця          # poultry
+      - мясо           # meat
+      - розведення     # breeding
+      - експеримент    # experiment
+      - лабораторі     # laboratory
+      - білок          # protein
+    
+    # Estonian (19 terms)
+    estonian:
+      - loom           # animal
+      - heaolu         # welfare
+      - humaanne       # humane
+      - julmus         # cruelty
+      - tapamaja       # slaughterhouse
+      - tapmine        # slaughter
+      - puur           # cage
+      - jaht           # hunting
+      - vegan
+      - taimetoitl     # vegetarian
+      - karusnahk      # fur
+      - lemmikloom     # pet
+      - kariloom       # livestock
+      - linnuliha      # poultry
+      - liha           # meat
+      - aretus         # breeding
+      - katse          # experiment
+      - labor          # laboratory
+      - valk           # protein
+    
+    # Romanian (19 terms)
+    romanian:
+      - animal
+      - bunăstare      # welfare
+      - uman           # humane
+      - cruzime        # cruelty
+      - abator         # slaughterhouse
+      - sacrificare    # slaughter
+      - cușcă          # cage
+      - vânătoare      # hunting
+      - vegan
+      - vegetarian
+      - blană          # fur
+      - animal de companie  # pet
+      - șeptel         # livestock
+      - păsări         # poultry
+      - carne          # meat
+      - creștere       # breeding
+      - experiment     # experiment
+      - laborator      # laboratory
+      - proteină       # protein

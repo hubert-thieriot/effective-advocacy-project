@@ -10,7 +10,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 
 import os
@@ -31,6 +31,7 @@ from apps.narrative_framing.aggregates import Aggregates, AggregatesBuilder
 from apps.narrative_framing.config import ClassifierSettings, NarrativeFramingConfig, load_config
 from apps.narrative_framing.report import ReportBuilder
 from apps.narrative_framing.filtering import Filter
+
 
 from efi_analyser.chunkers.sentence_chunker import SentenceChunker
 from efi_analyser.frames import (
@@ -54,10 +55,7 @@ from efi_analyser.frames.classifier import (
 )
 from efi_analyser.scorers.openai_interface import OpenAIConfig, OpenAIInterface
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
-from efi_analyser.frames.identifiers import (
-    make_global_passage_id,
-    split_global_doc_id,
-)
+from efi_analyser.frames.plotting import PlotConfig, run_plots
 from efi_core.utils import normalize_date
 
 try:  # Prefer spaCy-based chunker when available.
@@ -407,7 +405,7 @@ class NarrativeFramingWorkflow:
             temperature=application_temp,
             timeout=600.0,
             ignore_cache=False,
-            verbose=False,  # Disable verbose logging to simplify output
+            verbose=config.annotation.verbose if config.annotation.verbose is not None else False,
         )
 
         # Resolve and validate default prompt templates; copy raw templates into results
@@ -420,16 +418,39 @@ class NarrativeFramingWorkflow:
         self.app_usr_t = _read_text_or_fail(prompt_paths["application_user"])
 
     # --------------------------------------------------------------------- #
+    # Helper methods
+    # --------------------------------------------------------------------- #
+    @staticmethod
+    def _flatten_keywords(
+        keywords: Optional[Union[List[str], Dict[str, List[str]]]]
+    ) -> Optional[List[str]]:
+        """Flatten language-specific keywords dict to a single list for sampling.
+        
+        The sampler uses substring matching, so we dedupe and return all keywords
+        across all languages as a flat list.
+        """
+        if keywords is None:
+            return None
+        if isinstance(keywords, list):
+            return keywords
+        # Dict: flatten all language lists into one unique set
+        all_kw = set()
+        for kw_list in keywords.values():
+            all_kw.update(kw_list)
+        return list(all_kw) if all_kw else None
+
+    # --------------------------------------------------------------------- #
     # Public orchestration entrypoint
     # --------------------------------------------------------------------- #
     def run(self) -> None:
-        """Execute the full workflow: induction → annotation → train → apply → aggregate → report."""
+        """Execute the full workflow: induction → annotation → train → apply → aggregate → report → plots."""
         self.run_induction()
         self.run_annotation()
         self.run_training()
         self.run_application()
         self.run_aggregation()
         self.run_report()
+        self.run_plots()
 
     # --------------------------------------------------------------------- #
     # Step 1 – Induction
@@ -458,23 +479,39 @@ class NarrativeFramingWorkflow:
 
         if state.schema is None and self.allow_new_induction:
             print("Collecting passages for frame induction...")
+            # Use relevance_keywords to filter induction sample (flatten if dict)
+            induction_keywords = self._flatten_keywords(config.relevance_keywords)
+            if induction_keywords:
+                print(f"   Filtering induction sample to passages with {len(induction_keywords)} relevance keywords")
+            
+            # Get base sampler kwargs and override keywords with relevance_keywords if provided
+            sampler_kwargs = self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist)
+            if induction_keywords:
+                sampler_kwargs["keywords"] = induction_keywords
+            
             induction_samples = self.sampler.collect_chunks(
                 SamplerConfig(
                     sample_size=config.induction.size,
                     seed=config.seed,
                     date_from=config.filter.date_from,
                     require_document_keywords=config.filter.document.keywords,
-                    **self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist),
+                    **sampler_kwargs,
                 )
             )
             print(f"Collected {len(induction_samples)} passages for induction.")
             induction_passages = [text for _, text in induction_samples]
             inducer_client = OpenAIInterface(name="frame_induction", config=self.openai_induction_config)
+            # Determine max passages per induction call
+            if config.induction.batch_size:
+                max_per_call = config.induction.batch_size
+            else:
+                max_per_call = min(config.induction.size, 40)
+            
             inducer = FrameInducer(
                 llm_client=inducer_client,
                 domain=config.domain,
                 frame_target=config.induction.frame_target,
-                max_passages_per_call=max(20, min(config.induction.size, 80)),
+                max_passages_per_call=max_per_call,
                 max_total_passages=config.induction.size * 2,
                 induction_guidance=config.induction.guidance,
                 system_template=self.ind_sys_t,
@@ -573,6 +610,8 @@ class NarrativeFramingWorkflow:
                         top_k=config.annotation.top_k,
                         show_progress=True,
                         progress_desc=f"Annotating frames ({annotator_client.config.model})",
+                        relevance_keywords=config.annotation.force_zero_if_no_keywords or config.relevance_keywords,
+                        guidance=config.annotation.guidance,
                     )
                     assignments.extend(new_assignments)
                     print(
@@ -819,6 +858,12 @@ class NarrativeFramingWorkflow:
             if not self.allow_new_aggregation:
                 print("⚠️ Skipping aggregation: cannot rebuild (read-only mode) and cache load failed.")
                 return
+            
+            # When classifier is disabled, use LLM annotations for aggregation
+            if not classifications and state.assignments:
+                print("ℹ️ Classifier disabled; using LLM annotations for aggregation.")
+                classifications = state.assignments.to_classifications()
+                
             if not schema or not classifications:
                 print("⚠️ Skipping aggregation: schema or classifications missing.")
                 return
@@ -852,9 +897,74 @@ class NarrativeFramingWorkflow:
             config=config,
             paths=paths,
             total_doc_ids=self.total_doc_ids,
+            corpora_map=self.corpora_map,
         )
         report_builder.build()
-       
+
+    # --------------------------------------------------------------------- #
+    # Step 7 – Additional Plots
+    # --------------------------------------------------------------------- #
+    def run_plots(self) -> None:
+        """Generate additional plots configured via additional_plots."""
+        config = self.config
+        state = self.state
+        
+        if not config.additional_plots:
+            return
+        
+        print(f"\n📊 Generating {len(config.additional_plots)} additional plots...")
+        
+        # Convert config dicts to PlotConfig objects
+        plot_configs = []
+        for plot_dict in config.additional_plots:
+            plot_configs.append(PlotConfig(
+                type=plot_dict.get("type"),
+                output=plot_dict.get("output"),
+                options=plot_dict.get("options"),
+                export_as=plot_dict.get("export_as"),
+            ))
+        
+        # Run plots
+        results_dir = config.results_dir or Path("results")
+        generated = run_plots(
+            state=state,
+            config=config,
+            results_dir=results_dir,
+            plot_configs=plot_configs,
+            corpus_index=self._build_corpus_index(),
+            export_dir=config.export_dir,
+            export_plots_dir=config.report.export_plots_dir,
+        )
+        
+        if generated:
+            print(f"✅ Generated {len(generated)} plots")
+        else:
+            print("⚠️ No plots generated")
+    
+    def _build_corpus_index(self) -> Dict[str, dict]:
+        """Build corpus index from loaded corpora.
+        
+        Returns dict mapping doc_id to metadata for all documents.
+        """
+        index = {}
+        for doc_id in self.total_doc_ids:
+            # Parse global doc_id to get corpus name and local id
+            # Format is typically "corpus_name::local_id" 
+            if "::" in doc_id:
+                corpus_name, local_id = doc_id.split("::", 1)
+            else:
+                # Single corpus - use first corpus
+                corpus_name = self.corpus_names[0] if self.corpus_names else None
+                local_id = doc_id
+            
+            if corpus_name and corpus_name in self.corpora_map:
+                corpus = self.corpora_map[corpus_name].corpus
+                meta = corpus.get_metadata(local_id) or {}
+                index[doc_id] = meta
+            else:
+                index[doc_id] = {}
+        
+        return index
 
 
 def parse_args() -> argparse.Namespace:

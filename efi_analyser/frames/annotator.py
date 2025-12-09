@@ -5,8 +5,9 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Sequence, Tuple, Optional, Union
 
 from pathlib import Path
 
@@ -80,6 +81,8 @@ class LLMFrameAnnotator:
         top_k: int = 3,
         show_progress: bool = False,
         progress_desc: Optional[str] = None,
+        relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None,
+        guidance: Optional[str] = None,
     ) -> List[FrameAssignment]:
         """Assign frame probabilities for each passage in order of input.
         
@@ -89,17 +92,34 @@ class LLMFrameAnnotator:
             top_k: Number of top frames to return per passage.
             show_progress: Whether to display a progress bar during processing.
             progress_desc: Optional description for the progress bar.
+            relevance_keywords: If provided, passages without these keywords get
+                zero frame scores without calling the LLM (cost optimization).
+                Can be a flat list (applies to all languages) or a dict mapping
+                language codes to keyword lists.
+            guidance: Additional guidance text to help the annotator avoid false positives.
         """
+        self._current_guidance = guidance  # Store for use in _build_messages
         self._current_metadata = {}
         prepared = self._prepare_passages(passages)
         if not prepared:
             return []
 
+        frame_ids = [frame.frame_id for frame in schema.frames]
+        
+        # Partition passages: those needing annotation vs auto-zero
+        to_annotate, zero_annotated = self._partition_by_relevance(
+            prepared, relevance_keywords, frame_ids
+        )
+        
+        if zero_annotated:
+            print(f"ℹ️ Bypassed LLM for {len(zero_annotated)} passages without relevance keywords (auto-zero).")
+
+        # Check cache for passages that need annotation
         schema_hash = self._schema_hash(schema)
         cached: Dict[str, FrameAssignment] = {}
         pending: List[Tuple[str, str, str]] = []
 
-        for passage_id, text in prepared:
+        for passage_id, text in to_annotate:
             cache_key = self._cache_key(schema_hash, text)
             cached_assignment = self._cache.get(cache_key)
             if cached_assignment is not None:
@@ -107,7 +127,9 @@ class LLMFrameAnnotator:
             else:
                 pending.append((passage_id, text, cache_key))
 
+        # Combine zero-annotated with cached results
         results: Dict[str, FrameAssignment] = dict(cached)
+        results.update(zero_annotated)
         skipped_passages: List[str] = []
 
         # Create progress bar if requested
@@ -188,6 +210,164 @@ class LLMFrameAnnotator:
                 segments = self._split_passage(passage_id, text)
                 prepared.extend(segments)
         return prepared
+
+    def _compile_keyword_matcher(self, keyword: str) -> Callable[[str], bool]:
+        """Compile a keyword into a matcher function.
+        
+        Matching modes (specified in config):
+        - Default: substring match (case-insensitive) - matches anywhere in text
+        - 'word:keyword' - word boundary match (only matches whole words)
+        - 'regex:pattern' - full regex pattern matching
+        
+        Examples:
+        - 'veget' -> matches "végétarien", "végétalien", etc. (substring)
+        - 'word:lov' -> only matches standalone "lov", not "djelovanje" (word boundary)
+        - 'regex:veget|végét' -> custom regex pattern
+        """
+        keyword = keyword.strip()
+        if not keyword:
+            return lambda text: False
+        
+        # Check if it's a regex pattern (starts with 'regex:')
+        if keyword.startswith('regex:'):
+            pattern_str = keyword[6:].strip()
+            try:
+                pattern = re.compile(pattern_str, re.IGNORECASE)
+                return lambda text: pattern.search(text) is not None
+            except re.error:
+                # Fallback to substring if regex is invalid
+                return lambda text: pattern_str.lower() in text.lower()
+        
+        # Check if it's a word boundary match (starts with 'word:')
+        if keyword.startswith('word:'):
+            keyword_str = keyword[5:].strip()
+            # Escape special regex characters and add word boundaries
+            escaped = re.escape(keyword_str)
+            pattern = re.compile(r'\b' + escaped + r'\b', re.IGNORECASE)
+            return lambda text: pattern.search(text) is not None
+        
+        # Default: substring matching (case-insensitive)
+        keyword_lower = keyword.lower()
+        return lambda text: keyword_lower in text.lower()
+    
+    def _matches_any_keyword(self, text: str, keywords: List[str]) -> bool:
+        """Check if text matches any of the keywords using appropriate matching strategy.
+        
+        Uses _compile_keyword_matcher to handle regex patterns and word boundaries.
+        """
+        matchers = [self._compile_keyword_matcher(kw) for kw in keywords]
+        return any(matcher(text) for matcher in matchers)
+
+    def _partition_by_relevance(
+        self,
+        prepared: List[Tuple[str, str]],
+        relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]],
+        frame_ids: List[str],
+    ) -> Tuple[List[Tuple[str, str]], Dict[str, FrameAssignment]]:
+        """Partition passages into those needing annotation vs auto-zero.
+        
+        Args:
+            prepared: List of (passage_id, text) tuples
+            relevance_keywords: Either a flat list of keywords (language-agnostic)
+                or a dict mapping language codes to keyword lists
+            frame_ids: List of frame IDs for zero assignments
+        
+        Returns:
+            (to_annotate, zero_annotated): Passages to send to LLM, and 
+            pre-built zero assignments for passages without relevance keywords.
+        """
+        if not relevance_keywords:
+            return prepared, {}
+        
+        # Normalize keywords - either flat list or dict by language
+        # Preserve 'word:' and 'regex:' prefixes, lowercase others
+        def normalize_kw_list(kws):
+            normalized = []
+            for kw in kws:
+                if not kw or not kw.strip():
+                    continue
+                kw_stripped = kw.strip()
+                # Preserve prefixes (word:, regex:) as-is, lowercase others
+                if kw_stripped.startswith('word:') or kw_stripped.startswith('regex:'):
+                    normalized.append(kw_stripped)
+                else:
+                    normalized.append(kw_stripped.lower())
+            return normalized
+        
+        if isinstance(relevance_keywords, dict):
+            # Dict by language: normalize each language's keywords
+            keywords_by_lang = {
+                lang: normalize_kw_list(kws)
+                for lang, kws in relevance_keywords.items()
+            }
+            is_multilingual = True
+        else:
+            # Flat list
+            normalized_keywords = normalize_kw_list(relevance_keywords)
+            if not normalized_keywords:
+                return prepared, {}
+            is_multilingual = False
+        
+        to_annotate: List[Tuple[str, str]] = []
+        zero_annotated: Dict[str, FrameAssignment] = {}
+        
+        for passage_id, text in prepared:
+            text_lower = text.lower()
+            
+            if is_multilingual:
+                # Look up language from stored metadata
+                meta = self._current_metadata.get(passage_id, {})
+                lang = meta.get("language", "").lower()
+                # Try exact match, then partial match (e.g., "serbian-cyrillic" -> "serbian")
+                keywords = keywords_by_lang.get(lang)
+                if keywords is None:
+                    # Try language prefix (e.g., "sr" from "serbian-cyrillic")
+                    lang_prefix = lang.split("-")[0] if "-" in lang else lang[:2]
+                    keywords = keywords_by_lang.get(lang_prefix)
+                if keywords is None:
+                    # No keywords for this language - annotate it (don't skip)
+                    to_annotate.append((passage_id, text))
+                    continue
+            else:
+                keywords = normalized_keywords
+            
+            has_keyword = self._matches_any_keyword(text, keywords)
+            
+            if has_keyword:
+                to_annotate.append((passage_id, text))
+            else:
+                zero_annotated[passage_id] = self._create_zero_assignment(
+                    passage_id, text, frame_ids
+                )
+        
+        return to_annotate, zero_annotated
+
+    def _create_zero_assignment(
+        self,
+        passage_id: str,
+        text: str,
+        frame_ids: List[str],
+    ) -> FrameAssignment:
+        """Create a zero-probability frame assignment for a passage."""
+        zero_probs = {fid: 0.0 for fid in frame_ids}
+        corpus_name, local_doc_id, _ = split_passage_id(passage_id)
+        metadata = {
+            "doc_id": local_doc_id,
+            "global_doc_id": make_global_doc_id(corpus_name, local_doc_id) if corpus_name else local_doc_id,
+            "bypassed_relevance": True,
+        }
+        if corpus_name:
+            metadata["corpus"] = corpus_name
+        
+        return FrameAssignment(
+            passage_id=passage_id,
+            passage_text=text,
+            probabilities=zero_probs,
+            top_frames=[],
+            rationale="",
+            evidence_spans=[],
+            metadata=metadata,
+        )
 
     def _split_passage(self, passage_id: str, text: str) -> List[Tuple[str, str]]:
         text = text.strip()
@@ -294,6 +474,7 @@ class LLMFrameAnnotator:
             "passages": ctx_passages,
             "passages_text": batch_lines,
             "top_k": top_k,
+            "guidance": getattr(self, "_current_guidance", None) or "",
         }
         sys_content = Template(self._system_template).render(**ctx)
         usr_content = Template(self._user_template).render(**ctx)

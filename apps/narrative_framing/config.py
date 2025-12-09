@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import yaml
 
@@ -92,6 +92,8 @@ class FilterConfig:
     chunk: ChunkFilter = field(default_factory=ChunkFilter)
 
 
+
+
 @dataclass
 class ChunkingConfig:
     """Configuration for text chunking."""
@@ -107,6 +109,7 @@ class InductionConfig:
     frame_target: str = "between 5 and 10"
     temperature: Optional[float] = None  # None = use model default
     guidance: Optional[str] = None
+    batch_size: Optional[int] = None  # Max passages per LLM call (default: auto-sized)
 
 
 @dataclass
@@ -117,6 +120,17 @@ class AnnotationConfig:
     batch_size: int = DEFAULT_APPLICATION_BATCH
     top_k: int = DEFAULT_APPLICATION_TOP_K
     temperature: Optional[float] = None  # None = use model default
+    verbose: Optional[bool] = None  # None = False (disable verbose logging by default)
+    # Bypass LLM with zero scores if chunk lacks these keywords.
+    # Can be a flat list (applies to all languages) or dict by language code:
+    #   force_zero_if_no_keywords: [animal, welfare, ...]  # flat
+    #   force_zero_if_no_keywords:  # by language
+    #     en: [animal, welfare, ...]
+    #     de: [tier, tierschutz, ...]
+    force_zero_if_no_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
+    guidance: Optional[str] = None  # Additional guidance for the annotator to reduce false positives
+    export_annotated_html: bool = False  # When true, export per-document HTML highlighting annotated spans
+    annotated_html_subfolder_fields: Optional[List[str]] = None  # List of metadata field paths (e.g., ["extra.country_name", "extra.party_name"]) to organize documents into subfolders
 
 
 @dataclass
@@ -146,6 +160,14 @@ class NarrativeFramingConfig:
     reload_classifications: bool = False
     reload_aggregates: bool = True
     
+    # Top-level relevance keywords (used for both induction sampling and annotation bypass).
+    # Can be a flat list (applies to all languages) or dict by language code:
+    #   relevance_keywords: [animal, welfare, ...]  # flat
+    #   relevance_keywords:  # by language
+    #     english: [animal, welfare, ...]
+    #     german: [tier, tierschutz, ...]
+    relevance_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
+    
     # Nested configuration sections
     filter: FilterConfig = field(default_factory=FilterConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
@@ -156,6 +178,23 @@ class NarrativeFramingConfig:
     results_dir: Optional[Path] = None
     classifier: ClassifierSettings = field(default_factory=ClassifierSettings)
     report: ReportSettings = field(default_factory=ReportSettings)
+    
+    # Additional plots to generate (list of plot configurations)
+    # Example:
+    #   additional_plots:
+    #     - type: europe_map
+    #       options:
+    #         cmap: Greens
+    #       export_as: manifesto_map.png  # optional: copy to export_dir
+    #     - type: dominant_frame_map
+    #     - type: party_bars
+    #     - type: frame_examples
+    #       options:
+    #         format: html
+    additional_plots: Optional[List[Dict[str, Any]]] = None
+    
+    # Directory to export generated plots (e.g., for docs/assets)
+    export_dir: Optional[Path] = None
     
     # Legacy fields (deprecated, kept for backward compatibility)
     llm_model: str = DEFAULT_LLM_MODEL  # Deprecated: use induction.model and annotation.model
@@ -396,6 +435,22 @@ def load_config(path: Path) -> NarrativeFramingConfig:
     if "reload_aggregates" in data:
         config.reload_aggregates = bool(data["reload_aggregates"])
     
+    # Parse top-level relevance_keywords (used for both induction and annotation)
+    if "relevance_keywords" in data:
+        keywords = data["relevance_keywords"]
+        if keywords is None:
+            config.relevance_keywords = None
+        elif isinstance(keywords, dict):
+            # Dict by language code: {english: [...], german: [...], ...}
+            config.relevance_keywords = {
+                lang: [str(item).lower().strip() for item in kw_list if item]
+                for lang, kw_list in keywords.items()
+                if kw_list
+            }
+        else:
+            # Flat list (language-agnostic)
+            config.relevance_keywords = [str(item).lower().strip() for item in keywords if item]
+    
     # Parse nested chunking config
     if "chunking" in data and isinstance(data["chunking"], dict):
         chunking_data = data["chunking"]
@@ -418,6 +473,8 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.induction.temperature = float(induction_data["temperature"]) if induction_data["temperature"] is not None else None
         if "guidance" in induction_data:
             config.induction.guidance = str(induction_data["guidance"]).strip() if induction_data["guidance"] else None
+        if "batch_size" in induction_data:
+            config.induction.batch_size = int(induction_data["batch_size"]) if induction_data["batch_size"] else None
     
     # Parse nested annotation config
     if "annotation" in data and isinstance(data["annotation"], dict):
@@ -432,6 +489,32 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.annotation.top_k = int(annotation_data["top_k"])
         if "temperature" in annotation_data:
             config.annotation.temperature = float(annotation_data["temperature"]) if annotation_data["temperature"] is not None else None
+        if "force_zero_if_no_keywords" in annotation_data:
+            keywords = annotation_data["force_zero_if_no_keywords"]
+            if keywords is None:
+                config.annotation.force_zero_if_no_keywords = None
+            elif isinstance(keywords, dict):
+                # Dict by language code: {en: [...], de: [...], ...}
+                config.annotation.force_zero_if_no_keywords = {
+                    lang: [str(item).lower().strip() for item in kw_list if item]
+                    for lang, kw_list in keywords.items()
+                    if kw_list
+                }
+            else:
+                # Flat list (language-agnostic)
+                config.annotation.force_zero_if_no_keywords = [str(item).lower().strip() for item in keywords if item]
+        if "guidance" in annotation_data:
+            config.annotation.guidance = str(annotation_data["guidance"]).strip() if annotation_data["guidance"] else None
+        if "verbose" in annotation_data:
+            config.annotation.verbose = bool(annotation_data["verbose"]) if annotation_data["verbose"] is not None else None
+        if "export_annotated_html" in annotation_data:
+            config.annotation.export_annotated_html = bool(annotation_data["export_annotated_html"])
+        if "annotated_html_subfolder_fields" in annotation_data:
+            subfolder_fields = annotation_data["annotated_html_subfolder_fields"]
+            if isinstance(subfolder_fields, list):
+                config.annotation.annotated_html_subfolder_fields = [str(f) for f in subfolder_fields]
+            elif subfolder_fields is None:
+                config.annotation.annotated_html_subfolder_fields = None
     
     # Parse nested classification config
     if "classification" in data and isinstance(data["classification"], dict):
@@ -743,6 +826,17 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                 except Exception:
                     config.report.include_yearly_bar_charts = True
 
+    # Parse additional_plots
+    if "additional_plots" in data and isinstance(data["additional_plots"], list):
+        config.additional_plots = []
+        for plot_item in data["additional_plots"]:
+            if isinstance(plot_item, dict) and "type" in plot_item:
+                config.additional_plots.append(plot_item)
+    
+    # Parse export_dir
+    if "export_dir" in data:
+        config.export_dir = Path(data["export_dir"])
+    
     config.normalize()
     return config
 

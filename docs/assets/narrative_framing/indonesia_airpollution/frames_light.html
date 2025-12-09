@@ -1,16 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frame Definitions - Indonesia air pollution causes</title>
-    <style>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 .frames-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 40px 20px;
 }
 
 .frames-grid {
@@ -38,7 +31,7 @@
 }
 
 .frame-card-name {
-    font-size: 18px;
+    font-size: 18px !important;
     font-weight: 600 !important;
     color: var(--accent-color);
     margin-bottom: 0 !important;
@@ -76,10 +69,14 @@
     color: #1e293b;
     font-weight: 500;
 }
+
+@media (max-width: 768px) { 
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
 </style>
-</head>
-<body>
-    <div class="frames-container">
+<div class="frames-container">
     <div class="frames-grid">
         
         <div class="frame-card" style="--accent-color: #1E3D58;">
@@ -164,5 +161,3 @@
         </div>
     </div>
 </div>
-</body>
-</html>

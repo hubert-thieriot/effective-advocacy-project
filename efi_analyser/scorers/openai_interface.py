@@ -37,25 +37,26 @@ class OpenAIConfig:
     ignore_cache: bool = False
     verbose: bool = False
     
-    # Models that only support default temperature (1.0)
-    _DEFAULT_TEMP_MODELS = {"gpt-5-nano"}
+    # Models that don't support custom temperature (must use default or omit parameter)
+    _NO_TEMP_MODELS = {"gpt-5-nano", "gpt-5-mini"}
     
     def __post_init__(self):
         """Validate and adjust temperature based on model capabilities."""
-        if self.model in self._DEFAULT_TEMP_MODELS and self.temperature != 1.0:
-            if self.verbose:
-                print(f"⚠️ Model {self.model} only supports default temperature (1.0), overriding {self.temperature} -> 1.0")
-            self.temperature = 1.0
+        if self.model in self._NO_TEMP_MODELS:
+            # These models don't support temperature parameter - it will be omitted from API calls
+            if self.verbose and self.temperature != 1.0:
+                print(f"⚠️ Model {self.model} doesn't support custom temperature, will omit temperature parameter (requested: {self.temperature})")
+            # Store the requested value but it won't be used in API calls
     
     @classmethod
     def get_default_temperature(cls, model: str) -> float:
         """Get the default temperature for a given model."""
-        return 1.0 if model in cls._DEFAULT_TEMP_MODELS else 0.0
+        return 1.0 if model in cls._NO_TEMP_MODELS else 0.0
     
     @classmethod
     def supports_custom_temperature(cls, model: str) -> bool:
         """Check if a model supports custom temperature values."""
-        return model not in cls._DEFAULT_TEMP_MODELS
+        return model not in cls._NO_TEMP_MODELS
 
 
 class OpenAIInterface:
@@ -119,9 +120,14 @@ class OpenAIInterface:
         if not self.config.ignore_cache:
             cached_entry = self.cache_manager.get(self.config.model, messages, parameters)
             if cached_entry is not None:
-                if self.config.verbose:
-                    print(f"📋 Using cached response for {self.name} ({self.config.model})")
-                return cached_entry.response
+                # Skip cached error responses (re-fetch them)
+                if self._is_error_response(cached_entry.response):
+                    if self.config.verbose:
+                        print(f"⚠️ Skipping cached error response, will re-fetch")
+                else:
+                    if self.config.verbose:
+                        print(f"📋 Using cached response for {self.name} ({self.config.model})")
+                    return cached_entry.response
         
         # Make API call
         if self.config.verbose:
@@ -134,27 +140,47 @@ class OpenAIInterface:
         if self.config.verbose:
             print(f"✅ OpenAI API call completed in {inference_time:.2f}s for {self.name} ({self.config.model})")
         
-        # Cache the response using centralized cache manager
-        self.cache_manager.put(
-            model=self.config.model,
-            messages=messages,
-            parameters=parameters,
-            response=response,
-            inference_time=inference_time
-        )
+        # Don't cache error responses (429 rate limit, insufficient credits, etc.)
+        if not self._is_error_response(response):
+            self.cache_manager.put(
+                model=self.config.model,
+                messages=messages,
+                parameters=parameters,
+                response=response,
+                inference_time=inference_time
+            )
+        else:
+            if self.config.verbose:
+                print(f"⚠️ Skipping cache for error response")
         
         return response
+    
+    def _is_error_response(self, response: str) -> bool:
+        """Check if response is an error that should not be cached."""
+        error_indicators = [
+            "rate_limit",
+            "insufficient_quota",
+            "RateLimitError",
+            "API error"
+        ]
+        return any(indicator in response for indicator in error_indicators)
 
     def _safe_infer(self, messages: List[Dict[str, str]]) -> str:
         """Make OpenAI API call with retry logic and error handling."""
         for attempt in range(self.config.max_retries):
             try:
-                response = self.client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages,
-                    temperature=self.config.temperature,
-                    timeout=self.config.timeout
-                )
+                # Build API call parameters
+                api_params = {
+                    "model": self.config.model,
+                    "messages": messages,
+                    "timeout": self.config.timeout
+                }
+                
+                # Only include temperature if the model supports it
+                if self.config.supports_custom_temperature(self.config.model):
+                    api_params["temperature"] = self.config.temperature
+                
+                response = self.client.chat.completions.create(**api_params)
                 
                 return response.choices[0].message.content
                 

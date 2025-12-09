@@ -129,7 +129,11 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
 
         frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
         for frame_id in self._frame_ids:
-            frame_sums[frame_id] += weight * float(probabilities.get(frame_id, 0.0))
+            probability = probabilities.get(frame_id, 0.0)
+            # Apply threshold to ignore low-probability frames
+            if self._min_threshold > 0.0 and probability < self._min_threshold:
+                continue
+            frame_sums[frame_id] += weight * probability
         state["weight"] = float(state["weight"]) + weight
 
         if published_at and not state["published_at"]:
@@ -149,10 +153,6 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
                 frame_scores = {frame_id: 0.0 for frame_id in self._frame_ids}
             else:
                 frame_scores = {frame_id: frame_sums[frame_id] / weight for frame_id in self._frame_ids}
-
-            # Apply threshold
-            if self._min_threshold > 0.0:
-                frame_scores = {fid: (val if val >= self._min_threshold else 0.0) for fid, val in frame_scores.items()}
 
             # Optional per-document normalization to sum to 1.0 (unless all zeros)
             if self._normalize:
@@ -222,7 +222,10 @@ class OccurrenceFrameAggregator(FrameAggregationStrategy):
         )
         frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
         for frame_id in self._frame_ids:
-            frame_sums[frame_id] += weight * float(probabilities.get(frame_id, 0.0))
+            probability = probabilities.get(frame_id, 0.0)
+            if self._min_threshold > 0.0 and probability < self._min_threshold:
+                continue
+            frame_sums[frame_id] += weight * probability
         state["weight"] = float(state["weight"]) + weight
         if published_at and not state["published_at"]:
             normalized = normalize_date(published_at)
@@ -242,7 +245,7 @@ class OccurrenceFrameAggregator(FrameAggregationStrategy):
             else:
                 scores = {frame_id: frame_sums[frame_id] / weight for frame_id in self._frame_ids}
             # Threshold to binary presence
-            presence = {fid: (1.0 if val >= self._min_threshold and val > 0.0 else 0.0) for fid, val in scores.items()}
+            presence = {fid: (1.0 if val > 0.0 else 0.0) for fid, val in scores.items()}
             ordered = sorted(presence.items(), key=lambda item: item[1], reverse=True)
             top_frames = [frame_id for frame_id, v in ordered if v > 0.0][: self._top_k]
             agg = DocumentFrameAggregate(

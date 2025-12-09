@@ -5,6 +5,9 @@ docs/assets
 
 # Except for the following directories:
 !docs/assets/narrative_framing/manifesto_europe_animalwelfare/
+!docs/assets/narrative_framing/delhi_airpollution_selected_newspapers/
+!docs/assets/narrative_framing/indonesia_airpollution/
+!docs/assets/css/
 
 # Cache and corpus
 cache/

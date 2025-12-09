@@ -130,6 +130,7 @@ class AnnotationConfig:
     force_zero_if_no_keywords: Optional[Union[List[str], Dict[str, List[str]]]] = None
     guidance: Optional[str] = None  # Additional guidance for the annotator to reduce false positives
     export_annotated_html: bool = False  # When true, export per-document HTML highlighting annotated spans
+    annotated_html_subfolder_fields: Optional[List[str]] = None  # List of metadata field paths (e.g., ["extra.country_name", "extra.party_name"]) to organize documents into subfolders
 
 
 @dataclass
@@ -508,6 +509,12 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             config.annotation.verbose = bool(annotation_data["verbose"]) if annotation_data["verbose"] is not None else None
         if "export_annotated_html" in annotation_data:
             config.annotation.export_annotated_html = bool(annotation_data["export_annotated_html"])
+        if "annotated_html_subfolder_fields" in annotation_data:
+            subfolder_fields = annotation_data["annotated_html_subfolder_fields"]
+            if isinstance(subfolder_fields, list):
+                config.annotation.annotated_html_subfolder_fields = [str(f) for f in subfolder_fields]
+            elif subfolder_fields is None:
+                config.annotation.annotated_html_subfolder_fields = None
     
     # Parse nested classification config
     if "classification" in data and isinstance(data["classification"], dict):

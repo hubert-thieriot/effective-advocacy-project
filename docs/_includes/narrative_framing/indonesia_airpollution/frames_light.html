@@ -31,7 +31,7 @@
 }
 
 .frame-card-name {
-    font-size: 18px;
+    font-size: 18px !important;
     font-weight: 600 !important;
     color: var(--accent-color);
     margin-bottom: 0 !important;
@@ -68,6 +68,12 @@
 .frame-examples strong {
     color: #1e293b;
     font-weight: 500;
+}
+
+@media (max-width: 768px) { 
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
 }
 </style>
 <div class="frames-container">

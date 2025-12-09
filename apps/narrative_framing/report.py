@@ -7,7 +7,7 @@ import json
 import textwrap
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 import re
 
 if TYPE_CHECKING:
@@ -442,6 +442,31 @@ class ReportBuilder:
             .replace(" ", "_")
         )
         return cleaned or "document"
+    
+    @staticmethod
+    def _get_nested_metadata_value(metadata: Dict[str, Any], field_path: str) -> Optional[str]:
+        """Extract a value from nested metadata using a dot-separated path.
+        
+        Examples:
+            - "country_name" -> metadata.get("country_name")
+            - "extra.country_name" -> metadata.get("extra", {}).get("country_name")
+            - "extra.party_name" -> metadata.get("extra", {}).get("party_name")
+        
+        Returns the value as a string, or None if not found.
+        """
+        parts = field_path.split(".")
+        value = metadata
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                return None
+            if value is None:
+                return None
+        # Convert to string, handling None and empty values
+        if value is None or value == "":
+            return None
+        return str(value).strip()
 
     @staticmethod
     def _hex_to_rgb(color: str) -> Tuple[int, int, int]:
@@ -581,7 +606,50 @@ class ReportBuilder:
                 f"{corpus_name}@@{local_doc_id}" if corpus_name else local_doc_id
             )
             filename = self._sanitize_filename(global_doc_id) + ".html"
-            out_path = out_dir / filename
+            
+            # Get document metadata (including extra field)
+            doc_metadata = {}
+            try:
+                doc_metadata = embedded.corpus.get_metadata(local_doc_id) or {}
+            except Exception:
+                pass
+            
+            # Build subfolder path if configured
+            subfolder_path = Path("")
+            if self.config.annotation.annotated_html_subfolder_fields:
+                subfolder_parts = []
+                for field_path in self.config.annotation.annotated_html_subfolder_fields:
+                    value = self._get_nested_metadata_value(doc_metadata, field_path)
+                    if value:
+                        # Sanitize folder name
+                        sanitized = self._sanitize_filename(str(value))
+                        subfolder_parts.append(sanitized)
+                    else:
+                        # Use "unknown" for missing values
+                        subfolder_parts.append("unknown")
+                if subfolder_parts:
+                    subfolder_path = Path(*subfolder_parts)
+            
+            # Create full output path
+            final_out_dir = out_dir / subfolder_path
+            final_out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = final_out_dir / filename
+            
+            # Format metadata for display
+            metadata_html_parts = []
+            metadata_html_parts.append(f"<strong>Doc ID:</strong> {html.escape(global_doc_id)}")
+            
+            # Add all metadata fields
+            for key, value in doc_metadata.items():
+                if key == "extra" and isinstance(value, dict):
+                    # Handle extra field specially
+                    for extra_key, extra_value in value.items():
+                        if extra_value is not None and extra_value != "":
+                            metadata_html_parts.append(f"<strong>{html.escape(str(extra_key))}:</strong> {html.escape(str(extra_value))}")
+                elif value is not None and value != "":
+                    metadata_html_parts.append(f"<strong>{html.escape(str(key))}:</strong> {html.escape(str(value))}")
+            
+            metadata_html = "<br>\n".join(metadata_html_parts)
 
             html_doc = f"""<!DOCTYPE html>
 <html>
@@ -594,12 +662,13 @@ class ReportBuilder:
     .legend-item {{ margin-right: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.95rem; }}
     .swatch {{ width: 14px; height: 14px; display: inline-block; border-radius: 3px; border: 1px solid #e0e0e0; }}
     .frame {{ border-radius: 3px; padding: 1px 2px; }}
-    .meta {{ color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }}
+    .meta {{ color: #666; font-size: 0.9rem; margin-bottom: 1rem; padding: 1rem; background-color: #f5f5f5; border-radius: 4px; }}
+    .meta strong {{ color: #333; }}
   </style>
 </head>
 <body>
   <h1>{html.escape(title)}</h1>
-  <div class="meta">Doc ID: {html.escape(global_doc_id)}</div>
+  <div class="meta">{metadata_html}</div>
   <div class="legend">{legend_html}</div>
   <div class="document">{doc_body}</div>
 </body>

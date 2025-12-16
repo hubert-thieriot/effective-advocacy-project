@@ -14,13 +14,8 @@ import time
 import requests
 
 from efi_core.types import PairScorer, Task
-import sys
-from pathlib import Path
 
-# Add project root to path for cache manager
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-from cache.llm_cache_manager import get_cache_manager
+from efi_analyser.cache.llm_cache_manager import get_cache_manager
 
 
 @dataclass

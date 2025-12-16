@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Sequence
 import requests
 from dotenv import load_dotenv
 
-from cache.llm_cache_manager import get_cache_manager
+from efi_analyser.cache.llm_cache_manager import get_cache_manager
 
 load_dotenv()
 

@@ -13,13 +13,8 @@ from pathlib import Path
 
 import openai
 from dotenv import load_dotenv
-import sys
-from pathlib import Path
 
-# Add project root to path for cache manager
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-from cache.llm_cache_manager import get_cache_manager
+from efi_analyser.cache.llm_cache_manager import get_cache_manager
 
 # Load environment variables
 load_dotenv()
@@ -38,7 +33,7 @@ class OpenAIConfig:
     verbose: bool = False
     
     # Models that don't support custom temperature (must use default or omit parameter)
-    _NO_TEMP_MODELS = {"gpt-5-nano", "gpt-5-mini"}
+    _NO_TEMP_MODELS = {"gpt-5", "gpt-5-nano", "gpt-5-mini"}
     
     def __post_init__(self):
         """Validate and adjust temperature based on model capabilities."""

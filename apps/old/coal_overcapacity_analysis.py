@@ -32,10 +32,7 @@ from efi_analyser.scorers import NLIHFScorer, NLILLMScorer, LLMScorerConfig, NLI
 import sys
 from pathlib import Path
 
-# Add project root to path for cache manager
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-from cache.llm_cache_manager import get_cache_manager
+from efi_analyser.cache.llm_cache_manager import get_cache_manager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

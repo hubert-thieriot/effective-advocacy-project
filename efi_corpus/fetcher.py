@@ -8,9 +8,10 @@ import time
 import requests
 import zstandard as zstd
 from pathlib import Path
-from typing import Tuple, Dict, Any, Union
+from typing import Tuple, Dict, Any, Union, List, Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from urllib.parse import urlparse
 from efi_core.utils import DateTimeEncoder
 
 
@@ -27,6 +28,20 @@ class Fetcher:
             (self.cache / sub).mkdir(parents=True, exist_ok=True)
         self.ua = ua
         self.timeout = timeout
+        
+        # Domain-specific fetching strategies for problematic domains
+        self.domain_strategies = {
+            'itv.com': {
+                'user_agents': [
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+                ],
+                'timeout': 45,  # Longer timeout for ITV
+                'retry_with_different_ua': True,
+            }
+        }
         
         # Create a session with retry logic
         self.session = requests.Session()
@@ -89,25 +104,70 @@ class Fetcher:
                         blob_path, _ = self._blob_paths(blob_id)
                         return blob_id, blob_path, meta
 
+        # Check if this domain needs special handling
+        domain = urlparse(url).netloc.lower()
+        domain_strategy = None
+        if domain in self.domain_strategies:
+            domain_strategy = self.domain_strategies[domain]
+        elif any(domain.endswith(f'.{d}') for d in self.domain_strategies.keys()):
+            # Handle subdomains (e.g., www.itv.com matches itv.com strategy)
+            for base_domain, strategy in self.domain_strategies.items():
+                if domain.endswith(f'.{base_domain}') or domain == base_domain:
+                    domain_strategy = strategy
+                    break
+        
+        # Determine timeout and user agents to try
+        fetch_timeout = domain_strategy.get('timeout', self.timeout) if domain_strategy else self.timeout
+        user_agents_to_try = [self.ua]
+        if domain_strategy and domain_strategy.get('retry_with_different_ua', False):
+            user_agents_to_try = domain_strategy['user_agents'] + [self.ua]
+        
         # Prepare headers for conditional GET
-        headers = {"User-Agent": self.ua}
+        headers = {}
         if etag:
             headers["If-None-Match"] = etag
         if last_mod:
             headers["If-Modified-Since"] = last_mod
-
-        # Fetch the URL
-        try:
-            r = self.session.get(url, timeout=self.timeout)
-        except requests.exceptions.Timeout:
-            print(f"Timeout fetching {url} (timeout: {self.timeout}s)")
-            raise
-        except requests.exceptions.ConnectionError as e:
-            print(f"Connection error fetching {url}: {e}")
-            raise
-        except requests.exceptions.RequestException as e:
-            print(f"Request error fetching {url}: {e}")
-            raise
+        
+        # Try fetching with different user agents if needed
+        last_exception = None
+        for ua_index, user_agent in enumerate(user_agents_to_try):
+            headers["User-Agent"] = user_agent
+            
+            # Fetch the URL
+            try:
+                r = self.session.get(url, headers=headers, timeout=fetch_timeout)
+                # Success - break out of retry loop
+                break
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                if ua_index < len(user_agents_to_try) - 1:
+                    print(f"Timeout fetching {url} with UA {ua_index + 1}/{len(user_agents_to_try)}, trying next...")
+                    continue
+                else:
+                    print(f"Timeout fetching {url} (timeout: {fetch_timeout}s) after trying {len(user_agents_to_try)} user agents")
+                    raise
+            except requests.exceptions.ConnectionError as e:
+                last_exception = e
+                if ua_index < len(user_agents_to_try) - 1:
+                    print(f"Connection error fetching {url} with UA {ua_index + 1}/{len(user_agents_to_try)}, trying next...")
+                    continue
+                else:
+                    print(f"Connection error fetching {url}: {e}")
+                    raise
+            except requests.exceptions.RequestException as e:
+                last_exception = e
+                if ua_index < len(user_agents_to_try) - 1:
+                    print(f"Request error fetching {url} with UA {ua_index + 1}/{len(user_agents_to_try)}, trying next...")
+                    continue
+                else:
+                    print(f"Request error fetching {url}: {e}")
+                    raise
+        else:
+            # All attempts failed
+            if last_exception:
+                raise last_exception
+            raise requests.exceptions.RequestException(f"Failed to fetch {url} after {len(user_agents_to_try)} attempts")
         
         # Handle 304 Not Modified
         if r.status_code == 304 and map_path.exists():

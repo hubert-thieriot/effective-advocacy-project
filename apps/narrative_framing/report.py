@@ -212,37 +212,35 @@ def export_frames_html(
 
 
 def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path], export_plots_dir: Optional[Path] = None) -> None:
-    """Copy exported Plotly PNGs, SVGs, and HTML files into docs/ for GitHub Pages.
+    """Copy exported Plotly PNGs, SVGs, and HTML files to export_plots_dir if specified.
 
     - PNGs, SVGs, and HTMLs are expected in results/<run_name>/plots
-    - Files copied to docs/assets/narrative_framing/<run_name>/ (or export_plots_dir if specified)
+    - Files copied to export_plots_dir only if specified (otherwise kept only in results subfolders)
     - HTML report copied to docs/reports/<run_name>/frame_report.html
     """
     try:
-        # Prefer plots under the run directory; fall back to legacy location
-        plots_src = (results_html.parent / "plots") if results_html else None
-        if not plots_src or not plots_src.exists():
-            plots_src = Path("results/plots") / run_dir_name / "plots"
-        
-        # Determine destination directory
+        # Only copy plots if export_plots_dir is explicitly set
         if export_plots_dir:
+            # Prefer plots under the run directory; fall back to legacy location
+            plots_src = (results_html.parent / "plots") if results_html else None
+            if not plots_src or not plots_src.exists():
+                plots_src = Path("results/plots") / run_dir_name / "plots"
+            
             plots_dst = Path(export_plots_dir)
-        else:
-            plots_dst = Path("docs/assets/narrative_framing") / run_dir_name
+            
+            if plots_src and plots_src.exists():
+                plots_dst.mkdir(parents=True, exist_ok=True)
+                # Copy PNG, SVG, and HTML files
+                for file_path in sorted(plots_src.glob("*.png")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
+                for file_path in sorted(plots_src.glob("*.svg")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
+                for file_path in sorted(plots_src.glob("*.html")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
         
-        report_dst = Path("docs/reports") / run_dir_name
-        
-        if plots_src and plots_src.exists():
-            plots_dst.mkdir(parents=True, exist_ok=True)
-            # Copy PNG, SVG, and HTML files
-            for file_path in sorted(plots_src.glob("*.png")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-            for file_path in sorted(plots_src.glob("*.svg")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-            for file_path in sorted(plots_src.glob("*.html")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-        
+        # Always copy HTML report to docs/reports (this is separate from plot exports)
         if results_html and results_html.exists():
+            report_dst = Path("docs/reports") / run_dir_name
             report_dst.mkdir(parents=True, exist_ok=True)
             shutil.copy2(results_html, report_dst / "frame_report.html")
     except Exception as exc:

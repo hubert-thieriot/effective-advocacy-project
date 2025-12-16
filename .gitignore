@@ -1,12 +1,15 @@
 # website
 docs/_includes_cayman/
 docs/_sass/bourbon
-docs/assets
+docs/assets/
 
 # Except for the following directories:
+# Doesn't work??
 !docs/assets/narrative_framing/manifesto_europe_animalwelfare/
 !docs/assets/narrative_framing/delhi_airpollution_selected_newspapers/
 !docs/assets/narrative_framing/indonesia_airpollution/
+!docs/assets/narrative_framing/uk_grandnational/*
+!docs/assets/narrative_framing/uk_grandnational_prerace/*
 !docs/assets/css/
 
 # Cache and corpus

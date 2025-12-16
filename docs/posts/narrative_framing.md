@@ -117,7 +117,7 @@ This type of analysis could inform advocacy and funding strategies in several wa
 </div>
 
 ## Example 2: Did the Grand National protest shift media framing?
-In April 2023, Animal Rising activists disrupted the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and reignited public debate about the ethics of horse racing.
+In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
 
 Social Change Lab conducted an [evaluation](https://www.socialchangelab.org/shortandlongtermeffects) of the protest's effects, combining longitudinal panels with cross-sectional surveys. Their findings were nuanced: awareness of the protest was initially linked to *worse* attitudes toward animals, but these negative effects faded within six months. Cross-sectional comparisons suggested that overall attitudes toward animals had actually improved over that period.
 
@@ -133,7 +133,7 @@ The chart below shows how coverage breaks down across four frames: Race & Sport 
     <div class="chart-title">How UK newspapers frame the Grand National</div>
     <div class="chart-subtitle">Share of coverage devoted to each frame, 2010–2025</div>
   </div>
-  <img src="{{ site.baseurl }}/assets/narrative_framing/uk_grandnational/yearly_weighted_woz.svg" style="width: 100%; height: auto;">
+  <img src="{{ site.baseurl }}/assets/narrative_framing/uk_grandnational/yearly_weighted_woz_annotated.svg" style="width: 100%; height: auto;">
   <p class="chart-note">
     <strong>Note:</strong> The chart shows the relative frequency of each frame across all analysed articles, weighted by article length to reflect prominence in coverage.
     <br><br>
@@ -166,6 +166,17 @@ However, welfare coverage in any given year could be driven by incidents during 
 
 When restricted to pre-race coverage, the 2023 spike logically disappears. Here again, the results suggest the protest didn't have a lasting effect on how journalists frame the Grand National in anticipation of subsequent races.
 
+A more granular analysis would break this down by outlet, examining whether certain newspapers shifted their framing more than others in subsequent years.
+
+### Strategic applications
+
+**Evaluate intervention impact:** The Grand National example illustrates how framing analysis can complement other evaluation methods. Social Change Lab measured public opinion and mobilisation; this analysis tracked a different outcome—media narrative. Combining both gives a fuller picture of what an intervention achieved or did not.
+
+
+**Set realistic expectations:** The null result here is informative. A highly visible, widely covered disruption generated a spike in welfare framing during the event but didn't durably shift how media talks about the Grand National. This suggests that one-off actions, however attention-grabbing, may not be sufficient to move narratives long-term.
+
+
+**Track cumulative effects:** A single protest may not shift framing, but repeated interventions might. Running this analysis over time could help advocates detect whether sustained campaigning is gradually changing how an issue is discussed, even if individual actions don't show immediate effects.
 
 ## Example 3: Animal welfare in European political manifestos
 

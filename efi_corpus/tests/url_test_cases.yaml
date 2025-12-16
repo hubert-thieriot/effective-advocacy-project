@@ -89,3 +89,16 @@ test_cases:
       - "Subscribe to The Economic Times Prime"
     expected_min_length: 1000
     site: "economictimes.indiatimes.com"
+    
+  # ITV News articles
+  itv_grand_national_bet:
+    url: "http://www.itv.com/news/2017-04-07/family-cashes-in-on-historic-grand-national-bet-half-a-century-later/"
+    description: "ITV News article about family cashing in historic Grand National bet"
+    required_text:
+      - "A family have finally cashed in their winning bet"
+      - "Grand National"
+      - "Red Rum"
+      - "William Hill"
+      - "half a century"
+    expected_min_length: 1000
+    site: "itv.com"

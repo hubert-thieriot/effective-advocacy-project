@@ -15,7 +15,7 @@ tags: [narrative-framing]
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets or messages to prioritize.
 
-To illustrate this methodology, this post includes two illustrative examples: one on air pollution in India and one on animal welfare in European political manifestos.
+To illustrate this methodology, this post includes three illustrative examples: one on air pollution in India, one on the Grand National Protest, and one on animal welfare in European political manifestos.
 </div>
 
 
@@ -42,7 +42,12 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
 
 - **Measure change over time**: Tracking how narratives evolve — across repeated studies or advocacy campaigns — could help observe whether certain framings gain or lose prominence. This might support both strategic reflection (for advocates seeking feedback on their efforts) and broader research on how public conversations shift around key issues.
 
-To see what this might look like in practice, I ran two small experiments. One asks how India's largest English-language newspapers talk about air pollution — who gets blamed, and who doesn't. The other examines how European political parties frame animal welfare in their manifestos.
+To see what this might look like in practice, I ran three experiments:
+
+- [Example 1: Air pollution causes in Delhi, India](#example-1-air-pollution-causes-in-delhi-india): identifying gaps between media coverage and scientific evidence on pollution sources
+- [Example 2: Grand National protest](#example-2-did-the-grand-national-protest-shift-media-framing): testing whether Animal Rising's 2023 disruption had a lasting effect on media framing
+- [Example 3: Animal welfare in EU party manifestos](#example-3-animal-welfare-in-european-political-manifestos): mapping how parties across Europe talk about animal welfare and where framings differ
+
 
 ## Example 1: Air pollution causes in Delhi, India
 
@@ -111,11 +116,60 @@ This type of analysis could inform advocacy and funding strategies in several wa
   </p>
 </div>
 
+## Example 2: Did the Grand National protest shift media framing?
+In April 2023, Animal Rising activists disrupted the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and reignited public debate about the ethics of horse racing.
+
+Social Change Lab conducted an [evaluation](https://www.socialchangelab.org/shortandlongtermeffects) of the protest's effects, combining longitudinal panels with cross-sectional surveys. Their findings were nuanced: awareness of the protest was initially linked to *worse* attitudes toward animals, but these negative effects faded within six months. Cross-sectional comparisons suggested that overall attitudes toward animals had actually improved over that period.
+
+Notably, how people felt about the protest depended on which outlet they heard about it from: those who learned about it through The Guardian or friends and family were more supportive than those who saw it on ITV. This relationship held even after controlling for demographics and pre-existing attitudes toward animals, suggesting an independent effect of media framing (though the authors note this analysis is tentative).
+
+That last finding is particularly relevant here. If media framing shapes public response to protests, then **tracking how media frames an issue over time becomes a meaningful outcome in itself**.
+
+The chart below shows how coverage breaks down across four frames: Race & Sport (the event itself), Betting & Odds, Celebs & Style (fashion, celebrity attendance), and Welfare & Safety (animal welfare, horse deaths, safety concerns).
 
 
-## Example 2: Animal welfare in European political manifestos
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">How UK newspapers frame the Grand National</div>
+    <div class="chart-subtitle">Share of coverage devoted to each frame, 2010–2025</div>
+  </div>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/uk_grandnational/yearly_weighted_woz.svg" style="width: 100%; height: auto;">
+  <p class="chart-note">
+    <strong>Note:</strong> The chart shows the relative frequency of each frame across all analysed articles, weighted by article length to reflect prominence in coverage.
+    <br><br>
+    <strong>Data Source:</strong> Over 30,000 articles retrieved from UK newspapers via MediaCloud.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. Further validation and methodological refinement are needed before drawing firm conclusions.
+  </p>
+</div>
 
-This second application shifts from media analysis to political discourse, examining how European political parties frame animal welfare in their electoral manifestos. The analysis covers manifestos published since 2018 spanning 36 countries and 29 languages, and were collected from the [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. It is important to note though that **these manifestos may represent different types of elections** and may therefore lead to biased cross-country comparisons; a more thorough analysis would further discriminate by election type.
+Two findings stand out. First, the method detected a **clear spike in welfare framing in 2023, the year of the protest**.
+
+Second, in 2024 and 2025, welfare framing returned to levels only slightly above those pre-protest. The protest generated a surge in welfare-related coverage during the event, but **did not appear to durably shift how media frames the Grand National in subsequent years**.
+
+However, welfare coverage in any given year could be driven by incidents during the race itself. To isolate the narrative framing from race-day reporting, I repeated the analysis using only articles published before race day each year.
+
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">How UK newspapers frame the Grand National (pre-race coverage only)</div>
+    <div class="chart-subtitle">Share of coverage devoted to each frame in articles published <strong>before race day</strong>, 2010–2025</div>
+  </div>
+  <img src="{{ site.baseurl }}/assets/narrative_framing/uk_grandnational_prerace/yearly_weighted_woz.svg" style="width: 100%; height: auto;">
+  <p class="chart-note">
+    <strong>Note:</strong> The chart shows the relative frequency of each frame across articles published before race day each year, weighted by article length to reflect prominence in coverage.
+    <br><br>
+    <strong>Data Source:</strong> Articles retrieved from UK newspapers via MediaCloud.
+    <br><br>
+    <strong>Disclaimer:</strong> These results are for demonstration purposes only. Further validation and methodological refinement are needed before drawing firm conclusions.
+  </p>
+</div>
+
+When restricted to pre-race coverage, the 2023 spike logically disappears. Here again, the results suggest the protest didn't have a lasting effect on how journalists frame the Grand National in anticipation of subsequent races.
+
+
+## Example 3: Animal welfare in European political manifestos
+
+This third application shifts from media analysis to political discourse, examining how European political parties frame animal welfare in their electoral manifestos. The analysis covers manifestos published since 2018 spanning 36 countries and 29 languages, and were collected from the [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. It is important to note though that **these manifestos may represent different types of elections** and may therefore lead to biased cross-country comparisons; a more thorough analysis would further discriminate by election type.
 
 
 The left map shows how much attention each country's manifestos give to animal welfare. The right map highlights the dominant frame in each country, excluding the catch-all "General animal welfare" category to emphasize more specific narratives. *Frames definitions are detailed [below](#frames-manifesto)*.

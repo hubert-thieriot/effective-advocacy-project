@@ -20,6 +20,21 @@ from ..identifiers import (
 from ..types import Candidate
 
 
+def _date_in_windows(date_str: str, windows: Optional[Sequence[Tuple[str, str]]]) -> bool:
+    """Check if a date (YYYY-MM-DD) falls within any of the specified date windows.
+    
+    Returns True if windows is None (no filtering) or if date falls within at least one window.
+    """
+    if windows is None:
+        return True
+    
+    for from_date, to_date in windows:
+        if from_date <= date_str <= to_date:
+            return True
+    
+    return False
+
+
 @dataclass
 class SamplerConfig:
     """Configuration controlling how passages are sampled from a corpus."""
@@ -35,6 +50,9 @@ class SamplerConfig:
     trim_after_markers: Optional[Sequence[str]] = None
     # Optional publication date lower bound (YYYY-MM-DD). Only docs on/after this date are considered.
     date_from: Optional[str] = None
+    # Optional date windows: list of (from_date, to_date) tuples in YYYY-MM-DD format.
+    # Documents must fall within at least one window to be included.
+    date_windows: Optional[Sequence[Tuple[str, str]]] = None
     # Optional domain whitelist: only include documents from these domains (extracted from URL)
     domain_whitelist: Optional[Sequence[str]] = None
 
@@ -53,29 +71,40 @@ class CorpusSampler:
         if not doc_ids:
             raise ValueError("Corpus is empty; no documents available for sampling.")
 
-        # Optional filtering by publication date
-        if config.date_from:
-            try:
-                df_norm = str(config.date_from).strip()
-            except Exception:
-                df_norm = None
-            if df_norm:
-                original_count = len(doc_ids)
-                filtered: List[str] = []
-                for _doc_id in doc_ids:
-                    try:
-                        meta = self.embedded_corpus.corpus.get_metadata(_doc_id)
-                        pub = meta['published_at']
-                        dt = normalize_date(pub)
-                        if not dt:
-                            continue  # skip docs without parseable date
-                        if dt.date().isoformat() >= df_norm:
-                            filtered.append(_doc_id)
-                    except Exception:
-                        continue
-                doc_ids = filtered
-                if not doc_ids:
-                    print(f"ℹ️  Date filter {df_norm} removed all documents (was {original_count}).")
+        # Optional filtering by publication date (date_from or date_windows)
+        if config.date_from or config.date_windows:
+            original_count = len(doc_ids)
+            filtered: List[str] = []
+            for _doc_id in doc_ids:
+                try:
+                    meta = self.embedded_corpus.corpus.get_metadata(_doc_id)
+                    pub = meta.get('published_at')
+                    dt = normalize_date(pub)
+                    if not dt:
+                        continue  # skip docs without parseable date
+                    
+                    date_str = dt.date().isoformat()
+                    
+                    # Apply date_from filter if specified
+                    if config.date_from:
+                        df_norm = str(config.date_from).strip()
+                        if df_norm and date_str < df_norm:
+                            continue
+                    
+                    # Apply date_windows filter if specified
+                    if config.date_windows:
+                        if not _date_in_windows(date_str, config.date_windows):
+                            continue
+                    
+                    filtered.append(_doc_id)
+                except Exception:
+                    continue
+            doc_ids = filtered
+            if not doc_ids:
+                filter_desc = f"date_from={config.date_from}" if config.date_from else ""
+                windows_desc = f"date_windows={len(config.date_windows)} windows" if config.date_windows else ""
+                desc = ", ".join(filter([filter_desc, windows_desc], None))
+                print(f"ℹ️  Date filter ({desc}) removed all documents (was {original_count}).")
         
         # Optional document-level keyword filter: documents must contain at least one keyword in their text
         if config.require_document_keywords:
@@ -438,6 +467,7 @@ class CompositeCorpusSampler:
         sample_size: int,
         seed: int,
         date_from: Optional[str] = None,
+        date_windows: Optional[Sequence[Tuple[str, str]]] = None,
         exclude_doc_ids: Optional[Sequence[str]] = None,
         require_keywords: Optional[Sequence[str]] = None,
         domain_whitelist: Optional[Sequence[str]] = None,
@@ -490,16 +520,28 @@ class CompositeCorpusSampler:
         for name, embedded in self._corpora.items():
             ids = list(embedded.corpus.list_ids())
 
-            # Optional date filter
-            if df_norm:
+            # Optional date filter (date_from or date_windows)
+            if df_norm or date_windows:
                 filtered: List[str] = []
                 for local_id in ids:
                     try:
                         meta = embedded.corpus.get_metadata(local_id)
                         pub = meta.get("published_at")
                         dt = normalize_date(pub)
-                        if dt and dt.date().isoformat() >= df_norm:
-                            filtered.append(local_id)
+                        if not dt:
+                            continue  # skip docs without parseable date
+                        
+                        date_str = dt.date().isoformat()
+                        
+                        # Apply date_from filter if specified
+                        if df_norm and date_str < df_norm:
+                            continue
+                        
+                        # Apply date_windows filter if specified
+                        if date_windows and not _date_in_windows(date_str, date_windows):
+                            continue
+                        
+                        filtered.append(local_id)
                     except Exception:
                         continue
                 ids = filtered

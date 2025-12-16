@@ -306,6 +306,10 @@ def run_scrapy_spider(urls: List[str], fetcher: Fetcher, text_extractor: TextExt
         Processing results summary
     """
     import random
+    import warnings
+    # Suppress Scrapy deprecation warnings
+    warnings.filterwarnings('ignore', category=scrapy.exceptions.ScrapyDeprecationWarning)
+    
     result_key = f"spider_{random.randint(100000, 999999)}"
 
     # Configure Scrapy settings
@@ -317,7 +321,9 @@ def run_scrapy_spider(urls: List[str], fetcher: Fetcher, text_extractor: TextExt
         'AUTOTHROTTLE_MAX_DELAY': 10,
         'ROBOTSTXT_OBEY': True,
         'USER_AGENT': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'LOG_LEVEL': 'INFO',  # More verbose logging for debugging
+        'LOG_LEVEL': 'WARNING',  # Reduced verbosity - only show warnings and errors
+        'LOG_ENABLED': True,
+        'LOG_STDOUT': False,  # Don't duplicate logs to stdout
         'DOWNLOAD_TIMEOUT': 30,  # 30 second timeout per request
         'RETRY_TIMES': 2,  # Retry failed requests up to 2 times
         'RETRY_HTTP_CODES': [500, 502, 503, 504, 408, 429, 403, 410],  # Retry on these HTTP codes including 403/410

@@ -494,6 +494,7 @@ class NarrativeFramingWorkflow:
                     sample_size=config.induction.size,
                     seed=config.seed,
                     date_from=config.filter.date_from,
+                    date_windows=config.filter.date_windows,
                     require_document_keywords=config.filter.document.keywords,
                     **sampler_kwargs,
                 )
@@ -581,6 +582,7 @@ class NarrativeFramingWorkflow:
                             seed=config.seed + 1,
                             exclude_passage_ids=exclude_ids or None,
                             date_from=config.filter.date_from,
+                            date_windows=config.filter.date_windows,
                             require_document_keywords=config.filter.document.keywords,
                             **self.filter.sampler_kwargs(domain_whitelist=config.filter.document.domain_whitelist),
                         )
@@ -763,7 +765,10 @@ class NarrativeFramingWorkflow:
         classifier_model = state.classifier_model
 
         # Build document universe
-        total_doc_ids = self.corpora_map.list_global_doc_ids_from(config.filter.date_from)
+        total_doc_ids = self.corpora_map.list_global_doc_ids_from(
+            date_from=config.filter.date_from,
+            date_windows=config.filter.date_windows,
+        )
         self.total_doc_ids = list(total_doc_ids)
 
         desired_doc_total = config.classification.size or len(total_doc_ids)
@@ -788,6 +793,7 @@ class NarrativeFramingWorkflow:
                         sample_size=remaining_needed,
                         seed=config.seed,
                         date_from=config.filter.date_from,
+                        date_windows=config.filter.date_windows,
                         exclude_doc_ids=[doc.doc_id for doc in classifications if doc.doc_id],
                         require_keywords=config.filter.document.keywords,
                         domain_whitelist=config.filter.document.domain_whitelist,
@@ -847,11 +853,27 @@ class NarrativeFramingWorkflow:
         if should_reload:
             aggregates = Aggregates.load(aggregates_dir)
             if aggregates:
-                        mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
-                        print(
+                mode_msg = " (regenerate mode)" if config.regenerate_report_only else ""
+                print(
                     f"✅ Reloaded {len(aggregates.documents_weighted)} weighted document aggregates "
                     f"and {len(aggregates.documents_occurrence)} occurrence aggregates from cache{mode_msg}."
                 )
+                
+                # Verify aggregates match current classifications
+                # If classifications exist, check if aggregates are out of sync
+                if classifications and classifications.n_docs > 0:
+                    agg_doc_ids = {agg.doc_id for agg in aggregates.documents_weighted}
+                    class_doc_ids = {doc.doc_id for doc in classifications if doc.doc_id}
+                    overlap = len(agg_doc_ids & class_doc_ids)
+                    total_agg = len(agg_doc_ids)
+                    
+                    # If less than 50% overlap, aggregates are likely out of sync
+                    if total_agg > 0 and overlap / total_agg < 0.5:
+                        print(
+                            f"⚠️ Aggregates appear out of sync with classifications "
+                            f"({overlap}/{total_agg} documents match). Rebuilding aggregates..."
+                        )
+                        aggregates = None  # Force rebuild
 
         # Build new aggregates when not loaded or when allowed and needed
         if aggregates is None:

@@ -11,6 +11,9 @@ import time
 from newspaper import Article
 from bs4 import BeautifulSoup
 
+# BeautifulSoup is always available since it's imported
+BEAUTIFULSOUP_AVAILABLE = True
+
 class TextExtractor:
     """Extract text content from various document formats"""
     
@@ -129,29 +132,30 @@ class TextExtractor:
         extraction_attempts["html_decode"] = f"Success, length: {len(html)}"
         
         # Strategy 1: Try newspaper3k if available
+        newspaper_text = None
+        newspaper_title = None
+        newspaper_authors = []
+        newspaper_published_at = None
         try:
             article = Article(url)
             article.download(input_html=html)
             article.parse()
-            text = article.text
+            newspaper_text = article.text
             
             extraction_attempts["newspaper3k"] = {
                 "success": True,
-                "text_length": len(text),
+                "text_length": len(newspaper_text),
                 "title": article.title,
                 "authors": article.authors
             }
             
-            if self._is_valid_content(text):
-                return {
-                    "text": text,
-                    "title": article.title,
-                    "published_at": article.publish_date.isoformat() if article.publish_date else None,
-                    "language": article.meta_lang or "en",
-                    "authors": article.authors or []
-                }
+            if self._is_valid_content(newspaper_text):
+                newspaper_title = article.title
+                newspaper_authors = article.authors or []
+                newspaper_published_at = article.publish_date.isoformat() if article.publish_date else None
             else:
                 extraction_attempts["newspaper3k"]["validation_failed"] = True
+                newspaper_text = None  # Don't use invalid content
         except Exception as e:
             extraction_attempts["newspaper3k"] = {
                 "success": False,
@@ -161,33 +165,47 @@ class TextExtractor:
         
         # Strategy 2: BeautifulSoup extraction
         try:
-            text = self._extract_with_beautifulsoup(html, url)
+            bs_text = self._extract_with_beautifulsoup(html, url)
             
             # If BeautifulSoup extraction didn't get much content, try JavaScript paywall handling
-            if not text or len(text) < 1000:
-                text = self._extract_before_javascript_paywall(html, url)
+            if not bs_text or len(bs_text) < 1000:
+                bs_text = self._extract_before_javascript_paywall(html, url)
             
             extraction_attempts["beautifulsoup"] = {
                 "success": True,
-                "text_length": len(text)
+                "text_length": len(bs_text) if bs_text else 0
             }
             
-            # If we got substantial text, return it even if validation fails
-            if text and len(text) > 500:  # Lower threshold for substantial content
-                # Try to extract published date from both HTML and JSON-LD
-                published_at = self._extract_published_date_from_html(html)
-                if not published_at and BEAUTIFULSOUP_AVAILABLE:
-                    soup = BeautifulSoup(html, 'html.parser')
-                    published_at = self._extract_published_date_from_json_ld(soup)
-                
+            # Choose the best extraction: prefer longer content
+            # If BeautifulSoup extracted significantly more content, use it instead
+            if bs_text and len(bs_text) > 500:
+                # Use BeautifulSoup if it has substantially more content (at least 2x) than newspaper3k
+                if not newspaper_text or len(bs_text) >= len(newspaper_text) * 1.5:
+                    # Try to extract published date from both HTML and JSON-LD
+                    published_at = self._extract_published_date_from_html(html)
+                    if not published_at and BEAUTIFULSOUP_AVAILABLE:
+                        soup = BeautifulSoup(html, 'html.parser')
+                        published_at = self._extract_published_date_from_json_ld(soup)
+                    
+                    return {
+                        "text": bs_text,
+                        "title": self._extract_title_from_html(html) or newspaper_title,
+                        "published_at": published_at or newspaper_published_at,
+                        "language": "en",  # Would need language detection
+                        "authors": newspaper_authors  # Use authors from newspaper3k if available
+                    }
+            
+            # If BeautifulSoup didn't work well, fall back to newspaper3k if we have it
+            if newspaper_text and self._is_valid_content(newspaper_text):
                 return {
-                    "text": text,
-                    "title": self._extract_title_from_html(html),
-                    "published_at": published_at,
-                    "language": "en",  # Would need language detection
-                    "authors": []  # Would need author extraction
+                    "text": newspaper_text,
+                    "title": newspaper_title,
+                    "published_at": newspaper_published_at,
+                    "language": "en",
+                    "authors": newspaper_authors
                 }
-            else:
+            
+            if bs_text and len(bs_text) > 500:
                 extraction_attempts["beautifulsoup"]["validation_failed"] = True
         except Exception as e:
             extraction_attempts["beautifulsoup"] = {
@@ -195,6 +213,16 @@ class TextExtractor:
                 "error": str(e)
             }
             pass
+        
+        # If we have newspaper3k content but BeautifulSoup failed, use it
+        if newspaper_text and self._is_valid_content(newspaper_text):
+            return {
+                "text": newspaper_text,
+                "title": newspaper_title,
+                "published_at": newspaper_published_at,
+                "language": "en",
+                "authors": newspaper_authors
+            }
         
         # Strategy 3: Basic regex-based extraction
         try:
@@ -304,9 +332,11 @@ class TextExtractor:
             '.article-content', '.article-body', '.entry-content', '.post-content',
             '.story-content', '.story-body', '.main-content', '#article-body',
             '.news-content', '.article__content', '.article__body',
-            # Add more specific selectors for news sites
             '.entry-content', '.post-body', '.content-area', '.main-article',
-            '.article-text', '.story-text', '.news-text', '.content-body'
+            '.article-text', '.story-text', '.news-text', '.content-body',
+            'main article',
+            '[role="main"]',
+            '.news-article',
         ]
         
         # Try to find content using selectors

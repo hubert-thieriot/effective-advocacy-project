@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
-from typing import Dict, Iterator, List, Mapping, Optional, Sequence
+from typing import Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
 from efi_core.utils import normalize_date
 
 from .identifiers import make_global_doc_id, split_global_doc_id
+
+
+def _date_in_windows(date_str: str, windows: Optional[Sequence[Tuple[str, str]]]) -> bool:
+    """Check if a date (YYYY-MM-DD) falls within any of the specified date windows.
+    
+    Returns True if windows is None (no filtering) or if date falls within at least one window.
+    """
+    if windows is None:
+        return True
+    
+    for from_date, to_date in windows:
+        if from_date <= date_str <= to_date:
+            return True
+    
+    return False
 
 
 class EmbeddedCorpora(Mapping[str, EmbeddedCorpus]):
@@ -72,16 +87,19 @@ class EmbeddedCorpora(Mapping[str, EmbeddedCorpus]):
         global_doc_ids: Sequence[str],
         *,
         date_from: Optional[str] = None,
+        date_windows: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[str]:
-        """Filter global document ids on or after ``date_from`` (YYYY-MM-DD).
+        """Filter global document ids by date.
 
+        Supports both date_from (lower bound) and date_windows (multiple ranges).
         Documents without a parseable ``published_at`` are dropped.
         """
-        if not date_from:
+        if not date_from and not date_windows:
             return list(global_doc_ids)
-        df_norm = str(date_from).strip()
-        if not df_norm:
-            return list(global_doc_ids)
+        
+        df_norm: Optional[str] = None
+        if date_from:
+            df_norm = str(date_from).strip() or None
 
         keep: List[str] = []
         for gid in global_doc_ids:
@@ -93,16 +111,30 @@ class EmbeddedCorpora(Mapping[str, EmbeddedCorpus]):
                 dt = normalize_date(pub)
                 if not dt:
                     continue
-                if dt.date().isoformat() >= df_norm:
-                    keep.append(gid)
+                
+                date_str = dt.date().isoformat()
+                
+                # Apply date_from filter if specified
+                if df_norm and date_str < df_norm:
+                    continue
+                
+                # Apply date_windows filter if specified
+                if date_windows and not _date_in_windows(date_str, date_windows):
+                    continue
+                
+                keep.append(gid)
             except Exception:
                 continue
         return keep
 
-    def list_global_doc_ids_from(self, date_from: Optional[str]) -> List[str]:
-        """Convenience: list global ids and apply an optional date filter."""
+    def list_global_doc_ids_from(
+        self, 
+        date_from: Optional[str] = None,
+        date_windows: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> List[str]:
+        """Convenience: list global ids and apply optional date filters."""
         return self.filter_global_doc_ids_by_date(
-            self.list_global_doc_ids(), date_from=date_from
+            self.list_global_doc_ids(), date_from=date_from, date_windows=date_windows
         )
 
 

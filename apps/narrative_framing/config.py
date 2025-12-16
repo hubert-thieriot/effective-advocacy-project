@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from datetime import datetime
 
 import yaml
 
@@ -63,6 +64,8 @@ class ReportSettings:
     include_yearly_bar_charts: bool = True  # Whether to include yearly bar charts in the aggregation section
     include_domain_yearly_bar_charts: bool = False  # Whether to include per-domain yearly bar charts
     domain_yearly_top_domains: int = 5  # Number of top domains (by article count) to display in yearly charts
+    domain_yearly_version: str = "weighted"  # Version to use: "weighted" or "occurrence"
+    domain_yearly_include_empty: bool = False  # Whether to include documents with no frames (zeros) in domain yearly charts
 
 
 @dataclass
@@ -88,6 +91,10 @@ class ChunkFilter:
 class FilterConfig:
     """Comprehensive filtering configuration for documents and chunks."""
     date_from: Optional[str] = None  # Only consider documents on/after this date (YYYY-MM-DD)
+    # Date windows: list of (from_date, to_date) tuples in YYYY-MM-DD format
+    # Documents must fall within at least one window to be included
+    # Can be set via explicit ranges or pattern-based config (see parse_date_windows)
+    date_windows: Optional[List[Tuple[str, str]]] = None
     document: DocumentFilter = field(default_factory=DocumentFilter)
     chunk: ChunkFilter = field(default_factory=ChunkFilter)
 
@@ -241,6 +248,24 @@ class NarrativeFramingConfig:
         if self.filter.date_from is not None:
             self.filter.date_from = str(self.filter.date_from).strip() or None
         
+        # Normalize filter.date_windows
+        if self.filter.date_windows is not None:
+            # Validate and normalize date windows
+            normalized_windows = []
+            for from_date, to_date in self.filter.date_windows:
+                from_str = str(from_date).strip()
+                to_str = str(to_date).strip()
+                if from_str and to_str:
+                    # Validate date format (YYYY-MM-DD)
+                    try:
+                        datetime.strptime(from_str, "%Y-%m-%d")
+                        datetime.strptime(to_str, "%Y-%m-%d")
+                        if from_str <= to_str:  # Ensure from <= to
+                            normalized_windows.append((from_str, to_str))
+                    except ValueError:
+                        continue  # Skip invalid dates
+            self.filter.date_windows = normalized_windows if normalized_windows else None
+        
         # Normalize filter.document fields
         if self.filter.document.keywords is not None:
             normalized = [kw.strip() for kw in self.filter.document.keywords if kw and kw.strip()]
@@ -323,6 +348,65 @@ def _as_path(value: Optional[Any]) -> Optional[Path]:
     if value in (None, ""):
         return None
     return Path(value)
+
+
+def parse_date_windows(data: Any) -> Optional[List[Tuple[str, str]]]:
+    """Parse date windows from config data.
+    
+    Supports two formats:
+    1. Explicit ranges: [{from: "2020-01-01", to: "2020-04-04"}, ...]
+    2. Pattern-based yearly windows: {pattern: "yearly", from_month_day: "01-01", to_month_day: "04-04", years: [2020, 2021, ...]}
+    
+    Returns a list of (from_date, to_date) tuples in YYYY-MM-DD format.
+    """
+    if data is None:
+        return None
+    
+    if isinstance(data, dict):
+        # Pattern-based format
+        if "pattern" in data and data["pattern"] == "yearly":
+            from_month_day = data.get("from_month_day", "")
+            to_month_day = data.get("to_month_day", "")
+            years = data.get("years", [])
+            
+            if not from_month_day or not to_month_day or not years:
+                return None
+            
+            # Validate month-day format (MM-DD)
+            try:
+                datetime.strptime(f"2000-{from_month_day}", "%Y-%m-%d")
+                datetime.strptime(f"2000-{to_month_day}", "%Y-%m-%d")
+            except ValueError:
+                return None
+            
+            windows = []
+            for year in years:
+                year_str = str(year)
+                from_date = f"{year_str}-{from_month_day}"
+                to_date = f"{year_str}-{to_month_day}"
+                windows.append((from_date, to_date))
+            
+            return windows if windows else None
+        
+        # Single explicit range: {from: "...", to: "..."}
+        if "from" in data and "to" in data:
+            from_date = str(data["from"]).strip()
+            to_date = str(data["to"]).strip()
+            if from_date and to_date:
+                return [(from_date, to_date)]
+    
+    elif isinstance(data, list):
+        # List of explicit ranges
+        windows = []
+        for item in data:
+            if isinstance(item, dict) and "from" in item and "to" in item:
+                from_date = str(item["from"]).strip()
+                to_date = str(item["to"]).strip()
+                if from_date and to_date:
+                    windows.append((from_date, to_date))
+        return windows if windows else None
+    
+    return None
 
 
 def _load_classifier_settings(data: Dict[str, Any]) -> ClassifierSettings:
@@ -558,6 +642,10 @@ def load_config(path: Path) -> NarrativeFramingConfig:
             # Parse date_from
             if "date_from" in filter_data:
                 config.filter.date_from = str(filter_data["date_from"]).strip() if filter_data["date_from"] else None
+            
+            # Parse date_windows
+            if "date_windows" in filter_data:
+                config.filter.date_windows = parse_date_windows(filter_data["date_windows"])
             
             # Parse document filter
             if "document" in filter_data and isinstance(filter_data["document"], dict):
@@ -819,6 +907,17 @@ def load_config(path: Path) -> NarrativeFramingConfig:
                 except Exception:
                     value = config.report.domain_yearly_top_domains
                 config.report.domain_yearly_top_domains = max(0, value)
+            # Handle domain_yearly_version
+            if "domain_yearly_version" in report_data:
+                version = str(report_data["domain_yearly_version"]).lower()
+                if version in ("weighted", "occurrence"):
+                    config.report.domain_yearly_version = version
+            # Handle domain_yearly_include_empty
+            if "domain_yearly_include_empty" in report_data:
+                try:
+                    config.report.domain_yearly_include_empty = bool(report_data["domain_yearly_include_empty"])
+                except Exception:
+                    config.report.domain_yearly_include_empty = False
             # Handle include_yearly_bar_charts
             if "include_yearly_bar_charts" in report_data:
                 try:

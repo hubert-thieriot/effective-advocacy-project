@@ -212,37 +212,35 @@ def export_frames_html(
 
 
 def _publish_to_docs_assets(run_dir_name: str, results_html: Optional[Path], export_plots_dir: Optional[Path] = None) -> None:
-    """Copy exported Plotly PNGs, SVGs, and HTML files into docs/ for GitHub Pages.
+    """Copy exported Plotly PNGs, SVGs, and HTML files to export_plots_dir if specified.
 
     - PNGs, SVGs, and HTMLs are expected in results/<run_name>/plots
-    - Files copied to docs/assets/narrative_framing/<run_name>/ (or export_plots_dir if specified)
+    - Files copied to export_plots_dir only if specified (otherwise kept only in results subfolders)
     - HTML report copied to docs/reports/<run_name>/frame_report.html
     """
     try:
-        # Prefer plots under the run directory; fall back to legacy location
-        plots_src = (results_html.parent / "plots") if results_html else None
-        if not plots_src or not plots_src.exists():
-            plots_src = Path("results/plots") / run_dir_name / "plots"
-        
-        # Determine destination directory
+        # Only copy plots if export_plots_dir is explicitly set
         if export_plots_dir:
+            # Prefer plots under the run directory; fall back to legacy location
+            plots_src = (results_html.parent / "plots") if results_html else None
+            if not plots_src or not plots_src.exists():
+                plots_src = Path("results/plots") / run_dir_name / "plots"
+            
             plots_dst = Path(export_plots_dir)
-        else:
-            plots_dst = Path("docs/assets/narrative_framing") / run_dir_name
+            
+            if plots_src and plots_src.exists():
+                plots_dst.mkdir(parents=True, exist_ok=True)
+                # Copy PNG, SVG, and HTML files
+                for file_path in sorted(plots_src.glob("*.png")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
+                for file_path in sorted(plots_src.glob("*.svg")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
+                for file_path in sorted(plots_src.glob("*.html")):
+                    shutil.copy2(file_path, plots_dst / file_path.name)
         
-        report_dst = Path("docs/reports") / run_dir_name
-        
-        if plots_src and plots_src.exists():
-            plots_dst.mkdir(parents=True, exist_ok=True)
-            # Copy PNG, SVG, and HTML files
-            for file_path in sorted(plots_src.glob("*.png")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-            for file_path in sorted(plots_src.glob("*.svg")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-            for file_path in sorted(plots_src.glob("*.html")):
-                shutil.copy2(file_path, plots_dst / file_path.name)
-        
+        # Always copy HTML report to docs/reports (this is separate from plot exports)
         if results_html and results_html.exists():
+            report_dst = Path("docs/reports") / run_dir_name
             report_dst.mkdir(parents=True, exist_ok=True)
             shutil.copy2(results_html, report_dst / "frame_report.html")
     except Exception as exc:
@@ -291,6 +289,9 @@ class ReportBuilder:
         document_aggregates_occurrence = aggregates.documents_occurrence
         all_aggregates = aggregates.all_aggregates
 
+        # Check if we have document aggregates (either loaded from cache or newly created)
+        has_document_aggregates = document_aggregates_weighted and len(document_aggregates_weighted) > 0
+
         # Apply optional date filter to assignments used in report
         if self.config.filter.date_from and assignments:
             df_norm = str(self.config.filter.date_from).strip()
@@ -308,9 +309,13 @@ class ReportBuilder:
                 self._export_annotated_documents(schema, assignments)
             except Exception as exc:
                 print(f"⚠️ Failed to export annotated documents: {exc}")
-
-        # Check if we have document aggregates (either loaded from cache or newly created)
-        has_document_aggregates = document_aggregates_weighted and len(document_aggregates_weighted) > 0
+        
+        # Generate results browser if we have document aggregates and annotated HTML export
+        if self.config.annotation.export_annotated_html and schema and has_document_aggregates:
+            try:
+                self._generate_results_browser(schema, document_aggregates_weighted)
+            except Exception as exc:
+                print(f"⚠️ Failed to generate results browser: {exc}")
 
         if schema and self.paths.html and has_document_aggregates:
             # Build classifier lookup for report
@@ -377,6 +382,8 @@ class ReportBuilder:
                 include_yearly_bar_charts=self.config.report.include_yearly_bar_charts,
                 include_domain_yearly_bar_charts=self.config.report.include_domain_yearly_bar_charts,
                 domain_yearly_top_domains=self.config.report.domain_yearly_top_domains,
+                domain_yearly_version=self.config.report.domain_yearly_version,
+                domain_yearly_include_empty=self.config.report.domain_yearly_include_empty,
             )
 
             # Publish PNGs and HTML to docs for GitHub Pages
@@ -677,6 +684,723 @@ class ReportBuilder:
             out_path.write_text(html_doc, encoding="utf-8")
         print(f"✅ Exported annotated documents to {out_dir}")
 
+    def _generate_results_browser(
+        self, schema: FrameSchema, document_aggregates_weighted: Sequence[DocumentFrameAggregate]
+    ) -> None:
+        """Generate a results browser HTML page for filtering and viewing annotated documents."""
+        if not document_aggregates_weighted:
+            return
+
+        # Determine output directory
+        if self.paths.assignments:
+            base_dir = self.paths.assignments.parent
+        elif self.config.results_dir:
+            base_dir = Path(self.config.results_dir)
+        else:
+            base_dir = Path("results") / "narrative_framing"
+        
+        classifications_dir = base_dir / "classifications"
+        output_path = base_dir / "results_browser.html"
+
+        # Build color map and frame lookup
+        color_map = build_color_map(schema.frames)
+        frame_lookup = {
+            frame.frame_id: {
+                "name": frame.name,
+                "short": frame.short_name or (frame.name.split()[0] if frame.name else frame.frame_id),
+            }
+            for frame in schema.frames
+        }
+
+        # Load all classification data and build a map of doc_id -> classification data
+        classification_data: Dict[str, Dict[str, Any]] = {}
+        if classifications_dir.exists():
+            for json_file in classifications_dir.glob("*.json"):
+                try:
+                    doc_id = json_file.stem
+                    with open(json_file, encoding="utf-8") as f:
+                        data = json.load(f)
+                        classification_data[doc_id] = data
+                except Exception as exc:
+                    print(f"⚠️ Failed to load classification {json_file.name}: {exc}")
+                    continue
+
+        # Extract unique domains and years
+        domains: set[str] = set()
+        years: set[int] = set()
+        articles_data: List[Dict[str, Any]] = []
+
+        for agg in document_aggregates_weighted:
+            # Check if classification data exists
+            if agg.doc_id not in classification_data:
+                continue
+            
+            # Extract domain
+            domain = agg.domain
+            if not domain and agg.url:
+                domain = extract_domain_from_url(agg.url)
+            if domain:
+                domains.add(domain)
+            else:
+                domains.add("Unknown")
+
+            # Extract year from published_at
+            year = None
+            if agg.published_at:
+                try:
+                    dt = normalize_date(agg.published_at)
+                    if dt:
+                        year = dt.year
+                        years.add(year)
+                except Exception:
+                    pass
+            if year is None:
+                years.add(0)  # Use 0 for unknown year
+
+            # Get top frames (sorted by score)
+            frame_scores = agg.frame_scores or {}
+            top_frames = sorted(
+                [(fid, score) for fid, score in frame_scores.items() if score > 0],
+                key=lambda x: x[1],
+                reverse=True
+            )[:3]  # Top 3 frames
+
+            articles_data.append({
+                "doc_id": agg.doc_id,
+                "title": agg.title or agg.doc_id,
+                "domain": domain or "Unknown",
+                "year": year or 0,
+                "url": agg.url or "",
+                "top_frames": top_frames,
+            })
+
+        # Sort domains and years
+        sorted_domains = sorted([d for d in domains if d != "Unknown"]) + (["Unknown"] if "Unknown" in domains else [])
+        sorted_years = sorted([y for y in years if y > 0], reverse=True) + ([0] if 0 in years else [])
+
+        # Build article list HTML
+        article_items: List[str] = []
+        for article in articles_data:
+            domain_display = html.escape(article["domain"])
+            year_display = str(article["year"]) if article["year"] > 0 else "Unknown"
+            title_display = html.escape(article["title"])
+            
+            # Build frame badges with proportional bars
+            frame_badges: List[str] = []
+            for frame_id, score in article["top_frames"]:
+                color = color_map.get(frame_id, "#1E3D58")
+                frame_name = frame_lookup.get(frame_id, {}).get("short", frame_id)
+                pct = f"{score * 100:.0f}%"
+                width_pct = score * 100
+                frame_badges.append(
+                    f'<span class="frame-badge" title="{html.escape(frame_id)}">'
+                    f'<span class="frame-badge-bar" style="background-color: {color}; width: {width_pct:.1f}%;"></span>'
+                    f'<span class="frame-badge-label">{html.escape(frame_name)}</span>'
+                    f'<span class="frame-badge-value">{pct}</span>'
+                    f'</span>'
+                )
+            
+            # Build metadata badges
+            meta_badges = [
+                f'<span class="meta-badge domain">{html.escape(domain_display)}</span>',
+                f'<span class="meta-badge year">{html.escape(year_display)}</span>',
+            ]
+            
+            # External URL link if available
+            url_link = ""
+            if article["url"]:
+                url_link = f'<a href="{html.escape(article["url"])}" target="_blank" rel="noopener noreferrer" class="external-link">🔗</a>'
+            
+            article_items.append(
+                f'''<article class="article-item" data-domain="{html.escape(article["domain"])}" data-year="{article["year"]}" data-doc-id="{html.escape(article["doc_id"])}">
+                    <div class="article-header">
+                        <h3 class="article-title">
+                            <a href="#" class="article-link" data-doc-id="{html.escape(article["doc_id"])}">{title_display}</a>
+                            {url_link}
+                        </h3>
+                        <div class="article-meta">
+                            {''.join(meta_badges)}
+                        </div>
+                    </div>
+                    <div class="article-frames">
+                        {''.join(frame_badges) if frame_badges else '<span class="no-frames">No frames detected</span>'}
+                    </div>
+                </article>'''
+            )
+
+        # Build filter dropdowns
+        domain_options = '<option value="">All domains</option>' + ''.join(
+            f'<option value="{html.escape(d)}">{html.escape(d)}</option>' for d in sorted_domains
+        )
+        year_options = '<option value="">All years</option>' + ''.join(
+            f'<option value="{y}">{y if y > 0 else "Unknown"}</option>' for y in sorted_years
+        )
+
+        # Generate HTML
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{html.escape(schema.domain)} — Results Browser</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    :root {{
+      --ink-900: #0f172a;
+      --ink-800: #1e293b;
+      --ink-600: #334155;
+      --ink-500: #475569;
+      --ink-300: #94a3b8;
+      --slate-50: #f7f9fc;
+      --slate-100: #eef2f9;
+      --border: #d3dce7;
+      --accent-1: #1e3d58;
+      --accent-2: #057d9f;
+      --accent-3: #f18f01;
+      --accent-4: #6c63ff;
+      --success: #3a7d44;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      padding: 48px;
+      background: linear-gradient(140deg, var(--slate-50) 0%, #e4edf7 100%);
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      color: var(--ink-800);
+    }}
+    .browser-page {{
+      max-width: 1320px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 28px 68px rgba(15, 23, 42, 0.12);
+      padding: 48px 64px 72px;
+    }}
+    .browser-header {{
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+    }}
+    .browser-header h1 {{
+      margin: 0 0 8px 0;
+      font-size: 2rem;
+      color: var(--ink-900);
+    }}
+    .browser-header p {{
+      margin: 0 0 24px 0;
+      color: var(--ink-600);
+      font-size: 1rem;
+    }}
+    .filters {{
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }}
+    .filter-group {{
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }}
+    .filter-group label {{
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--ink-600);
+    }}
+    .filter-group select {{
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #ffffff;
+      color: var(--ink-800);
+      cursor: pointer;
+      min-width: 180px;
+    }}
+    .filter-group select:hover {{
+      border-color: var(--accent-2);
+    }}
+    .filter-group select:focus {{
+      outline: none;
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(5, 125, 159, 0.1);
+    }}
+    .results-count {{
+      margin-left: auto;
+      padding: 10px 16px;
+      background: var(--slate-100);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--ink-600);
+    }}
+    .results-count strong {{
+      color: var(--ink-800);
+      font-weight: 600;
+    }}
+    .articles-list {{
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }}
+    .article-item {{
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #ffffff;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }}
+    .article-item:hover {{
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      border-color: var(--accent-2);
+    }}
+    .article-item.hidden {{
+      display: none;
+    }}
+    .article-header {{
+      margin-bottom: 12px;
+    }}
+    .article-title {{
+      margin: 0 0 8px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }}
+    .article-title a {{
+      color: var(--ink-900);
+      text-decoration: none;
+    }}
+    .article-title a:hover {{
+      color: var(--accent-2);
+      text-decoration: underline;
+    }}
+    .external-link {{
+      margin-left: 8px;
+      font-size: 0.9rem;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }}
+    .external-link:hover {{
+      opacity: 1;
+    }}
+    .article-meta {{
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }}
+    .meta-badge {{
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: var(--slate-100);
+      color: var(--ink-600);
+    }}
+    .meta-badge.domain {{
+      background: var(--accent-1);
+      color: #ffffff;
+    }}
+    .meta-badge.year {{
+      background: var(--accent-3);
+      color: #ffffff;
+    }}
+    .article-frames {{
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }}
+    .frame-badge {{
+      display: inline-flex;
+      align-items: center;
+      min-width: 80px;
+      height: 24px;
+      border-radius: 6px;
+      overflow: hidden;
+      background-color: var(--slate-100);
+      position: relative;
+    }}
+    .frame-badge-bar {{
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      white-space: nowrap;
+      min-width: fit-content;
+    }}
+    .frame-badge-label {{
+      position: absolute;
+      left: 8px;
+      z-index: 1;
+      color: var(--ink-800);
+      font-size: 0.85rem;
+      font-weight: 500;
+      pointer-events: none;
+    }}
+    .frame-badge-value {{
+      position: absolute;
+      right: 8px;
+      z-index: 1;
+      color: var(--ink-800);
+      font-size: 0.85rem;
+      font-weight: 500;
+      pointer-events: none;
+    }}
+    .no-frames {{
+      color: var(--ink-300);
+      font-size: 0.9rem;
+      font-style: italic;
+    }}
+    .article-link {{
+      cursor: pointer;
+    }}
+    .modal {{
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 40px 20px;
+    }}
+    .modal.active {{
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }}
+    .modal-content {{
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 28px 68px rgba(15, 23, 42, 0.3);
+      max-width: 1200px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 40px;
+      margin: auto;
+      position: relative;
+    }}
+    .modal-header {{
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }}
+    .modal-header h2 {{
+      margin: 0 0 8px 0;
+      font-size: 1.5rem;
+      color: var(--ink-900);
+    }}
+    .modal-header .meta {{
+      color: var(--ink-600);
+      font-size: 0.9rem;
+    }}
+    .modal-close {{
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--slate-100);
+      border: none;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--ink-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }}
+    .modal-close:hover {{
+      background: var(--border);
+    }}
+    .chunks-container {{
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }}
+    .chunk-item {{
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }}
+    .chunk-frames {{
+      flex-shrink: 0;
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }}
+    .chunk-frame-badge {{
+      display: flex;
+      align-items: center;
+      min-width: 120px;
+      height: 22px;
+      border-radius: 4px;
+      overflow: hidden;
+      background-color: var(--slate-100);
+      position: relative;
+      margin-bottom: 4px;
+    }}
+    .chunk-frame-badge-bar {{
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      color: #ffffff;
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      white-space: nowrap;
+      min-width: fit-content;
+    }}
+    .chunk-frame-badge-label {{
+      position: absolute;
+      left: 6px;
+      z-index: 1;
+      color: var(--ink-800);
+      font-size: 0.8rem;
+      font-weight: 500;
+      pointer-events: none;
+    }}
+    .chunk-frame-badge-value {{
+      position: absolute;
+      right: 6px;
+      z-index: 1;
+      color: var(--ink-800);
+      font-size: 0.8rem;
+      font-weight: 600;
+      pointer-events: none;
+    }}
+    .chunk-text {{
+      flex: 1;
+      line-height: 1.6;
+      color: var(--ink-800);
+      padding: 12px;
+      background: var(--slate-50);
+      border-radius: 8px;
+      border-left: 3px solid var(--border);
+    }}
+    .loading {{
+      text-align: center;
+      padding: 40px;
+      color: var(--ink-600);
+    }}
+    @media (max-width: 860px) {{
+      body {{ padding: 24px; }}
+      .browser-page {{ padding: 32px 24px 48px; }}
+      .filters {{
+        flex-direction: column;
+        align-items: stretch;
+      }}
+      .filter-group select {{
+        width: 100%;
+      }}
+      .results-count {{
+        margin-left: 0;
+        width: 100%;
+        text-align: center;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="browser-page">
+    <div class="browser-header">
+      <h1>{html.escape(schema.domain)} — Results Browser</h1>
+      <p>Browse and filter annotated documents by domain and year</p>
+      <div class="filters">
+        <div class="filter-group">
+          <label for="domain-filter">Domain</label>
+          <select id="domain-filter">
+            {domain_options}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="year-filter">Year</label>
+          <select id="year-filter">
+            {year_options}
+          </select>
+        </div>
+        <div class="results-count">
+          Showing <strong id="results-count">{len(articles_data)}</strong> of {len(articles_data)} articles
+        </div>
+      </div>
+    </div>
+    <div class="articles-list" id="articles-list">
+      {''.join(article_items)}
+    </div>
+  </div>
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal()">×</button>
+      <div class="modal-header">
+        <h2 id="modal-title">Loading...</h2>
+        <div class="meta" id="modal-meta"></div>
+      </div>
+      <div id="modal-body">
+        <div class="loading">Loading article...</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Frame color map and lookup
+    const colorMap = {json.dumps(color_map, ensure_ascii=False)};
+    const frameLookup = {json.dumps(frame_lookup, ensure_ascii=False)};
+    
+    // Embedded classification data (loaded upfront to avoid CORS issues)
+    const classificationData = {json.dumps(classification_data, ensure_ascii=False)};
+    
+    const domainFilter = document.getElementById('domain-filter');
+    const yearFilter = document.getElementById('year-filter');
+    const articlesList = document.getElementById('articles-list');
+    const resultsCount = document.getElementById('results-count');
+    const articles = Array.from(articlesList.querySelectorAll('.article-item'));
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalMeta = document.getElementById('modal-meta');
+    const modalBody = document.getElementById('modal-body');
+    
+    function updateFilters() {{
+      const selectedDomain = domainFilter.value;
+      const selectedYear = yearFilter.value;
+      
+      let visibleCount = 0;
+      
+      articles.forEach(article => {{
+        const articleDomain = article.getAttribute('data-domain') || '';
+        const articleYear = article.getAttribute('data-year') || '';
+        
+        const domainMatch = !selectedDomain || articleDomain === selectedDomain;
+        const yearMatch = !selectedYear || articleYear === selectedYear;
+        
+        if (domainMatch && yearMatch) {{
+          article.classList.remove('hidden');
+          visibleCount++;
+        }} else {{
+          article.classList.add('hidden');
+        }}
+      }});
+      
+      resultsCount.textContent = visibleCount;
+    }}
+    
+    function closeModal() {{
+      modal.classList.remove('active');
+      modalBody.innerHTML = '<div class="loading">Loading article...</div>';
+    }}
+    
+    function renderChunks(classification) {{
+      const chunks = classification.chunks || [];
+      if (chunks.length === 0) {{
+        modalBody.innerHTML = '<p>No chunks available.</p>';
+        return;
+      }}
+      
+      let chunksHtml = '<div class="chunks-container">';
+      
+      chunks.forEach(chunk => {{
+        const probabilities = chunk.probabilities || {{}};
+        const text = chunk.text || '';
+        
+        // Get frames with weight > 0, sorted by weight
+        const frames = Object.entries(probabilities)
+          .filter(([frameId, weight]) => weight > 0)
+          .sort((a, b) => b[1] - a[1]);
+        
+        let framesHtml = '<div class="chunk-frames">';
+        if (frames.length === 0) {{
+          framesHtml += '<div style="color: var(--ink-300); font-size: 0.85rem; font-style: italic;">No frames</div>';
+        }} else {{
+          frames.forEach(([frameId, weight]) => {{
+            const color = colorMap[frameId] || '#1E3D58';
+            const frameInfo = frameLookup[frameId] || {{}};
+            const frameName = frameInfo.short || frameId;
+            const pct = (weight * 100).toFixed(0);
+            const widthPct = (weight * 100).toFixed(1);
+            framesHtml += '<div class="chunk-frame-badge">' +
+              '<div class="chunk-frame-badge-bar" style="background-color: ' + color + '; width: ' + widthPct + '%;"></div>' +
+              '<span class="chunk-frame-badge-label">' + escapeHtml(frameName) + '</span>' +
+              '<span class="chunk-frame-badge-value">' + pct + '%</span>' +
+            '</div>';
+          }});
+        }}
+        framesHtml += '</div>';
+        
+        const textHtml = '<div class="chunk-text">' + escapeHtml(text) + '</div>';
+        chunksHtml += '<div class="chunk-item">' + framesHtml + textHtml + '</div>';
+      }});
+      
+      chunksHtml += '</div>';
+      modalBody.innerHTML = chunksHtml;
+    }}
+    
+    function escapeHtml(text) {{
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }}
+    
+    function loadArticle(docId) {{
+      modal.classList.add('active');
+      modalTitle.textContent = 'Loading...';
+      modalMeta.textContent = '';
+      modalBody.innerHTML = '<div class="loading">Loading article...</div>';
+      
+      // Use embedded classification data instead of fetch
+      const data = classificationData[docId];
+      if (!data) {{
+        modalBody.innerHTML = '<p style="color: #d32f2f;">Classification data not found for this article.</p>';
+        return;
+      }}
+      
+      modalTitle.textContent = data.title || docId;
+      const metaParts = [];
+      if (data.domain) metaParts.push(data.domain);
+      if (data.published_at) metaParts.push(data.published_at);
+      if (data.url) metaParts.push('<a href="' + data.url + '" target="_blank">View original</a>');
+      modalMeta.innerHTML = metaParts.join(' • ');
+      renderChunks(data);
+    }}
+    
+    // Add click handlers to article links
+    articlesList.addEventListener('click', (e) => {{
+      if (e.target.classList.contains('article-link')) {{
+        e.preventDefault();
+        const articleItem = e.target.closest('.article-item');
+        const docId = articleItem.getAttribute('data-doc-id');
+        loadArticle(docId);
+      }}
+    }});
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {{
+      if (e.target === modal) {{
+        closeModal();
+      }}
+    }});
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {{
+      if (e.key === 'Escape' && modal.classList.contains('active')) {{
+        closeModal();
+      }}
+    }});
+    
+    domainFilter.addEventListener('change', updateFilters);
+    yearFilter.addEventListener('change', updateFilters);
+  </script>
+</body>
+</html>
+"""
+
+        output_path.write_text(html_content, encoding="utf-8")
+        print(f"✅ Generated results browser at {output_path}")
 
 
 def _slugify(value: str) -> str:
@@ -713,6 +1437,8 @@ def write_html_report(
     include_yearly_bar_charts: bool = True,
     include_domain_yearly_bar_charts: bool = False,
     domain_yearly_top_domains: int = 5,
+    domain_yearly_version: str = "weighted",
+    domain_yearly_include_empty: bool = False,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
     
@@ -1446,80 +2172,80 @@ def write_html_report(
     domain_yearly_section_html = ""
     domain_yearly_limit = max(0, domain_yearly_top_domains if domain_yearly_top_domains is not None else 0)
 
-    if include_domain_yearly_bar_charts and document_aggregates_weighted:
-        # Build lookup of domain -> document aggregates
-        domain_documents: Dict[str, List[DocumentFrameAggregate]] = {}
-        for agg in document_aggregates_weighted:
-            domain = getattr(agg, "domain", None)
-            if not domain and getattr(agg, "url", None):
-                extracted = extract_domain_from_url(agg.url)
-                if extracted:
-                    try:
-                        object.__setattr__(agg, "domain", extracted)
-                        domain = extracted
-                    except Exception:
-                        domain = extracted
-            if domain:
-                domain_documents.setdefault(domain, []).append(agg)
+    if include_domain_yearly_bar_charts:
+        # Select which aggregates to use based on version
+        document_aggregates_to_use = (
+            document_aggregates_weighted if domain_yearly_version == "weighted" 
+            else document_aggregates_occurrence
+        )
+        
+        if not document_aggregates_to_use:
+            # Fallback if requested version is not available
+            document_aggregates_to_use = document_aggregates_weighted or document_aggregates_occurrence
+        
+        if document_aggregates_to_use:
+            # Build lookup of domain -> document aggregates
+            domain_documents: Dict[str, List[DocumentFrameAggregate]] = {}
+            for agg in document_aggregates_to_use:
+                domain = getattr(agg, "domain", None)
+                if not domain and getattr(agg, "url", None):
+                    extracted = extract_domain_from_url(agg.url)
+                    if extracted:
+                        try:
+                            object.__setattr__(agg, "domain", extracted)
+                            domain = extracted
+                        except Exception:
+                            domain = extracted
+                if domain:
+                    domain_documents.setdefault(domain, []).append(agg)
 
-        if domain_documents:
-            # Determine top domains based on counts from aggregates or fallback to doc counts
-            ranked_domain_counts = domain_counts or []
-            if not ranked_domain_counts:
+            if domain_documents:
+                # Rank domains by article count (number of documents/articles per domain)
+                # Use the actual document count from domain_documents, which is based on the aggregates being used
                 ranked_domain_counts = sorted(
                     [(dom, len(docs)) for dom, docs in domain_documents.items()],
                     key=lambda kv: kv[1],
                     reverse=True,
                 )
-            top_domain_names: List[str] = []
-            for domain_name, _ in ranked_domain_counts:
-                if domain_name in domain_documents:
+                top_domain_names: List[str] = []
+                for domain_name, article_count in ranked_domain_counts:
                     top_domain_names.append(domain_name)
-                if domain_yearly_limit and len(top_domain_names) >= domain_yearly_limit:
-                    break
-            if not top_domain_names:
-                fallback_domains = sorted(
-                    domain_documents.keys(),
-                    key=lambda name: len(domain_documents.get(name, [])),
-                    reverse=True,
-                )
-                top_domain_names = (
-                    fallback_domains[:domain_yearly_limit] if domain_yearly_limit else fallback_domains
-                )
+                    if domain_yearly_limit and len(top_domain_names) >= domain_yearly_limit:
+                        break
 
-            charts: List[str] = []
-            for domain_name in top_domain_names:
-                domain_docs = domain_documents.get(domain_name, [])
-                if not domain_docs:
-                    continue
-                yearly_agg = TemporalAggregator(
-                    period="year",
-                    weight_by_document_weight=True,
-                    keep_documents_with_no_frames=False,
-                ).aggregate(domain_docs)
-                if not yearly_agg:
-                    continue
-                slug = _slugify(domain_name)
-                chart_html = render_yearly_bar_chart(
-                    yearly_agg,
-                    frame_lookup,
-                    color_map,
-                    export_png_path=(export_dir / f"domain_yearly_{slug}.png") if (export_dir and export_png) else None,
-                    chart_id=f"domain-yearly-{slug}",
-                    export_svg=export_svg,
-                )
-                if chart_html:
-                    note = f"Year-over-year frame share for {domain_name} (n={domain_counts_lookup.get(domain_name, len(domain_docs))} articles)."
-                    charts.append(
-                        '<div class="chart-item">'
-                        f'<h4>{html.escape(domain_name)} — Yearly Frame Share</h4>'
-                        f'<p class="chart-explanation">{html.escape(note)}</p>'
-                        f'{chart_html}'
-                        '</div>'
+                charts: List[str] = []
+                for domain_name in top_domain_names:
+                    domain_docs = domain_documents.get(domain_name, [])
+                    if not domain_docs:
+                        continue
+                    yearly_agg = TemporalAggregator(
+                        period="year",
+                        weight_by_document_weight=(domain_yearly_version == "weighted"),
+                        keep_documents_with_no_frames=domain_yearly_include_empty,
+                    ).aggregate(domain_docs)
+                    if not yearly_agg:
+                        continue
+                    slug = _slugify(domain_name)
+                    chart_html = render_yearly_bar_chart(
+                        yearly_agg,
+                        frame_lookup,
+                        color_map,
+                        export_png_path=(export_dir / f"domain_yearly_{slug}.png") if (export_dir and export_png) else None,
+                        chart_id=f"domain-yearly-{slug}",
+                        export_svg=export_svg,
                     )
+                    if chart_html:
+                        note = f"Year-over-year frame share for {domain_name} (n={domain_counts_lookup.get(domain_name, len(domain_docs))} articles)."
+                        charts.append(
+                            '<div class="chart-item">'
+                            f'<h4>{html.escape(domain_name)} — Yearly Frame Share</h4>'
+                            f'<p class="chart-explanation">{html.escape(note)}</p>'
+                            f'{chart_html}'
+                            '</div>'
+                        )
 
-            if charts:
-                domain_yearly_section_html = f"""
+                if charts:
+                    domain_yearly_section_html = f"""
         <section class="report-section" id="domain-yearly">
             <header class="section-heading">
                 <h2>Yearly Trends by Domain</h2>

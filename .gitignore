@@ -10,16 +10,16 @@ docs/assets
 !docs/assets/css/
 
 # Cache and corpus
-cache/
-corpora/
+/cache/
+/corpora/
 failed_to_extract/
-results/
-libraries/
-debug/
-models/
-tmp/
-workspace/
-docs/_site
+/results/
+/libraries/
+/debug/
+/models/
+/tmp/
+/workspace/
+d/ocs/_site
 
 # Development
 scripts/

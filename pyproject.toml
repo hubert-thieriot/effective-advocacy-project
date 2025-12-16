@@ -84,3 +84,11 @@ test-llm-only = "pytest:main"
 test-no-integration = "pytest:main"
 test-fast = "pytest:main"
 validate-scorers = "scripts.validate_scorers:main"
+
+[tool.pyright]
+exclude = [
+    "cache",
+    "results",
+    ".pytest_cache",
+    "tmp"
+]

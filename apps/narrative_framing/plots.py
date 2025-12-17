@@ -381,13 +381,13 @@ def render_plotly_fragment(
                     "font": {"size": 18, "color": "#333"},
                 })
                 safe_layout["annotations"] = anns
-            # Update layout for PNG export: transparent background, Inter font, higher resolution
+            # Update layout for PNG export: transparent background, Open Sans font, higher resolution
             export_layout = copy.deepcopy(safe_layout) if isinstance(safe_layout, dict) else dict(safe_layout)
             export_layout.update({
                 "plot_bgcolor": "rgba(0,0,0,0)",
                 "paper_bgcolor": "rgba(0,0,0,0)",
                 "font": {
-                    "family": "Inter, 'Segoe UI', sans-serif",
+                    "family": "Open Sans, 'Segoe UI', sans-serif",
                     "size": 12,
                     "color": "#1e293b"
                 }
@@ -435,14 +435,14 @@ def render_plotly_fragment(
             # Inject CSS for font styling to match report
             css_injection = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
         body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif;
             margin: 0;
             padding: 0;
         }
         .plotly {
-            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
         }
     </style>
 """
@@ -1695,14 +1695,14 @@ def render_domain_frame_distribution(
             )
             css_injection = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
         body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif;
             margin: 0;
             padding: 0;
         }
         .plotly {
-            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
         }
     </style>
 """
@@ -1738,7 +1738,7 @@ def render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Option
                 "plot_bgcolor": "rgba(0,0,0,0)",
                 "paper_bgcolor": "rgba(0,0,0,0)",
                 "font": {
-                    "family": "Inter, 'Segoe UI', sans-serif",
+                    "family": "Open Sans, 'Segoe UI', sans-serif",
                     "size": 12,
                     "color": "#1e293b"
                 }
@@ -1765,14 +1765,14 @@ def render_plotly_fragment_from_figure(fig, div_id: str, export_png_path: Option
             )
             css_injection = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
         body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif;
             margin: 0;
             padding: 0;
         }
         .plotly {
-            font-family: 'Inter', 'Segoe UI', sans-serif !important;
+            font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
         }
     </style>
 """

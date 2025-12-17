@@ -3,13 +3,13 @@
   <defs>
     <style>
       .box {
-        fill: #f0f0f0;
-        stroke: #666;
+        fill: none;
+        stroke: #58a4b0; /* pacific blue */
         stroke-width: 2;
       }
       .media-box {
-        fill: #e8f1f8;
-        stroke: #1E3D58;
+        fill: none;
+        stroke: #58a4b0; /* pacific blue */
         stroke-width: 3;
         stroke-dasharray: 8,4;
       }
@@ -17,37 +17,37 @@
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 16px;
         font-weight: 600;
-        fill: #1E3D58;
+        fill: #373f51; /* charcoal blue */
         text-anchor: middle;
       }
       .subtext {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 14px;
-        fill: #4f6081;
+        fill: #373f51; /* charcoal blue */
         text-anchor: middle;
       }
       .title-text {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 18px;
         font-weight: 700;
-        fill: #1E3D58;
+        fill: #dd9d8f; /* powder blush */
         text-anchor: middle;
       }
       .item-text {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 14px;
-        fill: #333;
+        fill: #373f51; /* charcoal blue */
         text-anchor: middle;
       }
       .arrow {
         fill: none;
-        stroke: #4f6081;
+        stroke: #58a4b0; /* pacific blue */
         stroke-width: 2.5;
         marker-end: url(#arrowhead);
       }
       .dotted-arrow {
         fill: none;
-        stroke: #8a8d95;
+        stroke: #a9bcd0; /* powder blue */
         stroke-width: 2;
         stroke-dasharray: 6,4;
         marker-end: url(#arrowhead-light);
@@ -56,10 +56,10 @@
     
     <!-- Arrow markers -->
     <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
-      <polygon points="0 0, 6 2, 0 4" fill="#4f6081" />
+      <polygon points="0 0, 6 2, 0 4" fill="#58a4b0" />
     </marker>
     <marker id="arrowhead-light" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
-      <polygon points="0 0, 6 2, 0 4" fill="#8a8d95" />
+      <polygon points="0 0, 6 2, 0 4" fill="#a9bcd0" />
     </marker>
   </defs>
   

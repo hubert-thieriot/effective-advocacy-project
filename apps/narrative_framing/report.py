@@ -104,7 +104,7 @@ def export_frames_html(
     
     # CSS styles (same for both formats)
     css_styles = """<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
 
 .frames-container {
     max-width: 1200px;
@@ -124,7 +124,7 @@ def export_frames_html(
     border-left: 4px solid var(--accent-color);
     padding: 20px;
     transition: box-shadow 0.2s ease;
-    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-family: 'Open Sans', 'Segoe UI', sans-serif;
 }
 
 .frame-card:hover {
@@ -160,6 +160,7 @@ def export_frames_html(
     margin-bottom: 10px;
     line-height: 1.5 ! important;
     font-size: unset ! important;
+    font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
 }
 
 .frame-keywords,
@@ -844,7 +845,7 @@ class ReportBuilder:
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{html.escape(schema.domain)} — Results Browser</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
     :root {{
       --ink-900: #0f172a;
       --ink-800: #1e293b;
@@ -865,7 +866,7 @@ class ReportBuilder:
       margin: 0;
       padding: 48px;
       background: linear-gradient(140deg, var(--slate-50) 0%, #e4edf7 100%);
-      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-family: 'Open Sans', 'Segoe UI', sans-serif;
       color: var(--ink-800);
     }}
     .browser-page {{
@@ -2571,7 +2572,7 @@ def write_html_report(
   <title>{html.escape(schema.domain)} — Narrative Framing Analysis</title>
   <script src=\"https://cdn.plot.ly/plotly-2.27.0.min.js\"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
     :root {{
       --ink-900: #0f172a;
       --ink-800: #1e293b;
@@ -2592,7 +2593,7 @@ def write_html_report(
       margin: 0;
       padding: 48px;
       background: linear-gradient(140deg, var(--slate-50) 0%, #e4edf7 100%);
-      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-family: 'Open Sans', 'Segoe UI', sans-serif;
       color: var(--ink-800);
     }}
     a {{ color: var(--accent-2); text-decoration: none; }}
@@ -2775,6 +2776,7 @@ def write_html_report(
       background: #ffffff;
       box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1);
       overflow: hidden;
+      font-family: 'Open Sans', 'Segoe UI', sans-serif;
     }}
     .frame-card .share-badge {{
       position: absolute;
@@ -2820,6 +2822,7 @@ def write_html_report(
       color: var(--ink-600);
     }}
     .frame-card-text {{
+        font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
       position: relative;
       margin: 0 0 12px 0;
       color: var(--ink-600);

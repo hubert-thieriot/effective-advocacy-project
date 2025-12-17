@@ -21,7 +21,9 @@
       $window.trigger('scroll');
 
       var height = $('.article-image').height();
-      $('.post-content').css('padding-top', height + 'px');
+      if (height) {
+        $('.post-content').css('padding-top', height + 'px');
+      }
 
       $('a[href*=#]:not([href=#])').click(function() {
         if (location.pathname.replace(/^\//,'') == this.pathname.replace(/^\//,'')
@@ -92,6 +94,97 @@
       // Check if hint already exists to avoid duplicates
       if ($(this).next('.modal-enlarge-hint').length === 0) {
         $(this).after('<span class="modal-enlarge-hint">Click to enlarge</span>');
+      }
+    });
+  });
+}(jQuery));
+</script>
+
+<script>
+// Floating Table of Contents
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+    var $toc = $('#toc-floating');
+    var $tocList = $('#toc-list');
+    var $progressBar = $('.toc-progress-bar');
+    var $postContent = $('.post-content');
+
+    // Find all H1 elements in post content
+    var $headings = $postContent.find('h1');
+
+    console.log('TOC: Found ' + $headings.length + ' H1 headings');
+
+    // Only show TOC if there are H1 headings
+    if ($headings.length === 0) {
+      console.log('TOC: No H1 headings found, not showing TOC');
+      return;
+    }
+
+    // Build TOC
+    $headings.each(function(index) {
+      var $heading = $(this);
+      var headingId = 'heading-' + index;
+
+      // Add ID to heading if it doesn't have one
+      if (!$heading.attr('id')) {
+        $heading.attr('id', headingId);
+      } else {
+        headingId = $heading.attr('id');
+      }
+
+      // Add to TOC
+      var $li = $('<li><a href="#' + headingId + '">' + $heading.text() + '</a></li>');
+      $tocList.append($li);
+    });
+
+    console.log('TOC: Built TOC with ' + $tocList.find('li').length + ' items');
+
+    // Show TOC after content starts
+    function updateTOC() {
+      var scrollTop = $(window).scrollTop();
+      var contentTop = $postContent.offset().top - 100;
+      var contentBottom = contentTop + $postContent.outerHeight();
+
+      // Show/hide TOC
+      if (scrollTop > contentTop && scrollTop < contentBottom) {
+        $toc.addClass('visible');
+      } else {
+        $toc.removeClass('visible');
+      }
+
+      // Update active heading and progress
+      var activeIndex = -1;
+      $headings.each(function(index) {
+        var headingTop = $(this).offset().top - 150;
+        if (scrollTop >= headingTop) {
+          activeIndex = index;
+        }
+      });
+
+      // Update active link
+      $tocList.find('a').removeClass('active');
+      if (activeIndex >= 0) {
+        $tocList.find('a').eq(activeIndex).addClass('active');
+      }
+
+      // Update progress bar
+      if ($headings.length > 0) {
+        var progress = activeIndex >= 0 ? ((activeIndex + 1) / $headings.length) * 100 : 0;
+        $progressBar.css('background', 'linear-gradient(to bottom, #dd9d8f ' + progress + '%, rgba(221, 157, 143, 0.2) ' + progress + '%)');
+      }
+    }
+
+    // Scroll handler
+    $(window).on('scroll', updateTOC);
+    updateTOC();
+
+    // Smooth scroll for TOC links
+    $tocList.on('click', 'a', function(e) {
+      e.preventDefault();
+      var target = $(this.getAttribute('href'));
+      if (target.length) {
+        $('html, body').animate({ scrollTop: target.offset().top - 100 }, 500);
       }
     });
   });

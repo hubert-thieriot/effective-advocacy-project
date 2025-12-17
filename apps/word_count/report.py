@@ -18,7 +18,7 @@ from apps.narrative_framing.aggregation_document import DocumentFrameAggregate
 # Color palette matching narrative framing report
 _PALETTE = [
     "#1E3D58",
-    "#057D9F", 
+    "#057D9F",
     "#F18F01",
     "#A23B72",
     "#6C63FF",
@@ -105,7 +105,7 @@ def _render_total_docs_timeseries(daily_total_docs: Dict[str, int]) -> str:
         "margin": {"l": 60, "r": 20, "t": 60, "b": 60},
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "size": 12},
+        "font": {"family": "Open Sans, sans-serif", "size": 12},
     }
     
     return _render_plotly_fragment("total-docs-timeseries-chart", data, layout)
@@ -140,7 +140,7 @@ def _render_theme_bar(theme_counts: Dict[str, int], theme_names: Dict[str, str])
         "margin": {"l": 60, "r": 20, "t": 60, "b": 80},
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "size": 12}
+        "font": {"family": "Open Sans, sans-serif", "size": 12}
     }
     
     return _render_plotly_fragment("theme-bar-chart", data, layout)
@@ -196,7 +196,7 @@ def _render_timeseries_lines(daily_counts: Dict[str, Dict[str, int]], theme_name
         "margin": {"l": 60, "r": 20, "t": 60, "b": 60},
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "size": 12},
+        "font": {"family": "Open Sans, sans-serif", "size": 12},
         "legend": {"x": 1.02, "y": 1, "bgcolor": "rgba(255,255,255,0.8)"}
     }
     
@@ -423,7 +423,7 @@ def _render_domain_bar(domain_counts: Dict[str, int]) -> str:
         "margin": {"l": 60, "r": 20, "t": 60, "b": 100},
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "size": 12}
+        "font": {"family": "Open Sans, sans-serif", "size": 12}
     }
     
     return _render_plotly_fragment("domain-chart", data, layout)
@@ -462,7 +462,7 @@ def _render_cooccurrence_heatmap(co_matrix: Dict[Tuple[str, str], int], theme_or
         "margin": {"l": 80, "r": 20, "t": 60, "b": 80},
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "size": 12}
+        "font": {"family": "Open Sans, sans-serif", "size": 12}
     }
     
     return _render_plotly_fragment("cooccurrence-chart", data, layout)
@@ -526,7 +526,7 @@ def generate_html_report(
   <title>{case_title} – Word Count Report</title>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
     :root {{
       --ink-900: #0f172a;
       --ink-800: #1e293b;
@@ -547,7 +547,7 @@ def generate_html_report(
       margin: 0;
       padding: 48px;
       background: linear-gradient(140deg, var(--slate-50) 0%, #e4edf7 100%);
-      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-family: 'Open Sans', 'Segoe UI', sans-serif;
       color: var(--ink-800);
     }}
     a {{ color: var(--accent-2); text-decoration: none; }}

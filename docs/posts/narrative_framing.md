@@ -6,9 +6,10 @@ subtitle: Exploring tools for Effective Advocacy
 description: Exploring narrative framing workflows across air pollution and animal welfare corpora
 image_caption: "Peinture (2012), by Pierre Soulages"
 date: 2025-11-12 09:00:00 +0000
+last_modified_at: 2025-12-17 00:00:00 +0000
 author: Hubert Thieriot
-author_image: /assets/images/author.jpg
-image: /assets/images/soulages.jpg
+#author_image: /assets/images/author.jpg
+# image: /assets/images/soulages.jpg
 tags: [narrative-framing]
 ---
 
@@ -20,7 +21,7 @@ To illustrate this methodology, this post includes three illustrative examples: 
 
 
 
-## Why narrative framing analysis?
+# Why narrative framing analysis?
 Part of the motivation behind this series comes from a slight discomfort with the concept of “shaping the narrative” sometimes found in Theories of Change. The concept seems slippery to me and risks turning advocacy into a chase for mentions, mistaking visibility for influence. Still, I wondered whether I was being unfair, and sought ways to better assess its effectiveness.
 
 That led me to narrative framing analyses as a potential **Monitoring, Evaluation, and Learning (MEL)** tool: could we track how the stories around an issue evolve, and whether advocacy efforts actually move the needle? Furthermore, if we can map how narratives differ across regions or outlets, that same information could guide **strategy and prioritization** e.g. revealing where certain framings already align with the desired change or where there is an opportunity to fill a narrative gap.
@@ -34,7 +35,7 @@ That led me to narrative framing analyses as a potential **Monitoring, Evaluatio
   </figure>
 </div>
 
-### What can narrative framing help with?
+## What can narrative framing help with?
 
 - **Understand how a topic is being discussed**: Every issue carries multiple possible stories: who is responsible, who suffers, and what counts as a solution. A framing analysis helps reveal which of these stories dominate, and which remain marginal or absent. It could matter because public narratives can influence which kinds of solutions receive attention or legitimacy (caveat: I haven't look at the evidence on the connection between framing and policy outcomes). For example, if air pollution coverage in Delhi overemphasizes individual behavior while neglecting industrial, power, or agricultural sources, it signals not just a bias in media attention but a structural blind spot in public debate.
 
@@ -49,7 +50,7 @@ To see what this might look like in practice, I ran three experiments:
 - [Example 3: Animal welfare in EU party manifestos](#example-3-animal-welfare-in-european-political-manifestos): mapping how parties across Europe talk about animal welfare and where framings differ
 
 
-## Example 1: Air pollution causes in Delhi, India
+# Example 1: Air pollution causes in Delhi, India
 
 In this first exploration, I analyzed how leading English-language newspapers discuss air pollution in Delhi, focusing on which **sources of pollution** receive attention in coverage. I collected 20,000 articles published between January 2015 and November 2025 across five prominent national newspapers (The Times of India, Hindustan Times, The Hindu, The Indian Express, and The New Indian Express). The analysis identifies distinct narrative frames around pollution sources—from vehicle emissions to industrial activity to seasonal crop burning. This type of application can help advocates compare media framing against scientific evidence to identify narrative gaps and guide communication strategies. (Vital Strategies has conducted similar [analysis](https://www.vitalstrategies.org/resources/through-the-smokescreen/) using different techniques. For technical details on the methodology used here, see the [Method overview](#method-overview) section below.)
 
@@ -94,7 +95,7 @@ When examining which pollution sources receive attention in coverage, the result
   </p>
 </div> 
 
-### Strategic applications
+## Strategic applications
 
 This type of analysis could inform advocacy and funding strategies in several ways:
 
@@ -116,7 +117,7 @@ This type of analysis could inform advocacy and funding strategies in several wa
   </p>
 </div>
 
-## Example 2: Did the Grand National protest shift media framing?
+# Example 2: Did the Grand National protest shift media framing?
 In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
 
 Social Change Lab conducted an [evaluation](https://www.socialchangelab.org/shortandlongtermeffects) of the protest's effects, combining longitudinal panels with cross-sectional surveys. Their findings were nuanced: awareness of the protest was initially linked to *worse* attitudes toward animals, but these negative effects faded within six months. Cross-sectional comparisons suggested that overall attitudes toward animals had actually improved over that period.
@@ -168,7 +169,7 @@ When restricted to pre-race coverage, the 2023 spike logically disappears. Here 
 
 A more granular analysis would break this down by outlet, examining whether certain newspapers shifted their framing more than others in subsequent years.
 
-### Strategic applications
+## Strategic applications
 
 **Evaluate intervention impact:** The Grand National example illustrates how framing analysis can complement other evaluation methods. Social Change Lab measured public opinion and mobilisation; this analysis tracked a different outcome—media narrative. Combining both gives a fuller picture of what an intervention achieved or did not.
 
@@ -178,7 +179,7 @@ A more granular analysis would break this down by outlet, examining whether cert
 
 **Track cumulative effects:** A single protest may not shift framing, but repeated interventions might. Running this analysis over time could help advocates detect whether sustained campaigning is gradually changing how an issue is discussed, even if individual actions don't show immediate effects.
 
-## Example 3: Animal welfare in European political manifestos
+# Example 3: Animal welfare in European political manifestos
 
 This third application shifts from media analysis to political discourse, examining how European political parties frame animal welfare in their electoral manifestos. The analysis covers manifestos published since 2018 spanning 36 countries and 29 languages, and were collected from the [Manifesto Project](https://manifestoproject.wzb.eu/) dataset. It is important to note though that **these manifestos may represent different types of elections** and may therefore lead to biased cross-country comparisons; a more thorough analysis would further discriminate by election type.
 
@@ -240,7 +241,7 @@ Examining parties within each country reveals more nuanced patterns and even som
   </p>
 </div>
 
-### Strategic applications
+## Strategic applications
 
 For advocacy organizations and strategic funders working on animal welfare, this type of analysis could support several strategic functions:
 
@@ -267,7 +268,7 @@ For advocacy organizations and strategic funders working on animal welfare, this
 
 
 
-## Looking forward
+# Looking forward
 These early experiments only scratch the surface of what narrative analysis could do for advocacy and research. Going forward, several directions seem worth exploring:
 
 - **Other mediums**: these examples have covered media articles and political manifestos, but the same approach could be extended to TV and radio transcripts, social media, parliamentary debates and court decisions.
@@ -283,7 +284,7 @@ I am interested in hearing from others working on similar problems or exploring 
 
 
 
-## Method overview
+# Method overview
 
 The pipeline follows a hybrid LLM-to-classifier approach: we start with flexible LLM exploration to discover and annotate narrative frames, then scale up with a fine-tuned transformer classifier. This balances domain adaptability (frames tailored to each question and context) with computational efficiency (fast inference over large corpora).
 

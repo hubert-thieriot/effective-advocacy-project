@@ -13,6 +13,13 @@ $rs: 16px
 $font-serif: Linux Libertine
 $font-sans: Open Sans, MundoSans, "Helvetica Neue", Arial, Helvetica, sans-serif
 
+// Color palette
+$celadon: #74d3ae
+$sage-green: #678d58
+$muted-olive: #a6c48a
+$champagne-mist: #f6e7cb
+$sweet-salmon: #dd9787
+
 
 @mixin respond-to($breakpoint)
   @media only screen and (max-width: $breakpoint + px)
@@ -109,7 +116,7 @@ body
     outline: 0
     line-height: 50px
     word-break: break-word
-    color: #333
+    color: #373f51
   .blog-description
     margin: 0 0 20px
     padding: 0 $rs*2
@@ -372,13 +379,21 @@ body
       margin: 0
       font-family: $font-sans
       margin-bottom: 4px
-    h2, h1
+    h1
       letter-spacing: -0.02em
       font-weight: 700
       font-style: normal
       font-size: 32px
       line-height: 1.2
       padding-top: 31px
+      margin-bottom: 4px
+    h2
+      letter-spacing: -0.02em
+      font-weight: 700
+      font-style: normal
+      font-size: 28px
+      line-height: 1.2
+      padding-top: 18px
       margin-bottom: 4px
     p
       font-weight: 400
@@ -562,7 +577,7 @@ body
       outline: 0
       line-height: 50px
       word-break: break-word
-      color: #fff
+      color: #373f51
       text-shadow: 0px 1px 16px rgba(0,0,0,0.5), 0px 0px 1px rgba(0,0,0,0.5)
     .blog-description
       margin: 0 0 50px
@@ -585,7 +600,7 @@ body
       text-decoration: none
       cursor: pointer
       height: 44px
-      background: #57ad68
+      background: $sweet-salmon
       color: #fff
       vertical-align: middle
       box-sizing: border-box

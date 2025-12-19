@@ -7,7 +7,7 @@
     {% include header.html %}
     <main class="content" role="main">
       <article class="post">
-        <a class="back-to-main" href="{{ "/" | prepend: site.baseurl }}">← Back to main</a>
+        <a class="back-to-main" href="{{ "/" | prepend: site.baseurl }}">← Home</a>
         <div class="noarticleimage">
           <div class="post-meta">
             <h1 class="post-title">{{ page.title }}</h1>
@@ -92,7 +92,7 @@
       <div class="inner">
         <!-- <h1 class="blog-title">{{ site.title }}</h1> -->
         <h2 class="blog-description">{{ site.description }}</h2>
-        <a href={{ "/" | prepend: site.baseurl }} class="btn">Back to Overview</a>
+        <a href={{ "/" | prepend: site.baseurl }} class="btn">Home</a>
       </div>
     </div>
     {% include javascripts.html %}

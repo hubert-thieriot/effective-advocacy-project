@@ -21,6 +21,10 @@ figcaption {
   --pacific-blue: #58a4b0;
   --charcoal-blue: #373f51;
   --powder-blush: #d18372;
+  --dark-blue: #373f51;
+  --light-blue: #d18372;
+  --red: #EC5266;
+  --green: #46d780;
 }
 
 .back-to-main {
@@ -117,10 +121,10 @@ a {
   display: flex;
   flex-direction: column;
   padding: 1.75rem;
-  border-radius: 12px;
+  border-radius: 6px;
   background: transparent;
   box-shadow: none;
-  border: 1px solid rgba(221, 157, 143, 0.25);
+  border: 1px solid rgba(39, 49, 67, 0.25);
   text-decoration: none;
   transition: transform 160ms ease, box-shadow 160ms ease;
   color: var(--charcoal-blue);
@@ -134,12 +138,14 @@ a {
 .landing-card__title {
   font-size: 1.3rem;
   margin-bottom: 0.5rem;
+  color: var(--powder-blush);
 }
 
 .landing-card__copy {
   flex: 1;
   margin: 0 0 1rem 0;
   line-height: 1.5;
+  color: var(--charcoal-blue);
 }
 
 .landing-card__cta {
@@ -149,13 +155,13 @@ a {
 
 .landing-card--disabled {
   cursor: not-allowed;
-  background: rgba(240, 242, 247, 0.8);
-  color: rgba(0, 0, 0, 0.45);
+  background: transparent;
+  opacity: 0.55;
   box-shadow: none;
 }
 
 .landing-card--disabled .landing-card__cta {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--powder-blush);
 }
 
 .landing-card--disabled:hover {
@@ -229,7 +235,7 @@ a {
   max-width: 1120px;
   background: transparent;
   border-radius: 0;
-  border: 1px solid rgba(221, 157, 143, 0.2);
+  border: 1px solid rgba(39, 49, 67, 0.2);
   box-shadow: none;
   font-family: 'Open Sans', 'Segoe UI', sans-serif;
 }
@@ -277,7 +283,7 @@ a {
 .text-box {
   position: relative;
   border-radius: 0;
-  border: 1px solid rgba(221, 157, 143, 0.2);
+  border: 1px solid rgba(39, 49, 67, 0.2);
   background: transparent;
   padding: 2.4rem 2.6rem 2.4rem;
   margin: 2.3rem auto;
@@ -303,7 +309,7 @@ a {
   font-weight: 700;
   margin: 0 0 1rem 0;
   font-family: 'Open Sans', 'Segoe UI', sans-serif;
-  color: var(--powder-blush);
+  color: var(--charcoal-blue);
 }
 
 .text-box strong {
@@ -367,7 +373,7 @@ a {
   margin-top: 0;
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(221, 157, 143, 0.25);
+  border-bottom: 1px solid rgba(39, 49, 67, 0.25);
   text-align: left;
 }
 
@@ -532,7 +538,8 @@ code.language-plaintext {
   top: 0;
   width: 2px;
   height: 100%;
-  background: rgba(221, 157, 143, 0.2);
+  background: var(--powder-blush);
+  opacity: 0.3;
   border-radius: 2px;
 }
 

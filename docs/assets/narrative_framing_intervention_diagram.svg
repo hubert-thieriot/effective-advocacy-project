@@ -4,50 +4,50 @@
     <style>
       .box {
         fill: none;
-        stroke: #58a4b0; /* pacific blue */
+        stroke: #d18372; /* light blue */
         stroke-width: 2.5;
       }
       .highlight-box {
         fill: none;
-        stroke: #dd9d8f; /* powder blush */
+        stroke: #373f51; /* dark blue */
         stroke-width: 3.5;
       }
       .text {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 17px;
         font-weight: 600;
-        fill: #58a4b0; /* match primary stroke */
+        fill: #d18372; /* match primary stroke */
         text-anchor: middle;
       }
       .subtext {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 14px;
-        fill: #58a4b0; /* match primary stroke */
+        fill: #d18372; /* match primary stroke */
         text-anchor: middle;
       }
       .title-text {
         font-family: 'Open Sans', Arial, sans-serif;
         font-size: 20px;
         font-weight: 700;
-        fill: #dd9d8f; /* powder blush */
+        fill: #373f51; /* dark blue */
         text-anchor: middle;
       }
       .arrow {
         fill: none;
-        stroke: #58a4b0; /* pacific blue */
+        stroke: #d18372; /* light blue */
         stroke-width: 2.5;
         marker-end: url(#arrowhead);
       }
       .feedback-arrow {
         fill: none;
-        stroke: #a9bcd0; /* powder blue */
+        stroke: #d18372; /* light blue */
         stroke-width: 2.5;
         stroke-dasharray: 6,4;
         marker-end: url(#arrowhead-light);
       }
       .influence-arrow {
         fill: none;
-        stroke: #dd9d8f; /* powder blush */
+        stroke: #373f51; /* dark blue */
         stroke-width: 4;
         marker-end: url(#arrowhead-orange);
       }
@@ -55,35 +55,35 @@
     
     <!-- Arrow markers -->
     <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
-      <polygon points="0 0, 6 2, 0 4" fill="#58a4b0" />
+      <polygon points="0 0, 6 2, 0 4" fill="#d18372" />
     </marker>
     <marker id="arrowhead-light" markerWidth="6" markerHeight="6" refX="5.5" refY="2" orient="auto">
-      <polygon points="0 0, 6 2, 0 4" fill="#a9bcd0" />
+      <polygon points="0 0, 6 2, 0 4" fill="#d18372" />
     </marker>
     <marker id="arrowhead-orange" markerWidth="5" markerHeight="5" refX="4.5" refY="1.5" orient="auto">
-      <polygon points="0 0, 5 1.5, 0 3" fill="#dd9d8f" />
+      <polygon points="0 0, 5 1.5, 0 3" fill="#373f51" />
     </marker>
   </defs>
   
   <!-- Narrative Framing Analysis (highlighted, at top) -->
   <rect x="300" y="30" width="300" height="70" rx="8" class="highlight-box"/>
-  <text x="450" y="58" style="font-family: 'Open Sans', Arial, sans-serif; font-size: 17px; font-weight: 600; fill: #dd9d8f; text-anchor: middle;">Narrative Framing</text>
-  <text x="450" y="78" style="font-family: 'Open Sans', Arial, sans-serif; font-size: 17px; font-weight: 600; fill: #dd9d8f; text-anchor: middle;">Analysis</text>
+  <text x="450" y="60" style="font-family: 'Open Sans', Arial, sans-serif; font-size: 17px; font-weight: 600; fill: #373f51; text-anchor: middle;">Narrative Framing</text>
+  <text x="450" y="80" style="font-family: 'Open Sans', Arial, sans-serif; font-size: 17px; font-weight: 600; fill: #373f51; text-anchor: middle;">Analysis</text>
   
   <!-- Strategy Design -->
   <rect x="60" y="200" width="200" height="75" rx="5" class="box"/>
-  <text x="160" y="230" class="text">Strategy Design</text>
-  <text x="160" y="250" class="subtext">Where? What? How?</text>
+  <text x="160" y="228" class="text">Strategy Design</text>
+  <text x="160" y="248" class="subtext">Where? What? How?</text>
   
   <!-- Execution -->
   <rect x="350" y="200" width="200" height="75" rx="5" class="box"/>
-  <text x="450" y="230" class="text">Execution</text>
-  <text x="450" y="250" class="subtext">Research / Campaign</text>
+  <text x="450" y="228" class="text">Execution</text>
+  <text x="450" y="248" class="subtext">Research / Campaign</text>
   
   <!-- MEL -->
   <rect x="640" y="200" width="200" height="75" rx="5" class="box"/>
-  <text x="740" y="230" class="text">MEL</text>
-  <text x="740" y="250" class="subtext">Detect &amp; Measure Change</text>
+  <text x="740" y="228" class="text">MEL</text>
+  <text x="740" y="248" class="subtext">Detect &amp; Measure Change</text>
   
   <!-- Main flow arrows -->
   <!-- Strategy Design -> Execution -->

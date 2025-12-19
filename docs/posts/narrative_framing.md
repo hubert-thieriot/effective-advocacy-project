@@ -167,6 +167,9 @@ However, welfare coverage in any given year could be driven by incidents during 
 
 When restricted to pre-race coverage, the 2023 spike logically disappears. Here again, the results suggest the protest didn't have a lasting effect on how journalists frame the Grand National in anticipation of subsequent races.
 
+It is important to note that this analysis solely focuses on media framing. The Social Change Lab evaluation found that the protest had other positive impacts beyond media narrative, including improved attitudes toward animals over time and increased mobilisation.
+
+
 A more granular analysis would break this down by outlet, examining whether certain newspapers shifted their framing more than others in subsequent years.
 
 ## Strategic applications

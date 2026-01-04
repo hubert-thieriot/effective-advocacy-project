@@ -50,3 +50,11 @@ class StageContext:
 
     # Per-stage control flags
     allow_new_work: bool = True
+
+    # Additional context from workflow (set by pipeline)
+    filter: Optional[Any] = None  # Filter object
+    filter_spec: Optional[Any] = None  # FilterSpec
+    ind_sys_t: str = ""  # Induction system template
+    ind_usr_t: str = ""  # Induction user template
+    app_sys_t: str = ""  # Application system template
+    app_usr_t: str = ""  # Application user template

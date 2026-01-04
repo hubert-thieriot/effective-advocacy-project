@@ -1006,11 +1006,41 @@ def run_workflow(config: NarrativeFramingConfig) -> None:
     workflow.run()
 
 
+def run_pipeline(config: NarrativeFramingConfig, output_dir: Optional[Path] = None) -> None:
+    """Run the narrative framing pipeline (new modular approach).
+
+    This is the new pipeline-based implementation with modular stages.
+    Each stage is independently testable and has clear responsibilities.
+
+    Args:
+        config: Narrative framing configuration
+        output_dir: Output directory (defaults to config.results_dir)
+    """
+    from apps.narrative_framing.pipeline import NarrativeFramingPipeline
+
+    if output_dir is None:
+        output_dir = config.results_dir or Path("results/narrative_framing")
+
+    pipeline = NarrativeFramingPipeline(config, output_dir)
+    results = pipeline.run()
+
+    return results
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
-    workflow = NarrativeFramingWorkflow(config)
-    workflow.run()
+
+    # Use the new pipeline by default
+    # To use old workflow, set environment variable: USE_OLD_WORKFLOW=1
+    import os
+    if os.environ.get("USE_OLD_WORKFLOW"):
+        print("Using old workflow (set by USE_OLD_WORKFLOW environment variable)")
+        workflow = NarrativeFramingWorkflow(config)
+        workflow.run()
+    else:
+        print("Using new modular pipeline")
+        run_pipeline(config)
 
 
 if __name__ == "__main__":

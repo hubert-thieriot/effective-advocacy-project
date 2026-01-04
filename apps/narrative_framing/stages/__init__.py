@@ -36,6 +36,11 @@ Example usage:
 """
 
 from .base import StageContext, WorkflowPaths, WorkflowState
+from .corpus_loading_stage import CorpusLoadingStage
+from .induction_stage import InductionStage
+from .annotation_stage import AnnotationStage
+from .training_stage import TrainingStage
+from .classification_stage import ClassificationStage
 from .aggregation_stage import AggregationStage
 from .report_stage import ReportStage, ReportInput, ReportOutput
 
@@ -45,6 +50,11 @@ __all__ = [
     "WorkflowPaths",
     "WorkflowState",
     # Stages
+    "CorpusLoadingStage",
+    "InductionStage",
+    "AnnotationStage",
+    "TrainingStage",
+    "ClassificationStage",
     "AggregationStage",
     "ReportStage",
     "ReportInput",

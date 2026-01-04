@@ -1,0 +1,211 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.frames-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.frame-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-color);
+    padding: 20px;
+    transition: box-shadow 0.2s ease;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.frame-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.frame-card-header {
+    margin-bottom: 12px;
+}
+
+.frame-card-name {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: var(--accent-color);
+    margin-bottom: 0 !important;
+}
+
+.frame-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.frame-card-body {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.frame-card-description {
+    margin-bottom: 10px;
+    line-height: 1.5 ! important;
+    font-size: unset ! important;
+}
+
+.frame-keywords,
+.frame-examples {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.frame-keywords strong,
+.frame-examples strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) { 
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+</style>
+<div class="frames-container">
+    <div class="frames-grid">
+        
+        <div class="frame-card" style="--accent-color: #1E3D58;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Transportation Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by emissions from motor vehicles (cars, motorcycles, trucks, buses), including fuel quality, traffic, and related road use. Includes references to private and public transport, and road dust resuspension due to traffic.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> kendaraan bermotor, mobil, motor, truk, bus, angkutan umum, transportasi, lalu lintas, emisi kendaraan, bahan bakar, BBM, bensin, Premium, Pertalite, Pertamax, solar, knalpot, polusi lalu lintas, kemacetan, angkutan pribadi, angkutan massal, transportasi publik, road dust, debu jalan
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> Meliputi besaran polusi yang disebabkan oleh penggunaan kendaraan atau faktor lain.; Padahal, kendaraan pribadi menjadi salah satu sumber polusi terbesar di Jakarta.; Polusi udara bisa terjadi akibat penggunaan BBM kualitas rendah.
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #057D9F;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Industrial Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by emissions from factories, manufacturing, industrial processes, and mining operations. Includes references to pabrik, industri, and related production activities.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> pabrik, industri, kegiatan produksi, kegiatan usaha, fabrikasi, manufaktur, industri manufaktur, industri berat, industri ringan, industri kimia, industri baja, industri semen, tambang, penambangan, smelter
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> Terutama, bagi pekerja pabrik yang berada di lokasi usaha untuk kegiatan produksi.; dampak kegiatan usaha; aktivitas industri di Jabodetabek
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F18F01;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Power Plant Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by emissions from coal-fired power plants and other fossil-fueled electricity generation facilities, including PLTU and related terms.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> PLTU, pembangkit listrik tenaga uap, pembangkit listrik, coal-fired power plant, pembangkit listrik berbahan bakar fosil, emisi pembangkit listrik, pembangkit listrik tenaga batu bara, pembangkit listrik tenaga gas, pembangkit listrik tenaga diesel
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> Emisi transportasi, aktivitas industri di Jabodetabek serta ondisi kemarau panjang sejak tiga bulan terakhir.; PLTU; pembangkit listrik tenaga uap
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #A23B72;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Biomass Burning and Agriculture</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by burning of biomass for land clearing, slash-and-burn agriculture, deforestation, and wildfires. Includes references to pembakaran lahan, kebakaran hutan, and related agricultural burning.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> pembakaran lahan, pembakaran hutan, kebakaran hutan, slash-and-burn, ladang berpindah, deforestasi, pembakaran biomassa, wildfire, asap kebakaran, asap lahan, asap hutan, agricultural burning
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> pembakaran lahan; kebakaran hutan; asap kebakaran
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #6C63FF;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Household Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by household use of fossil fuels or biomass for cooking and heating. Includes references to pembakaran rumah tangga, penggunaan kayu bakar, and related terms.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> pembakaran rumah tangga, penggunaan kayu bakar, kompor minyak, kompor arang, kompor kayu, bahan bakar rumah tangga, emisi rumah tangga, pembakaran batubara rumah tangga, pembakaran biomassa rumah tangga
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> pembakaran rumah tangga; penggunaan kayu bakar untuk memasak; emisi dari rumah tangga
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #3A7D44;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Waste Management Emissions</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by open burning of waste, including municipal solid waste, landfill fires, and neighborhood trash burning. Only applies when combustion is explicitly mentioned.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> pembakaran sampah, pembakaran limbah, pembakaran terbuka, open burning, insinerator, PLTSa, pembakaran sampah domestik, pembakaran sampah rumah tangga, pembakaran sampah kota, landfill fire, kebakaran TPA
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> Misalnya pembakaran sampah oleh masyarakat; Rencana membangun insinerator dalam bentuk Pembangkit Listrik Tenaga Sampah (PLTSa) untuk mengatasi sampah memiliki dampak terhadap lingkungan.; PLTSa menggunakan teknologi termal atau panas
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F45B69;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Construction and Dust</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Air pollution caused by construction activities, roadworks, and resuspended soil or dust, especially in urban settings.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> konstruksi, pembangunan, proyek pembangunan, debu konstruksi, debu jalan, road dust, pengerjaan jalan, pembangunan gedung, pembangunan infrastruktur, resuspensi debu
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> debu jalan; debu konstruksi; kegiatan konstruksi
+            </div>
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #0E7C7B;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Natural and Weather Factors</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Non-anthropogenic or weather-related contributors to air pollution, such as prolonged dry season, low rainfall, or meteorological conditions that exacerbate pollution.</p>
+                
+            <div class="frame-keywords">
+                <strong>Keywords:</strong> musim kemarau, kemarau panjang, rendahnya intensitas hujan, cuaca panas, kondisi meteorologi, cuaca ekstrem, angin, inversi suhu, stagnasi udara
+            </div>
+                
+            <div class="frame-examples">
+                <strong>Examples:</strong> kondisi musim kemarau dengan rendahnya intensitas hujan yang terjadi beberapa bulan terakhir; kemarau panjang tengah melanda Indonesia; curah hujan masih sangat rendah menyebabkan kekeringan di sebagian besar wilayah Indonesia
+            </div>
+            </div>
+        </div>
+    </div>
+</div>

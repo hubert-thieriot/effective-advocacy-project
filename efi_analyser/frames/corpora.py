@@ -5,24 +5,9 @@ from __future__ import annotations
 from typing import Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
-from efi_core.utils import normalize_date
+from efi_core.utils import normalize_date, date_in_windows
 
 from .identifiers import make_global_doc_id, split_global_doc_id
-
-
-def _date_in_windows(date_str: str, windows: Optional[Sequence[Tuple[str, str]]]) -> bool:
-    """Check if a date (YYYY-MM-DD) falls within any of the specified date windows.
-    
-    Returns True if windows is None (no filtering) or if date falls within at least one window.
-    """
-    if windows is None:
-        return True
-    
-    for from_date, to_date in windows:
-        if from_date <= date_str <= to_date:
-            return True
-    
-    return False
 
 
 class EmbeddedCorpora(Mapping[str, EmbeddedCorpus]):
@@ -119,7 +104,7 @@ class EmbeddedCorpora(Mapping[str, EmbeddedCorpus]):
                     continue
                 
                 # Apply date_windows filter if specified
-                if date_windows and not _date_in_windows(date_str, date_windows):
+                if date_windows and not date_in_windows(date_str, date_windows):
                     continue
                 
                 keep.append(gid)

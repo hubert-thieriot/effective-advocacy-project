@@ -10,7 +10,7 @@ from efi_core.protocols import Chunker, Embedder, AnnIndex
 from efi_core.layout import CorpusLayout, LibraryLayout, WorkspaceLayout, EmbeddedCorpusLayout, EmbeddedLibraryLayout
 from .corpus_handle import CorpusHandle
 from efi_core.stores import ChunkStore, EmbeddingStore, DocStateStore
-from .build_controller import BuildController
+from .embedded import EmbeddedCorpus
 
 __all__ = [
     # Core types
@@ -25,10 +25,8 @@ __all__ = [
     
     # Interface
     "CorpusHandle",
-    
+    "EmbeddedCorpus",
+
     # Stores
     "ChunkStore", "EmbeddingStore", "DocStateStore",
-    
-    # Build controller
-    "BuildController",
 ]

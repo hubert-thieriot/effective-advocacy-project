@@ -1,0 +1,173 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.frames-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.frame-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-color);
+    padding: 20px;
+    transition: box-shadow 0.2s ease;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.frame-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.frame-card-header {
+    margin-bottom: 12px;
+}
+
+.frame-card-name {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: var(--accent-color);
+    margin-bottom: 0 !important;
+}
+
+.frame-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.frame-card-body {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.frame-card-description {
+    margin-bottom: 10px;
+    line-height: 1.5 ! important;
+    font-size: unset ! important;
+}
+
+.frame-keywords,
+.frame-examples {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.frame-keywords strong,
+.frame-examples strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) { 
+    .frames-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+</style>
+<div class="frames-container">
+    <div class="frames-grid">
+        
+        <div class="frame-card" style="--accent-color: #1E3D58;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Slaughterhouses and Humane Killing</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Discourse around slaughtering practices, abattoirs, humane killing, stunning requirements, and conditions in slaughter facilities.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #057D9F;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Cruelty and Inhumane Treatment</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Framing of cruelty, abuse, suffering, and inhumane treatment of animals. ONLY assign when cruelty/abuse/suffering is EXPLICITLY mentioned.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F18F01;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Pet and Companion Animals</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Discourse specifically about pets, companion animals, domestic animals, breeding practices, pet shops, and animal abandonment.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #A23B72;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Cage-Free and Confinement</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Framing around cage-free systems, battery cages, confinement, housing conditions, and freedom of movement for farmed animals.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #6C63FF;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Plant-Based Proteins and Diets</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Discourse on plant-based alternatives, meat substitutes, reducing animal consumption, vegan/vegetarian options, and protein transition.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #3A7D44;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Factory Farming and Industrial Production</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Framing of industrial raising of animals for food production (not covering farming of plants).</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F45B69;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Anti-Hunting and Snaring</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Discourse opposing hunting, trapping, snaring, and other wildlife killing practices, including traditional and sport hunting.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #0E7C7B;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">Anti-Laboratory Experiments</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Framing against animal testing, vivisection, laboratory experiments on animals, and the push for alternative testing methods.</p>
+                
+                
+            </div>
+        </div>
+        <div class="frame-card" style="--accent-color: #F2A541;">
+            <div class="frame-card-header">
+                <h3 class="frame-card-name">General Animal Welfare</h3>
+            </div>
+            <div class="frame-card-body">
+                <p class="frame-card-description">Broad statements about animal welfare standards, animal protection, and animal rights that do not fit specific frames above. ONLY assign when &#x27;welfare&#x27; (or equivalent in other languages) is EXPLICITLY used.</p>
+                
+                
+            </div>
+        </div>
+    </div>
+</div>

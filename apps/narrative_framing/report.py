@@ -2191,8 +2191,8 @@ def write_html_report(
             # Build lookup of domain -> document aggregates
             domain_documents: Dict[str, List[DocumentFrameAggregate]] = {}
             for agg in document_aggregates_to_use:
-                domain = getattr(agg, "domain", None)
-                if not domain and getattr(agg, "url", None):
+                domain = agg.domain
+                if not domain and agg.url:
                     extracted = extract_domain_from_url(agg.url)
                     if extracted:
                         try:
@@ -2268,7 +2268,12 @@ def write_html_report(
     if custom_plots and all_aggregates:
         custom_charts = []
         for custom_plot in custom_plots:
-            plot_type = getattr(custom_plot, "type", None) if hasattr(custom_plot, "type") else custom_plot.get("type") if isinstance(custom_plot, dict) else None
+            # Handle both dict and object types
+            if isinstance(custom_plot, dict):
+                plot_type = custom_plot.get("type")
+            else:
+                plot_type = getattr(custom_plot, "type", None)
+
             if not plot_type:
                 continue
             
@@ -2299,9 +2304,15 @@ def write_html_report(
                 )
             
             if chart_html:
-                plot_title = getattr(custom_plot, "title", None) if hasattr(custom_plot, "title") else custom_plot.get("title") if isinstance(custom_plot, dict) else None
-                plot_subtitle = getattr(custom_plot, "subtitle", None) if hasattr(custom_plot, "subtitle") else custom_plot.get("subtitle") if isinstance(custom_plot, dict) else None
-                plot_caption = getattr(custom_plot, "caption", None) if hasattr(custom_plot, "caption") else custom_plot.get("caption") if isinstance(custom_plot, dict) else None
+                # Extract title, subtitle, caption from dict or object
+                if isinstance(custom_plot, dict):
+                    plot_title = custom_plot.get("title")
+                    plot_subtitle = custom_plot.get("subtitle")
+                    plot_caption = custom_plot.get("caption")
+                else:
+                    plot_title = getattr(custom_plot, "title", None)
+                    plot_subtitle = getattr(custom_plot, "subtitle", None)
+                    plot_caption = getattr(custom_plot, "caption", None)
                 
                 # Format subtitle and caption with n_articles if needed
                 if plot_subtitle:

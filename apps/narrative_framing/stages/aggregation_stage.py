@@ -134,9 +134,7 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
         self.logger.info("Building aggregations...")
 
         # Get filter spec if available (from workflow filter)
-        filter_spec = None
-        if hasattr(input_data, 'filter_spec'):
-            filter_spec = input_data.filter_spec
+        filter_spec = input_data.filter_spec
 
         # Create aggregates directory
         paths.aggregates_dir.mkdir(parents=True, exist_ok=True)

@@ -112,12 +112,10 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
 
         # Prepare sampler kwargs
         sampler_kwargs = {}
-        if hasattr(input_data, 'filter'):
-            filter_obj = input_data.filter if hasattr(input_data, 'filter') else None
-            if filter_obj:
-                sampler_kwargs = filter_obj.sampler_kwargs(
-                    domain_whitelist=config.filter.document.domain_whitelist
-                )
+        if input_data.filter:
+            sampler_kwargs = input_data.filter.sampler_kwargs(
+                domain_whitelist=config.filter.document.domain_whitelist
+            )
 
         # Override with relevance keywords if provided
         if induction_keywords:
@@ -152,16 +150,9 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
         else:
             max_per_call = min(config.induction.size, 40)
 
-        # Load prompt templates
-        # Note: These need to be passed through context or loaded here
-        # For now, assuming they're available
-        if not hasattr(input_data, 'ind_sys_t') or not hasattr(input_data, 'ind_usr_t'):
-            # Load default templates
-            ind_sys_t = "{system_message}"  # Placeholder
-            ind_usr_t = "{user_message}"  # Placeholder
-        else:
-            ind_sys_t = input_data.ind_sys_t
-            ind_usr_t = input_data.ind_usr_t
+        # Load prompt templates from context
+        ind_sys_t = input_data.ind_sys_t or "{system_message}"
+        ind_usr_t = input_data.ind_usr_t or "{user_message}"
 
         # Create inducer
         inducer = FrameInducer(

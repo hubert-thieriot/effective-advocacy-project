@@ -313,7 +313,7 @@ class NarrativeFramingWorkflow:
             cfg_dir = base_results_dir / "configs"
             cfg_dir.mkdir(parents=True, exist_ok=True)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            src_path = getattr(config, "source_config_path", None)
+            src_path = config.source_config_path
             if isinstance(src_path, Path) and src_path.exists():
                 dst_name = f"{src_path.stem}_{ts}{src_path.suffix}"
                 shutil.copy2(src_path, cfg_dir / dst_name)

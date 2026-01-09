@@ -109,12 +109,10 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
 
                 # Prepare sampler kwargs
                 sampler_kwargs = {}
-                if hasattr(input_data, 'filter'):
-                    filter_obj = getattr(input_data, 'filter', None)
-                    if filter_obj:
-                        sampler_kwargs = filter_obj.sampler_kwargs(
-                            domain_whitelist=config.filter.document.domain_whitelist
-                        )
+                if input_data.filter:
+                    sampler_kwargs = input_data.filter.sampler_kwargs(
+                        domain_whitelist=config.filter.document.domain_whitelist
+                    )
 
                 try:
                     new_candidates = state.sampler.collect_candidates(
@@ -144,8 +142,8 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
                     )
 
                     # Prepare prompt templates
-                    app_sys_t = getattr(input_data, 'app_sys_t', "{system_message}")
-                    app_usr_t = getattr(input_data, 'app_usr_t', "{user_message}")
+                    app_sys_t = input_data.app_sys_t or "{system_message}"
+                    app_usr_t = input_data.app_usr_t or "{user_message}"
 
                     resolved_dir = paths.results_dir / "prompts" / "frame_annotation" / "resolved"
 

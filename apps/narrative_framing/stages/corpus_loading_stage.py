@@ -13,12 +13,13 @@ from efi_core.pipeline import PipelineStage
 
 from efi_corpus.embedded import EmbeddedCorpus
 from efi_analyser.chunkers.sentence_chunker import SentenceChunker
+from efi_analyser.frames.corpora import EmbeddedCorpora
 from efi_analyser.frames.classifier import EmbeddedCorporaSampler
 
 from .base import StageContext
 
 
-class CorpusLoadingStage(PipelineStage[StageContext, Dict[str, EmbeddedCorpus]]):
+class CorpusLoadingStage(PipelineStage[StageContext, EmbeddedCorpora]):
     """
     Pipeline stage for loading corpora.
 
@@ -34,14 +35,14 @@ class CorpusLoadingStage(PipelineStage[StageContext, Dict[str, EmbeddedCorpus]])
         """Always run corpus loading."""
         return input_data is not None
 
-    def execute(self, input_data: StageContext) -> Dict[str, EmbeddedCorpus]:
+    def execute(self, input_data: StageContext) -> EmbeddedCorpora:
         """Load embedded corpora.
 
         Args:
             input_data: Stage context
 
         Returns:
-            Dictionary mapping corpus names to EmbeddedCorpus objects
+            EmbeddedCorpora wrapper containing all loaded corpora
         """
         config = input_data.config
         state = input_data.state
@@ -59,13 +60,13 @@ class CorpusLoadingStage(PipelineStage[StageContext, Dict[str, EmbeddedCorpus]])
             self.logger.info(f"  Loading {corpus_name}...")
 
             # Create chunker
-            chunker = SentenceChunker(
-                target_words=config.chunking.target_words,
-                model_name=config.chunking.chunker_model,
-            )
+            # Note: SentenceChunker doesn't take parameters, uses defaults
+            chunker = SentenceChunker()
 
             # Load corpus
+            # Note: dataclass inheritance requires both data_path (base) and corpus_path (subclass)
             corpus = EmbeddedCorpus(
+                data_path=corpus_path,
                 corpus_path=corpus_path,
                 workspace_path=config.workspace_root,
                 chunker=chunker,
@@ -76,15 +77,18 @@ class CorpusLoadingStage(PipelineStage[StageContext, Dict[str, EmbeddedCorpus]])
 
         self.logger.info(f"Loaded {len(corpora_map)} corpora")
 
-        # Create sampler
-        sampler = EmbeddedCorporaSampler(corpora_map)
-        state.sampler = sampler
-        state.corpora_map = corpora_map
+        # Wrap in EmbeddedCorpora for classifier compatibility
+        embedded_corpora = EmbeddedCorpora(corpora_map)
 
-        return corpora_map
+        # Create sampler
+        sampler = EmbeddedCorporaSampler(embedded_corpora)
+        state.sampler = sampler
+        # Don't set state.corpora_map here - it will be set by pipeline from return value
+
+        return embedded_corpora
 
     def get_metadata(self) -> dict:
         return {
             "stage": self.name,
-            "corpus_count": len(self.output_dir.parent) if self.output_dir else 0
+            "note": "Loads embedded corpora for analysis"
         }

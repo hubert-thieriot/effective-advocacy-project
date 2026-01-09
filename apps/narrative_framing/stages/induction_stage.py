@@ -51,18 +51,22 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
         config = input_data.config
         paths = input_data.paths
 
+        # Store schema path for later use (before any early returns)
+        self._schema_path = paths.schema_path
+
         # In regenerate mode, always skip (use cached)
         if config.regenerate_report_only:
             self.logger.info("Regenerate mode - will load cached schema")
             return False
 
-        # Store schema path for later use
-        self._schema_path = paths.schema_path
-
-        # If reload requested, run
+        # If reload requested, skip execution (load cached)
         if config.reload_induction:
-            self.logger.info("Reload requested - will run induction")
-            return True
+            if paths.schema_path and paths.schema_path.exists():
+                self.logger.info("Reload from cache requested - will load cached schema")
+                return False
+            else:
+                self.logger.warning("Reload requested but schema doesn't exist - will run induction")
+                return True
 
         # If schema doesn't exist, run (unless not allowed)
         if not paths.schema_path or not paths.schema_path.exists():
@@ -72,9 +76,9 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
             self.logger.info("Schema not found - will run induction")
             return True
 
-        # Schema exists and reload not requested
-        self.logger.info("Schema exists - will load from cache")
-        return False
+        # Schema exists and reload not requested - still run (fresh induction)
+        self.logger.info("Schema exists but reload not requested - will run fresh induction")
+        return True
 
     def execute(self, input_data: StageContext) -> FrameSchema:
         """Induce narrative frames from document samples.
@@ -186,6 +190,7 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
 
         # Save schema
         if paths.schema_path:
+            paths.schema_path.parent.mkdir(parents=True, exist_ok=True)
             save_schema(paths.schema_path, schema)
             self.logger.info(f"Saved schema to {paths.schema_path}")
 

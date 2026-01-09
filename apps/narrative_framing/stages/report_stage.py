@@ -7,24 +7,17 @@ This is a proof-of-concept demonstrating the Pipeline pattern.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
 
 from efi_core.pipeline import PipelineStage, StageResult
 
 from apps.narrative_framing.aggregates import Aggregates
-from apps.narrative_framing.report import write_html_report
-
-
-@dataclass
-class ReportInput:
-    """Input data for report generation stage"""
-    aggregates_dir: Path
-    schema_path: Path
-    classifications_path: Path
-    corpus_names: list[str]
-    output_dir: Path
-    config: any  # NarrativeFramingConfig
+from apps.narrative_framing.report import ReportBuilder
+from apps.narrative_framing.run import load_schema
+from efi_analyser.frames import FrameAssignments, FrameSchema
+from efi_analyser.frames.classifier import DocumentClassifications, FrameClassifierArtifacts
+from .base import StageContext
 
 
 @dataclass
@@ -34,7 +27,7 @@ class ReportOutput:
     plots_dir: Path
 
 
-class ReportStage(PipelineStage[ReportInput, ReportOutput]):
+class ReportStage(PipelineStage[StageContext, ReportOutput]):
     """
     Pipeline stage for generating HTML reports.
 
@@ -55,21 +48,23 @@ class ReportStage(PipelineStage[ReportInput, ReportOutput]):
         super().__init__(name, output_dir)
         self._report_path: Optional[Path] = None
 
-    def should_run(self, input_data: Optional[ReportInput]) -> bool:
+    def should_run(self, input_data: Optional[StageContext]) -> bool:
         """Check if report should be generated.
 
         Report runs if:
         - Input data is provided
         - Aggregates exist
-        - Either report doesn't exist OR we're in regenerate mode
         """
         if input_data is None:
             self.logger.warning("No input data for report stage")
             return False
 
+        paths = input_data.paths
+        config = input_data.config
+
         # Check if aggregates exist
-        aggregates_dir = input_data.aggregates_dir
-        if not aggregates_dir.exists():
+        aggregates_dir = paths.aggregates_dir
+        if not aggregates_dir or not aggregates_dir.exists():
             self.logger.warning(f"Aggregates directory does not exist: {aggregates_dir}")
             return False
 
@@ -80,51 +75,90 @@ class ReportStage(PipelineStage[ReportInput, ReportOutput]):
             return False
 
         # Check if report already exists
-        report_path = input_data.output_dir / "report.html"
+        report_path = paths.html or (
+            paths.report_dir / "frame_report.html" if paths.report_dir else self.output_dir / "frame_report.html"
+        )
         self._report_path = report_path
 
-        # Always run if regenerate_report_only is True
-        if input_data.config.regenerate_report_only:
+        # Always generate the report when aggregates exist.
+        if config.regenerate_report_only:
             self.logger.info("Regenerate mode - will generate report")
-            return True
+        else:
+            self.logger.info("Generating report (always true when aggregates exist)")
+        return True
 
-        # Run if report doesn't exist
-        if not report_path.exists():
-            self.logger.info("Report does not exist - will generate")
-            return True
-
-        # Skip if report exists and not in regenerate mode
-        self.logger.info("Report exists and not in regenerate mode - skipping")
-        return False
-
-    def execute(self, input_data: ReportInput) -> ReportOutput:
+    def execute(self, input_data: StageContext) -> ReportOutput:
         """Generate the HTML report.
 
         Args:
-            input_data: Report generation parameters
+            input_data: Stage context
 
         Returns:
             ReportOutput with paths to generated files
         """
         self.logger.info("Generating HTML report...")
 
-        # Load aggregates
-        aggregates = Aggregates.load(input_data.aggregates_dir)
-        if aggregates is None:
-            raise ValueError("Aggregates not found")
+        paths = input_data.paths
+        config = input_data.config
+        state = input_data.state
 
-        # Generate report using existing write_html_report function
-        report_path = write_html_report(
-            aggregates_dir=input_data.aggregates_dir,
-            schema_path=input_data.schema_path,
-            classifications_path=input_data.classifications_path,
-            corpus_names=input_data.corpus_names,
-            output_dir=input_data.output_dir,
-            config=input_data.config,
-            document_metadata=None,  # TODO: pass from workflow state
+        schema = state.schema
+        if schema is None and paths.schema_path and paths.schema_path.exists():
+            schema = load_schema(paths.schema_path)
+
+        assignments = state.assignments or FrameAssignments()
+        if not assignments and paths.assignments_path and paths.assignments_path.exists():
+            try:
+                assignments = FrameAssignments.load(paths.assignments_path)
+            except Exception as exc:
+                self.logger.warning(f"Failed to load cached assignments: {exc}")
+
+        classifications = state.classifications or DocumentClassifications()
+        if not classifications and paths.classifications_dir and paths.classifications_dir.exists():
+            classifications = DocumentClassifications.from_folder(paths.classifications_dir)
+
+        aggregates = state.aggregates
+        if aggregates is None and paths.aggregates_dir:
+            aggregates = Aggregates.load(paths.aggregates_dir)
+
+        classifier_predictions: List[Dict[str, object]] = []
+        if paths.results_dir:
+            predictions_path = paths.results_dir / "frame_classifier_predictions.json"
+            if predictions_path.exists():
+                try:
+                    artifacts = FrameClassifierArtifacts.load_predictions(predictions_path)
+                    classifier_predictions = artifacts.predictions
+                except Exception as exc:
+                    self.logger.warning(f"Failed to load classifier predictions: {exc}")
+
+        # Update state with loaded data if needed
+        if schema and not state.schema:
+            state.schema = schema
+        if assignments and not state.assignments:
+            state.assignments = assignments
+        if classifications and not state.classifications:
+            state.classifications = classifications
+        if aggregates and not state.aggregates:
+            state.aggregates = aggregates
+
+        # Collect total doc IDs from classifications
+        total_doc_ids = []
+        if state.classifications:
+            total_doc_ids = [doc.doc_id for doc in state.classifications if doc.doc_id]
+
+        # Generate report using ReportBuilder with the actual state
+        report_builder = ReportBuilder(
+            state=state,
+            config=config,
+            paths=paths,
+            total_doc_ids=total_doc_ids,
+            corpora_map=state.corpora_map,
         )
+        report_builder.build()
 
-        plots_dir = input_data.output_dir / "plots"
+        # Determine report path
+        report_path = paths.html or self.output_dir / "frame_report.html"
+        plots_dir = paths.plots_dir or (report_path.parent / "plots")
 
         self.logger.info(f"Report generated: {report_path}")
 

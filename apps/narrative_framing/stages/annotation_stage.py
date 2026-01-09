@@ -32,20 +32,39 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
     when classifier is disabled.
     """
 
+    def __init__(self, name: str, output_dir: Path):
+        super().__init__(name, output_dir)
+        self._assignments_path: Optional[Path] = None
+
     def should_run(self, input_data: Optional[StageContext]) -> bool:
         """Check if annotation should run."""
-        if input_data is None or not input_data.state.schema:
+        if input_data is None:
             return False
 
         config = input_data.config
+        paths = input_data.paths
+
+        # Store path for cached loading
+        self._assignments_path = paths.assignments_path
+
+        if not input_data.state.schema:
+            return False
 
         # In regenerate mode, just load cached
         if config.regenerate_report_only:
             self.logger.info("Regenerate mode - will load cached annotations")
             return False
 
-        # Run if reload requested or new work needed
-        return config.reload_annotation or input_data.allow_new_work
+        # If reload requested, skip execution (load cached)
+        # Otherwise run if new work is allowed
+        if config.reload_annotation:
+            if self._assignments_path and self._assignments_path.exists():
+                self.logger.info("Reload from cache requested - will load cached annotations")
+                return False
+            self.logger.warning("Reload requested but cached annotations not found - will run")
+            return input_data.allow_new_work
+
+        return input_data.allow_new_work
 
     def execute(self, input_data: StageContext) -> FrameAssignments:
         """Annotate passages with frames.
@@ -162,6 +181,7 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
 
                     # Save
                     if paths.assignments_path:
+                        paths.assignments_path.parent.mkdir(parents=True, exist_ok=True)
                         assignments.save(paths.assignments_path)
 
         # Limit to target size if we have more
@@ -174,7 +194,11 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
 
     def load_cached(self) -> FrameAssignments:
         """Load cached assignments."""
-        raise NotImplementedError("Handled in should_run/execute logic")
+        if self._assignments_path and self._assignments_path.exists():
+            assignments = FrameAssignments.load(self._assignments_path)
+            self.logger.info(f"Loaded {assignments.count} cached assignments")
+            return assignments
+        raise FileNotFoundError(f"Assignments not found at {self._assignments_path}")
 
     def get_metadata(self) -> dict:
         return {"stage": self.name}

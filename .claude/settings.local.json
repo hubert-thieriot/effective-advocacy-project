@@ -6,7 +6,13 @@
       "Bash(git rm:*)",
       "Bash(python:*)",
       "Bash(pytest:*)",
-      "Bash(poetry run python:*)"
+      "Bash(poetry run python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep:*)",
+      "Bash(git restore:*)",
+      "Bash(python3:*)",
+      "Bash(poetry run python3:*)"
     ]
   }
 }

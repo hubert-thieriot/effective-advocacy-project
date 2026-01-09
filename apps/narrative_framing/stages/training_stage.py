@@ -11,7 +11,7 @@ from typing import Optional
 
 from efi_core.pipeline import PipelineStage
 
-from efi_analyser.frames.classifier import FrameClassifierTrainer
+from efi_analyser.frames.classifier import FrameClassifierTrainer, FrameLabelSet
 
 from .base import StageContext
 
@@ -36,6 +36,7 @@ class TrainingStage(PipelineStage[StageContext, None]):
 
         config = input_data.config
         state = input_data.state
+        paths = input_data.paths
 
         # Skip if classifier disabled
         if not config.classifier.enabled:
@@ -47,13 +48,23 @@ class TrainingStage(PipelineStage[StageContext, None]):
             self.logger.info("Regenerate mode - skipping training")
             return False
 
+        # If reload requested and classifier exists, skip training
+        if config.reload_classifier:
+            if paths.classifier_dir and paths.classifier_dir.exists():
+                self.logger.info("Reload from cache requested - skipping training")
+                return False
+            if not input_data.allow_new_work:
+                self.logger.warning("Reload requested but classifier missing and new work disabled")
+                return False
+            self.logger.warning("Reload requested but classifier missing - will train")
+
         # Need schema and assignments
         if not state.schema or not state.assignments:
             self.logger.warning("Schema or assignments missing - cannot train")
             return False
 
         # Run if reload requested or new work allowed
-        return config.reload_classifier or input_data.allow_new_work
+        return input_data.allow_new_work
 
     def execute(self, input_data: StageContext) -> None:
         """Train the classifier.
@@ -73,23 +84,34 @@ class TrainingStage(PipelineStage[StageContext, None]):
 
         self.logger.info("Training frame classifier...")
 
+        # Build label set from LLM assignments
+        label_set = FrameLabelSet.from_assignments(state.schema, state.assignments, source="llm")
+        if not label_set.passages:
+            self.logger.warning("Label set is empty; skipping classifier training")
+            return None
+
+        # Create classifier spec and update output dir
+        spec = config.classifier.to_spec()
+        spec.output_dir = str(paths.classifier_dir)
+
+        # Set run name
+        spec.run_name = f"{config.corpus}-frame-cls"
+
         # Create trainer
-        trainer = FrameClassifierTrainer(
-            schema=state.schema,
+        trainer = FrameClassifierTrainer(spec)
+
+        # Train and optionally cross-validate
+        artifacts = trainer.run(
+            label_set=label_set,
             assignments=state.assignments,
-            output_dir=paths.classifier_dir,
-            spec=config.classifier.to_spec(),  # Convert Pydantic to FrameClassifierSpec
+            cv_folds=config.classifier.cv_folds if config.classifier.cv_folds and config.classifier.cv_folds >= 2 else None,
         )
 
-        # Train
-        if config.classifier.cv_folds and config.classifier.cv_folds >= 2:
-            self.logger.info(f"Training with {config.classifier.cv_folds}-fold cross-validation")
-            trainer.train_with_cv(n_folds=config.classifier.cv_folds)
-        else:
-            self.logger.info("Training single model")
-            trainer.train()
-
-        self.logger.info(f"Classifier saved to {paths.classifier_dir}")
+        # Save model
+        if artifacts.model and paths.classifier_dir:
+            paths.classifier_dir.mkdir(parents=True, exist_ok=True)
+            artifacts.model.save(paths.classifier_dir)
+            self.logger.info(f"Classifier saved to {paths.classifier_dir}")
 
         return None
 

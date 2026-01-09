@@ -277,10 +277,12 @@ class ReportBuilder:
     def build(self) -> None:
         """Generate the HTML report from the workflow state."""
         schema = self.state.schema
-        assignments = list(self.state.assignments)
-        classifier_predictions = self.state.classifier_predictions
+        assignments_obj = self.state.assignments or []
+        assignments = list(assignments_obj)
+        classifier_predictions = self.state.classifier_predictions or []
         classifications = self.state.classifications
         aggregates = self.state.aggregates
+        html_path = self.paths.html
 
         if not aggregates:
             print("⚠️ Cannot generate report: aggregates are missing.")
@@ -318,7 +320,7 @@ class ReportBuilder:
             except Exception as exc:
                 print(f"⚠️ Failed to generate results browser: {exc}")
 
-        if schema and self.paths.html and has_document_aggregates:
+        if schema and html_path and has_document_aggregates:
             # Build classifier lookup for report
             classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None
             if classifier_predictions:
@@ -343,13 +345,14 @@ class ReportBuilder:
                 # Fallback: estimate passages from document count (rough estimate)
                 classified_passages_count = len(document_aggregates_weighted) * 3  # Rough estimate: 3 chunks per doc
 
+            induction_samples = self.state.induction_samples
             usage_stats = {
                 "frames": len(schema.frames),
                 "corpus_documents": len(self.total_doc_ids),
-                "induction_passages": len(self.state.induction_samples)
-                if self.state.induction_samples
+                "induction_passages": len(induction_samples)
+                if induction_samples
                 else (self.config.induction_sample_size or 0),
-                "annotation_passages": len(self.state.assignments),
+                "annotation_passages": len(assignments_obj),
                 "classifier_documents": len(classifications)
                 if classifications
                 else len(document_aggregates_weighted),
@@ -359,7 +362,7 @@ class ReportBuilder:
             write_html_report(
                 schema=schema,
                 assignments=assignments,
-                output_path=self.paths.html,
+                output_path=html_path,
                 classifier_lookup=classifier_lookup,
                 classified_documents=len(document_aggregates_weighted),
                 classifier_sample_limit=self.config.classifier_corpus_sample_size,
@@ -372,7 +375,7 @@ class ReportBuilder:
                 plot_title=self.config.report.plot.title,
                 plot_subtitle=self.config.report.plot.subtitle,
                 plot_note=self.config.report.plot.note,
-                export_plotly_png_dir=(self.paths.html.parent / "plots"),
+                export_plotly_png_dir=(html_path.parent / "plots"),
                 export_plot_formats=self.config.report.export_plot_formats,
                 induction_guidance=self.config.induction_guidance,
                 export_includes_dir=self.config.report.export_includes_dir,
@@ -390,18 +393,18 @@ class ReportBuilder:
             # Publish PNGs and HTML to docs for GitHub Pages
             try:
                 _publish_to_docs_assets(
-                    self.paths.html.parent.name,
-                    self.paths.html,
+                    html_path.parent.name,
+                    html_path,
                     export_plots_dir=self.config.report.export_plots_dir,
                 )
             except Exception as exc:
                 print(f"⚠️ Failed to publish docs assets: {exc}")
 
-            print(f"\n✅ HTML report written to {self.paths.html}")
+            print(f"\n✅ HTML report written to {html_path}")
         else:
             if not schema:
                 print("⚠️ Cannot generate report: schema is missing.")
-            elif not self.paths.html:
+            elif not html_path:
                 print("⚠️ Cannot generate report: HTML output path is not configured.")
             elif not has_document_aggregates:
                 print(

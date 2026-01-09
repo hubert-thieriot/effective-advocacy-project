@@ -29,19 +29,26 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
     for reporting and visualization.
     """
 
+    def __init__(self, name: str, output_dir: Path):
+        super().__init__(name, output_dir)
+        self._aggregates_dir: Optional[Path] = None
+
     def should_run(self, input_data: Optional[StageContext]) -> bool:
         """Check if aggregation should run.
 
         Aggregation runs if:
         - We're NOT in regenerate-report-only mode (aggregates already exist)
         - Aggregates don't exist or are out of sync
-        - OR reload_aggregates is True
+        - OR reload_aggregates is False (rebuild)
         """
         if input_data is None:
             return False
 
         config = input_data.config
         paths = input_data.paths
+
+        # Store path for later use (before any early returns)
+        self._aggregates_dir = paths.aggregates_dir
 
         # Skip if aggregates directory not configured
         if not paths.aggregates_dir:
@@ -53,9 +60,13 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
             self.logger.info("Regenerate mode - will load cached aggregates")
             return False
 
-        # If reload requested, run to rebuild
+        # If reload requested, skip execution (load cached)
         if config.reload_aggregates:
-            self.logger.info("Reload requested - will rebuild aggregates")
+            aggregates = Aggregates.load(paths.aggregates_dir)
+            if aggregates is not None:
+                self.logger.info("Reload from cache requested - will load cached aggregates")
+                return False
+            self.logger.warning("Reload requested but cached aggregates not found - will build")
             return True
 
         # Check if aggregates exist
@@ -127,14 +138,17 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
         if hasattr(input_data, 'filter_spec'):
             filter_spec = input_data.filter_spec
 
+        # Create aggregates directory
+        paths.aggregates_dir.mkdir(parents=True, exist_ok=True)
+
         builder = AggregatesBuilder(
             aggregates_dir=paths.aggregates_dir,
             frame_ids=[frame.frame_id for frame in state.schema.frames],
             corpus_names=input_data.corpus_names,
             application_top_k=config.annotation.top_k,
-            min_threshold_weighted=config.agg_min_threshold_weighted,
-            normalize_weighted=config.agg_normalize_weighted,
-            min_threshold_occurrence=config.agg_min_threshold_occurrence,
+            min_threshold_weighted=config.agg_min_threshold_weighted or 0.0,
+            normalize_weighted=config.agg_normalize_weighted if config.agg_normalize_weighted is not None else False,
+            min_threshold_occurrence=config.agg_min_threshold_occurrence or 0.0,
             filter_spec=filter_spec,
         )
 
@@ -149,9 +163,12 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
 
     def load_cached(self) -> Aggregates:
         """Load aggregates from cache."""
-        # Note: paths is not directly available here, need to store in __init__ or get from somewhere
-        # For now, raise NotImplementedError - caching handled in should_run()
-        raise NotImplementedError("Caching handled via should_run() logic")
+        if self._aggregates_dir and self._aggregates_dir.exists():
+            aggregates = Aggregates.load(self._aggregates_dir)
+            if aggregates:
+                self.logger.info(f"Loaded cached aggregates from {self._aggregates_dir}")
+                return aggregates
+        raise FileNotFoundError(f"Aggregates not found at {self._aggregates_dir}")
 
     def save_result(self, result: Aggregates) -> None:
         """Save aggregates (already saved by AggregatesBuilder)."""

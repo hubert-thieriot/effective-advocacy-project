@@ -104,6 +104,8 @@ class NarrativeFramingPipeline(Pipeline):
             schema_path=output_dir / "induction" / "schema.json",
             assignments_path=output_dir / "annotation" / "assignments.json",
             classifications_path=output_dir / "classifications" / "classifications.json",
+            assignments=output_dir / "annotation" / "assignments.json",
+            html=output_dir / "frame_report.html",
         )
 
     def _load_prompts(self) -> None:
@@ -158,7 +160,7 @@ class NarrativeFramingPipeline(Pipeline):
             TrainingStage("training", self.output_dir),
             ClassificationStage("classification", self.output_dir),
             AggregationStage("aggregation", self.output_dir),
-            # ReportStage("report", self.output_dir),  # TODO: Wire up report stage
+            ReportStage("report", self.output_dir),
         ]
 
         # Store context for stages to access

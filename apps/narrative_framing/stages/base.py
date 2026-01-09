@@ -26,13 +26,19 @@ class WorkflowPaths:
     schema_path: Optional[Path] = None
     assignments_path: Optional[Path] = None
     classifications_path: Optional[Path] = None
+    # Legacy-style aliases for report builder compatibility
+    assignments: Optional[Path] = None
+    html: Optional[Path] = None
 
 
 @dataclass
 class WorkflowState:
     """Shared state across pipeline stages"""
     schema: Optional[Any] = None  # FrameSchema
+    induction_samples: List[Any] = field(default_factory=list)  # List[Tuple[str, str]]
     assignments: Optional[Any] = None  # FrameAssignments
+    classifier_predictions: List[Dict[str, Any]] = field(default_factory=list)  # Classifier predictions
+    classifier_model: Optional[Any] = None  # FrameClassifierModel
     classifications: Optional[Any] = None  # DocumentClassifications
     aggregates: Optional[Any] = None  # Aggregates
     corpora_map: Optional[Dict[str, Any]] = None  # Dict[str, EmbeddedCorpus]

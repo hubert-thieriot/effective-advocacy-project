@@ -18,16 +18,17 @@ This modular approach makes each stage:
 
 Example usage:
     from efi_core.pipeline import Pipeline
-    from .report_stage import ReportStage, ReportInput
+    from .report_stage import ReportStage
+    from .base import StageContext
 
     # Create stage
     stage = ReportStage("report", output_dir)
 
     # Prepare input
-    input_data = ReportInput(...)
+    context = StageContext(...)
 
     # Run stage
-    result = stage.run(input_data)
+    result = stage.run(context)
 
     if result.success:
         print(f"Report: {result.data.report_path}")
@@ -42,7 +43,7 @@ from .annotation_stage import AnnotationStage
 from .training_stage import TrainingStage
 from .classification_stage import ClassificationStage
 from .aggregation_stage import AggregationStage
-from .report_stage import ReportStage, ReportInput, ReportOutput
+from .report_stage import ReportStage, ReportOutput
 
 __all__ = [
     # Base classes
@@ -57,6 +58,5 @@ __all__ = [
     "ClassificationStage",
     "AggregationStage",
     "ReportStage",
-    "ReportInput",
     "ReportOutput",
 ]

@@ -57,41 +57,53 @@ from .stores.indexes import (
     IndexStore
 )
 
+# Pipeline framework
+from .pipeline import (
+    Pipeline,
+    PipelineStage,
+    StageResult
+)
+
 __all__ = [
     # Types
     "Document",
-    "Finding", 
+    "Finding",
     "ChunkerSpec",
     "EmbedderSpec",
     "DocState",
     "FindingState",
-    
+
     # Protocols
     "Chunker",
     "Embedder",
     "AnnIndex",
     "Corpus",
     "Library",
-    
+
     # Layouts
     "BaseLayout",
     "CorpusLayout",
-    "LibraryLayout", 
+    "LibraryLayout",
     "WorkspaceLayout",
     "EmbeddedCorpusLayout",
     "EmbeddedLibraryLayout",
-    
+
     # Stores
     "ChunkStore",
     "EmbeddingStore",
     "DocStateStore",
-    
+
     # Retrieval
     "Retriever",
     "RetrieverIndex",
     "RetrieverBrute",
     "IndexBuilder",
-    "IndexStore"
+    "IndexStore",
+
+    # Pipeline
+    "Pipeline",
+    "PipelineStage",
+    "StageResult"
 ]
 
 

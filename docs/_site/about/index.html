@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <!-- (1) Optimize for mobile versions: http://goo.gl/EOpFl -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- (1) force latest IE rendering engine: bit.ly/1c8EiC9 -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  
+
+  <title>About</title>
+  <meta name="description" content="Exploring Tools for Effective Advocacy" />
+
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="@hubert_thieriot" />
+    <meta name="twitter:title" content="About" />
+    <meta name="twitter:image" content="http://localhost:4000/efi-corpus/assets/images/equalizer.png" />
+    
+    <meta name="twitter:description" content="Exploring Tools for Effective Advocacy" />
+    
+  
+  
+  <meta property="og:site_name" content="EFI" />
+  <meta property="og:title" content="About"/>
+  
+  <meta property="og:description" content="Exploring Tools for Effective Advocacy" />
+  
+  <meta property="og:image" content="http://localhost:4000/efi-corpus/assets/images/equalizer.png" />
+  <meta property="og:url" content="http://localhost:4000/efi-corpus/about/" >
+  <meta property="og:type" content="blog" />
+  
+
+  <link rel="canonical" href="http://localhost:4000/efi-corpus/about/"/>
+  <link rel="shortcut icon" href="/efi-corpus/assets/images/favicon.png" type="image/png"/>
+  <link rel="stylesheet" href="//brick.a.ssl.fastly.net/Linux+Libertine:400,400i,700,700i/Open+Sans:400,400i,700,700i">
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" type="text/css" media="screen" href="/efi-corpus/css/main.css" />
+  <link rel="stylesheet" type="text/css" media="print" href="/efi-corpus/css/print.css" />
+  <link rel="stylesheet" type="text/css" media="screen" href="/efi-corpus/assets/css/custom.css" />
+</head>
+
+  <body itemscope itemtype="http://schema.org/Article">
+    <!-- header start -->
+
+
+<!-- header end -->
+
+    <main class="content" role="main">
+      <article class="post">
+        
+        <div class="noarticleimage">
+          <div class="post-meta">
+            <h1 class="post-title">About</h1>
+            <div class="cf post-meta-text">
+              <div class="author-image" style="background-image: url(/assets/images/author.jpg)">Blog Logo</div>
+              <h4 class="author-name" itemprop="author" itemscope itemtype="http://schema.org/Person">Hubert Thieriot</h4>
+            </div>
+          </div>
+        </div>
+        <br>
+        <br>
+        <br>
+        
+        <section class="post-content">
+          <a name="topofpage"></a>
+          <p>I design and prototype data products that help advocacy teams understand how issues arise, who carries narratives forward, and where strategic opportunities appear. The work here explores workflows for narrative framing analysis, actor mapping, and dissemination tracking.
+If you would like to collaborate, riff on these ideas, or stress-test an approach on your own corpus, feel free to <a href="mailto:hubert.thieriot@gmail.com">get in touch</a>.</p>
+
+<p>All tooling is part of the <strong>EFI corpus</strong> project: a collection of pipelines, annotation workflows, and visual reports that leverage large language models alongside classical NLP to deliver reproducible analysis.</p>
+
+        </section>
+      </article>
+    </main>
+    <div class="bottom-closer">
+      <div class="background-closer-image"  style="background-image: url(/efi-corpus/assets/images/soulages.jpg)">
+        Image
+      </div>
+      <div class="inner">
+        <h1 class="blog-title">EFI</h1>
+        <h2 class="blog-description">Exploring Tools for Effective Advocacy</h2>
+        <a href=/efi-corpus/ class="btn">Home</a>
+      </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="/efi-corpus/assets/js/jquery.fitvids.js"></script>
+<script type="text/javascript" src="/efi-corpus/assets/js/index.js"></script>
+<script type="text/javascript" src="/efi-corpus/assets/js/readingTime.min.js"></script>
+<script>
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+
+    var $window = $(window),
+    $image = $('.post-image-image, .teaserimage-image');
+    
+      $window.on('scroll', function() {
+        var top = $window.scrollTop();
+
+        if (top < 0 || top > 1500) { return; }
+        $image
+          .css('transform', 'translate3d(0px, '+top/3+'px, 0px)')
+          .css('opacity', 1-Math.max(top/700, 0));
+      });
+      $window.trigger('scroll');
+
+      var height = $('.article-image').height();
+      if (height) {
+        $('.post-content').css('padding-top', height + 'px');
+      }
+
+      $('a[href*=#]:not([href=#])').click(function() {
+        if (location.pathname.replace(/^\//,'') == this.pathname.replace(/^\//,'')
+         && location.hostname == this.hostname) {
+          var target = $(this.hash);
+          target = target.length ? target : $('[name=' + this.hash.slice(1) +']');
+          if (target.length) {
+            $('html,body').animate({ scrollTop: target.offset().top }, 500);
+            return false;
+          }
+        }
+      });
+
+  });
+}(jQuery));
+</script>
+
+<script>
+// Image modal functionality
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+    // Create modal structure
+    var modalHTML = '<div id="imageModal" class="image-modal">' +
+                      '<span class="modal-close">&times;</span>' +
+                      '<img class="modal-content" id="modalImage">' +
+                    '</div>';
+    $('body').append(modalHTML);
+    
+    var modal = $('#imageModal');
+    var modalImg = $('#modalImage');
+    var closeBtn = $('.modal-close');
+    
+    // Open modal on image click (only for images with 'modal' class)
+    $('.post-content img.modal').on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var imgSrc = $(this).attr('src');
+      modalImg.attr('src', imgSrc);
+      modal.addClass('active');
+      $('body').css('overflow', 'hidden'); // Prevent body scroll
+    });
+    
+    // Close modal on close button click
+    closeBtn.on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      modal.removeClass('active');
+      $('body').css('overflow', ''); // Restore body scroll
+    });
+    
+    // Close modal on any click (background, image, or anywhere)
+    modal.on('click', function(e) {
+      modal.removeClass('active');
+      $('body').css('overflow', ''); // Restore body scroll
+    });
+    
+    // Close modal on ESC key
+    $(document).on('keydown', function(e) {
+      if (e.key === 'Escape' && modal.hasClass('active')) {
+        modal.removeClass('active');
+        $('body').css('overflow', ''); // Restore body scroll
+      }
+    });
+    
+    // Add "Click to enlarge" hint text under modal images
+    $('.post-content img.modal, .chart-item img.modal').each(function() {
+      // Check if hint already exists to avoid duplicates
+      if ($(this).next('.modal-enlarge-hint').length === 0) {
+        $(this).after('<span class="modal-enlarge-hint">Click to enlarge</span>');
+      }
+    });
+  });
+}(jQuery));
+</script>
+
+<script>
+// Floating Table of Contents
+(function ($) {
+  "use strict";
+  $(document).ready(function(){
+    var $toc = $('#toc-floating');
+    var $tocList = $('#toc-list');
+    var $progressBar = $('.toc-progress-bar');
+    var $postContent = $('.post-content');
+
+    // Find all H1 elements in post content
+    var $headings = $postContent.find('h1');
+
+    console.log('TOC: Found ' + $headings.length + ' H1 headings');
+
+    // Only show TOC if there are H1 headings
+    if ($headings.length === 0) {
+      console.log('TOC: No H1 headings found, not showing TOC');
+      return;
+    }
+
+    // Build TOC
+    $headings.each(function(index) {
+      var $heading = $(this);
+      var headingId = 'heading-' + index;
+
+      // Add ID to heading if it doesn't have one
+      if (!$heading.attr('id')) {
+        $heading.attr('id', headingId);
+      } else {
+        headingId = $heading.attr('id');
+      }
+
+      // Add to TOC
+      var $li = $('<li><a href="#' + headingId + '">' + $heading.text() + '</a></li>');
+      $tocList.append($li);
+    });
+
+    console.log('TOC: Built TOC with ' + $tocList.find('li').length + ' items');
+
+    // Show TOC after content starts
+    function updateTOC() {
+      var scrollTop = $(window).scrollTop();
+      var contentTop = $postContent.offset().top - 100;
+      var contentBottom = contentTop + $postContent.outerHeight();
+
+      // Show/hide TOC
+      if (scrollTop > contentTop && scrollTop < contentBottom) {
+        $toc.addClass('visible');
+      } else {
+        $toc.removeClass('visible');
+      }
+
+      // Update active heading and progress
+      var activeIndex = -1;
+      $headings.each(function(index) {
+        var headingTop = $(this).offset().top - 150;
+        if (scrollTop >= headingTop) {
+          activeIndex = index;
+        }
+      });
+
+      // Update active link
+      $tocList.find('a').removeClass('active');
+      if (activeIndex >= 0) {
+        $tocList.find('a').eq(activeIndex).addClass('active');
+      }
+
+      // Update progress bar
+      if ($headings.length > 0) {
+        var progress = activeIndex >= 0 ? ((activeIndex + 1) / $headings.length) * 100 : 0;
+        $progressBar.css('background', 'linear-gradient(to bottom, #d18372 ' + progress + '%, rgba(209, 131, 114, 0.2) ' + progress + '%)');
+      }
+    }
+
+    // Scroll handler
+    $(window).on('scroll', updateTOC);
+    updateTOC();
+
+    // Smooth scroll for TOC links
+    $tocList.on('click', 'a', function(e) {
+      e.preventDefault();
+      var target = $(this.getAttribute('href'));
+      if (target.length) {
+        $('html, body').animate({ scrollTop: target.offset().top - 100 }, 500);
+      }
+    });
+  });
+}(jQuery));
+</script>
+
+
+  </body>
+</html>

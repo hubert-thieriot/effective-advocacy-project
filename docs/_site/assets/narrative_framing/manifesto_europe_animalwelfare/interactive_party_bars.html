@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Frame Scores by Country</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            min-width: 200px;
+        }
+        #chart {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Party Frame Scores by Country</h1>
+        <div class="controls">
+            <label for="country-select">Select Country:</label>
+            <select id="country-select" onchange="updateChart()">
+                <option value="Albania">Albania</option><option value="Austria">Austria</option><option value="Belgium">Belgium</option><option value="Bosnia-Herzegovina">Bosnia-Herzegovina</option><option value="Croatia">Croatia</option><option value="Denmark">Denmark</option><option value="Estonia">Estonia</option><option value="Finland">Finland</option><option value="France">France</option><option value="Germany">Germany</option><option value="Greece">Greece</option><option value="Hungary">Hungary</option><option value="Iceland">Iceland</option><option value="Ireland">Ireland</option><option value="Italy">Italy</option><option value="Lithuania">Lithuania</option><option value="Malta">Malta</option><option value="Moldova">Moldova</option><option value="Montenegro">Montenegro</option><option value="Netherlands">Netherlands</option><option value="Poland">Poland</option><option value="Portugal">Portugal</option><option value="Serbia">Serbia</option><option value="Slovenia">Slovenia</option><option value="Spain">Spain</option><option value="Sweden">Sweden</option><option value="Switzerland">Switzerland</option><option value="United Kingdom">United Kingdom</option>
+            </select>
+        </div>
+        <div id="chart"></div>
+    </div>
+    
+    <script>
+        const countryData = {"Serbia": {"parties": ["VMSZ", "SPS/JS/ZS", "SDA", "SPAS", "AV\u2013SNSDS", "UZPS", "Dveri-POKS", "MI\u2013GIN", "Academician Muamer Zukor\u2026", "Serbia Against Violence", "We must", "NADA"], "scores": [0.03799109802684611, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#9e9e9e", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc"]}, "Bosnia-Herzegovina": {"parties": ["NES", "SDP BiH", "Our Party", "SNSD", "PDP RS", "People and Justice", "SDA", "HDZ BiH", "Democratic Front", "For New Generations", "DF-GS", "SBB BiH"], "scores": [0.01385380788365863, 0.0035063113604488078, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#d4a5a5", "#e75480", "#f6c344", "#e75480", "#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#e75480", "#9e9e9e", "#e75480", "#f6c344"]}, "Croatia": {"parties": ["Croatian Democratic Union", "SDSS", "HNS", "Workers' Front", "New Left", "We can!-political platfo\u2026", "SSIP-P-F", "Rivers of Justice", "Bridge", "NS-R", "Homeland Movement"], "scores": [0.004536965254774826, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#1f78b4", "#e75480", "#f6c344", "#cccccc", "#d73027", "#cccccc", "#cccccc", "#cccccc", "#1f78b4", "#cccccc", "#67000d"]}, "Germany": {"parties": ["The Left", "Alliance\u201890/Greens", "SSW", "Alternative for Germany", "Free Democratic Party", "BSW", "SPD", "CDU/CSU"], "scores": [0.04944553442435236, 0.041369996947797104, 0.03717748737560196, 0.030899965688735688, 0.020327015575933624, 0.016288970395598637, 0.014770608915609895, 0.013458418068202478], "colors": ["#1f78b4", "#2ca25f", "#9e9e9e", "#67000d", "#f6c344", "#d73027", "#e75480", "#cccccc"]}, "United Kingdom": {"parties": ["GPEW", "The Party of Wales", "Democratic Unionist Party", "Alliance", "Liberal Democrats", "SDLP", "Conservative Party", "Labour Party", "Reform UK", "Scottish National Party", "Ulster Unionist Party", "We Ourselves", "TUV"], "scores": [0.08336039519548444, 0.04184759727165716, 0.041321637600102275, 0.038314250401210795, 0.03330057426738253, 0.02868094785472238, 0.02574534647011023, 0.012985039607592664, 0.011783723000515391, 0.0038623818285641776, 0.0, 0.0, 0.0], "colors": ["#2ca25f", "#e75480", "#1f78b4", "#e75480", "#f6c344", "#e75480", "#1f78b4", "#e75480", "#67000d", "#e75480", "#1f78b4", "#cccccc", "#67000d"]}, "Albania": {"parties": ["Freedom Party of Albania", "Albanian Socialist Party", "PD"], "scores": [0.06044092147634382, 0.013077309979585195, 0.0], "colors": ["#e75480", "#e75480", "#1f78b4"]}, "Montenegro": {"parties": ["Aleksa and Dritan \u2013 Coun\u2026", "DPS CG", "Together!", "Bosniak Party", "Peace is our Nation", "SD CG", "ZBCG", "SDP CG", "United Reform Action", "Europe Now Movement"], "scores": [0.12039885435451363, 0.008113496932515337, 0.007114795264003456, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#1f78b4", "#e75480", "#f6c344", "#1f78b4", "#cccccc", "#cccccc", "#cccccc", "#e75480", "#f6c344", "#f6c344"]}, "Switzerland": {"parties": ["GPS/PES", "Together on the Left", "BDP/PBD", "Swiss Labour Party", "Federal Democratic Union", "Green Liberal Party", "EVP/PEV", "SPS/PSS", "CVP/PDC", "FDP.The Liberals", "Ticino League", "Swiss People\u2019s Party"], "scores": [0.04261872834211819, 0.014460928712977345, 0.012963253358423502, 0.005492843574945858, 0.004859249329758713, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#2ca25f", "#d73027", "#1f78b4", "#cccccc", "#67000d", "#f6c344", "#cccccc", "#e75480", "#1f78b4", "#cccccc", "#67000d", "#67000d"]}, "Sweden": {"parties": ["Green Ecology Party", "Sweden Democrats", "Moderate Coalition Party", "Centre Party", "Left Party", "Christian Democrats", "SAP", "Liberals"], "scores": [0.12110401967283359, 0.06952430429091644, 0.013912448415691014, 0.013896107448641847, 0.009649444240869672, 0.0, 0.0, 0.0], "colors": ["#2ca25f", "#67000d", "#f6c344", "#d4a5a5", "#d73027", "#1f78b4", "#e75480", "#f6c344"]}, "Slovenia": {"parties": ["The Left", "Social Democratic Party", "Nsi", "SDS", "List of Marjan \u0160arec", "Modern Centre Party", "DeSUS", "Party of Alenka Bratu\u0161ek", "Slovenian National Party"], "scores": [0.033228139809784084, 0.00449477050739044, 0.0035692747659368937, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc"]}, "Portugal": {"parties": ["People-Animals-Nature", "PEV", "Free", "Left Bloc", "Social Democratic Party", "Liberal Iniciative", "Enough", "PCP", "CDS-PP", "Socialist Party"], "scores": [0.21008025801378283, 0.10720830788026879, 0.07187896260326566, 0.026227485883716303, 0.006045606700011585, 0.0051715477516434075, 0.002746559984733761, 0.002474323272584948, 0.0019766906372878953, 0.0016237362842383889], "colors": ["#2ca25f", "#2ca25f", "#2ca25f", "#d73027", "#1f78b4", "#f6c344", "#67000d", "#d73027", "#1f78b4", "#e75480"]}, "Netherlands": {"parties": ["Party for the Animals", "Farmer-Citizen Movement", "Party of Freedom", "Green Left", "Christian Union", "Forum for Democracy", "Together", "Labour Party", "50Plus", "Democrats\u201866", "Right Answer 21", "Socialist Party", "VVD", "DENK", "Volt Netherlands", "Reformed Political Party", "CDA"], "scores": [0.292169233624049, 0.0651131454840883, 0.05877303711184045, 0.04082025390967698, 0.028248376169587103, 0.026373465809468147, 0.025829030655231264, 0.023025618775666702, 0.02155765920826162, 0.016217930565781278, 0.01560926227957605, 0.015386091740771544, 0.01286326366661991, 0.01083931922604025, 0.00964677401606573, 0.009212303740283898, 0.004675547652261892], "colors": ["#1d9147", "#1f78b4", "#67000d", "#2ca25f", "#1f78b4", "#67000d", "#cccccc", "#e75480", "#cccccc", "#f6c344", "#67000d", "#e75480", "#1f78b4", "#e75480", "#f6c344", "#cccccc", "#1f78b4"]}, "Hungary": {"parties": ["Our Homeland Movement", "Jobbik", "Politics Can Be Different", "United for Hungary", "Democratic Coalition", "E14-PM", "Dialogue for Hungary", "FiDeSz-KDNP", "Hungarian Socialist Party"], "scores": [0.01644491557873608, 0.015126244010320679, 0.010421274713308606, 0.00923882964985426, 0.0033117130866081646, 0.0, 0.0, 0.0, 0.0], "colors": ["#67000d", "#67000d", "#2ca25f", "#f6c344", "#e75480", "#cccccc", "#cccccc", "#67000d", "#e75480"]}, "Denmark": {"parties": ["Danish People\u2019s Party", "Alternativ", "KF", "Red-Green Unity List", "The New Right", "Socialist People\u2019s Party", "Social Democratic Party", "RV", "Liberals", "Liberal Alliance"], "scores": [0.08314220183486239, 0.040271381535763234, 0.025743364597884653, 0.023292026211639526, 0.021867768110847466, 0.01989064450854609, 0.0065998738259415626, 0.0, 0.0, 0.0], "colors": ["#67000d", "#1f78b4", "#1f78b4", "#d73027", "#cccccc", "#e75480", "#cccccc", "#f6c344", "#f6c344", "#f6c344"]}, "Iceland": {"parties": ["Reform Party", "Progressive Party", "Pirate Party", "Centre Party", "Independence Party", "People\u2019s Party", "Left Green Movement", "S"], "scores": [0.04414288565156655, 0.021959771175493633, 0.02081701053364673, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#f6c344", "#d4a5a5", "#9e9e9e", "#cccccc", "#1f78b4", "#cccccc", "#d73027", "#cccccc"]}, "Finland": {"parties": ["Green Union", "True Finns", "Finnish Centre", "Finnish Social Democrats", "Left Wing Alliance", "Movement Now", "KD", "Swedish People\u2019s Party", "National Coalition"], "scores": [0.07360463245938556, 0.024701255647162065, 0.019437051375110898, 0.017188349308621353, 0.01591431911603877, 0.0, 0.0, 0.0, 0.0], "colors": ["#2ca25f", "#67000d", "#f6c344", "#e75480", "#e75480", "#cccccc", "#1f78b4", "#cccccc", "#cccccc"]}, "Spain": {"parties": ["United Left", "More Commitment", "More Country - Equo", "Catalan Republican Left", "We can", "Together for Catalonia", "Galician Nationalist Bloc", "C's", "Popular Unity Candidacy", "CCa-PNC-NC", "In Common We Can", "PSOE", "Unite", "People's Party", "Basque Nationalist Party", "Basque Country Unite", "PRC", "Voice", "Navarrese People's Union", "Teruel exists"], "scores": [0.08314296186224038, 0.039463365396295365, 0.03008777647804695, 0.028798785209769348, 0.026269696209909044, 0.0260851328723939, 0.022552291216820432, 0.020835489239642555, 0.019466546564579894, 0.011180196748109876, 0.011132203389830508, 0.008980561562015203, 0.00857663710782769, 0.0054827162060045115, 0.003167804091976503, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#d73027", "#e75480", "#cccccc", "#e75480", "#d73027", "#e75480", "#e75480", "#cccccc", "#d73027", "#d4a5a5", "#cccccc", "#e75480", "#e75480", "#1f78b4", "#1f78b4", "#d73027", "#d4a5a5", "#67000d", "#1f78b4", "#cccccc"]}, "Italy": {"parties": ["Italy Europe Together", "Free and Equal", "More Europe", "Five Star Movement", "Go Italy", "Brothers of Italy", "Popular Civic List", "Democratic Party", "SVP-PATT", "Us with Italy", "League"], "scores": [0.018686609198683184, 0.01177036399534248, 0.006306191145766756, 0.002746532248413487, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#f6c344", "#e75480", "#f6c344", "#9e9e9e", "#1f78b4", "#67000d", "#cccccc", "#e75480", "#cccccc", "#cccccc", "#67000d"]}, "Poland": {"parties": ["The Left", "Law and Justice", "Civic Coalition", "Spring", "Polish Coalition", "German Minority", "KWiN"], "scores": [0.03617538028889173, 0.017563762998918174, 0.004076577738789411, 0.0, 0.0, 0.0, 0.0], "colors": ["#e75480", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc"]}, "Lithuania": {"parties": ["LSDDP", "Freedom Party", "Liberal Movement", "LSDP", "LLRA/AWPL", "TS-LKD", "Labour Party", "LV\u017dS"], "scores": [0.014579852638917269, 0.014123110781218862, 0.011839438905188359, 0.01113100914017257, 0.008862654373490287, 0.0, 0.0, 0.0], "colors": ["#e75480", "#f6c344", "#f6c344", "#e75480", "#cccccc", "#1f78b4", "#e75480", "#d4a5a5"]}, "France": {"parties": ["National Rally", "NUPES", "Together for the Republic", "Socialist Party", "UDC", "Democratic Movement", "Renaissance", "UDI", "Horizons"], "scores": [0.03147689081805622, 0.02823353609756834, 0.007522809871146466, 0.0014927241734641794, 0.0, 0.0, 0.0, 0.0, 0.0], "colors": ["#67000d", "#e75480", "#f6c344", "#e75480", "#1f78b4", "#1f78b4", "#67000d", "#1f78b4", "#1f78b4"]}, "Greece": {"parties": ["New Democracy", "MeRA25", "Greek Solution", "SYRIZA", "PASOK-KINAL", "Golden Dawn", "Communist Party of Greece"], "scores": [0.02283885514783431, 0.012399456580337696, 0.003959274416100951, 0.0, 0.0, 0.0, 0.0], "colors": ["#1f78b4", "#d73027", "#67000d", "#d73027", "#e75480", "#67000d", "#cccccc"]}, "Ireland": {"parties": ["Green Party", "Social Democrats", "Family of the Irish", "Labour Party", "Soldiers of Destiny", "We Ourselves", "Unite", "People Before Profit"], "scores": [0.02263671158181723, 0.01850250319505703, 0.012961928477423142, 0.008980822110977931, 0.003282723000514064, 0.0017128625947359934, 0.0, 0.0], "colors": ["#2ca25f", "#e75480", "#1f78b4", "#e75480", "#1f78b4", "#e75480", "#cccccc", "#cccccc"]}, "Belgium": {"parties": ["Green!", "Workers' Party of Belgium", "Flemish Interest", "New Flemish Alliance", "The Committed Ones", "Onward", "openVLD", "Ecologists", "CD&V", "Reform Movement", "PS", "D\u00e9FI"], "scores": [0.02594942005456341, 0.0202474130380943, 0.01943998952060299, 0.017160794416572114, 0.015362211244681762, 0.012063282091765434, 0.011618293798521664, 0.010789437144191566, 0.005249825617680531, 0.004748356155258876, 0.0035665829537086563, 0.0014610574817551826], "colors": ["#2ca25f", "#d73027", "#67000d", "#67000d", "#1f78b4", "#e75480", "#f6c344", "#2ca25f", "#1f78b4", "#f6c344", "#e75480", "#f6c344"]}, "Austria": {"parties": ["Austrian Freedom Party", "The Greens", "Austrian People\u2019s Party", "SP\u00d6", "NEOS"], "scores": [0.07054712725021009, 0.036908696788476025, 0.021122545517734057, 0.01940179889240706, 0.003822521382036002], "colors": ["#67000d", "#2ca25f", "#1f78b4", "#e75480", "#f6c344"]}, "Malta": {"parties": ["Labour Party", "Nationalist Party"], "scores": [0.011982314621010794, 0.005024416847938516], "colors": ["#e75480", "#1f78b4"]}, "Estonia": {"parties": ["Social Democratic Party", "Pro Patria", "Estonian Reform Party", "Estonian Center Party", "EKRE"], "scores": [0.01898129182029223, 0.00733009657612874, 0.0, 0.0, 0.0], "colors": ["#cccccc", "#1f78b4", "#cccccc", "#cccccc", "#67000d"]}, "Moldova": {"parties": ["Liberal Party", "\u0218or Party", "PDM", "ACUM", "PSRM"], "scores": [0.0068052972166223, 0.0, 0.0, 0.0, 0.0], "colors": ["#cccccc", "#cccccc", "#cccccc", "#cccccc", "#cccccc"]}};
+        const globalMax = 0.292169233624049;
+        
+        function updateChart() {
+            const select = document.getElementById('country-select');
+            const country = select.value;
+            const data = countryData[country];
+            
+            if (!data) {
+                return;
+            }
+            
+            const parties = data.parties;
+            const scores = data.scores;
+            const partyColors = data.colors || [];
+            
+            // Use party colors if available, otherwise create gradient based on scores
+            const colors = scores.map((s, i) => {
+                if (partyColors[i]) {
+                    return partyColors[i];
+                }
+                // Fallback to gradient
+                const intensity = 0.3 + 0.6 * (s / globalMax);
+                const r = Math.floor(34 + intensity * 221);
+                const g = Math.floor(139 + intensity * 116);
+                const b = Math.floor(34 + intensity * 221);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
+            const trace = {
+                x: scores,
+                y: parties,
+                type: 'bar',
+                orientation: 'h',
+                marker: {
+                    color: colors,
+                    line: {
+                        color: colors,
+                        width: 1
+                    }
+                },
+                text: scores.map(s => s.toFixed(3)),
+                textposition: 'outside',
+                hovertemplate: '<b>%{y}</b><br>Score: %{x:.3f}<extra></extra>'
+            };
+            
+            const layout = {
+                title: {
+                    text: `Frame Scores - ${country}`,
+                    font: { size: 18 }
+                },
+                xaxis: {
+                    title: 'Frame Score',
+                    showgrid: true,
+                    gridcolor: '#eee'
+                },
+                yaxis: {
+                    title: 'Party',
+                    autorange: 'reversed',
+                    showgrid: false
+                },
+                margin: { l: 200, r: 50, t: 60, b: 50 },
+                height: Math.max(400, parties.length * 40),
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white'
+            };
+            
+            Plotly.newPlot('chart', [trace], layout, { responsive: true });
+        }
+        
+        // Initialize with first country
+        updateChart();
+    </script>
+</body>
+</html>

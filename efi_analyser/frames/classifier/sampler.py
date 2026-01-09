@@ -9,7 +9,7 @@ import re
 
 from efi_core.types import Chunk
 from efi_corpus.embedded.embedded_corpus import EmbeddedCorpus
-from efi_core.utils import normalize_date
+from efi_core.utils import normalize_date, date_in_windows
 
 from ..identifiers import (
     make_global_doc_id,
@@ -18,21 +18,6 @@ from ..identifiers import (
     split_global_doc_id,
 )
 from ..types import Candidate
-
-
-def _date_in_windows(date_str: str, windows: Optional[Sequence[Tuple[str, str]]]) -> bool:
-    """Check if a date (YYYY-MM-DD) falls within any of the specified date windows.
-    
-    Returns True if windows is None (no filtering) or if date falls within at least one window.
-    """
-    if windows is None:
-        return True
-    
-    for from_date, to_date in windows:
-        if from_date <= date_str <= to_date:
-            return True
-    
-    return False
 
 
 @dataclass
@@ -93,7 +78,7 @@ class CorpusSampler:
                     
                     # Apply date_windows filter if specified
                     if config.date_windows:
-                        if not _date_in_windows(date_str, config.date_windows):
+                        if not date_in_windows(date_str, config.date_windows):
                             continue
                     
                     filtered.append(_doc_id)
@@ -538,7 +523,7 @@ class CompositeCorpusSampler:
                             continue
                         
                         # Apply date_windows filter if specified
-                        if date_windows and not _date_in_windows(date_str, date_windows):
+                        if date_windows and not date_in_windows(date_str, date_windows):
                             continue
                         
                         filtered.append(local_id)

@@ -403,20 +403,17 @@ class AggregatesBuilder:
             classifications
         )
 
+        # Backfill corpus name when there's only one corpus
         if len(self.corpus_names) == 1:
             single_corpus = self.corpus_names[0]
             for agg in documents_weighted:
-                try:
-                    if getattr(agg, "corpus", None) is None:
-                        object.__setattr__(agg, "corpus", single_corpus)
-                except Exception:
-                    pass
+                if agg.corpus is None:
+                    # Use object.__setattr__ because corpus has init=False
+                    object.__setattr__(agg, "corpus", single_corpus)
             for agg in documents_occurrence:
-                try:
-                    if getattr(agg, "corpus", None) is None:
-                        object.__setattr__(agg, "corpus", single_corpus)
-                except Exception:
-                    pass
+                if agg.corpus is None:
+                    # Use object.__setattr__ because corpus has init=False
+                    object.__setattr__(agg, "corpus", single_corpus)
 
         named = build_all_aggregates(
             self.aggregates_dir,

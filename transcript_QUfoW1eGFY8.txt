@@ -1,0 +1,470 @@
+# YouTube Video Transcript
+# Video ID: QUfoW1eGFY8
+# Language: en
+# Type: Auto-generated
+# URL: https://www.youtube.com/watch?v=QUfoW1eGFY8
+#
+# Transcript:
+#
+
+Hello everyone.. Good early evening from Bangkok time and good morning or afternoon to those of you from who are joining from other parts of the world..
+
+and thank you for joining.. I'm Chris Deazen, director of the clean air program at the University of Chicago's energy policy institute epic for short and I'm thrilled to welcome you to this session of the data to action webinar series hosted by the air quality life index or AQLI..
+
+for those of you new to the series, data to action spotlights the people and partnerships turning air quality data into cleaner air.. we host these conversations about once per quarter..
+
+Lately, we've been having them more frequently just because there's been so much good stuff going on.. and today's session captures the heart of what this series is all about..
+
+We'll be hearing about how small groups of high agency citizens in Thailand have used persistence, open data, and strategic storytelling.. And I'd say persistence again to push forward national movement on air pollution even when  it's an uphill battle..
+
+because while air pollution is often treated as a technical or environ environmental or health problem like nearly any problem in the world, it's fundamentally a story of human agency about people who decide that data shouldn't just describe the world but help improve it.. And they believe that they have the power to make those improvements happen..
+
+, as you'll hear, the clean air story in Thailand is still a work in progress.. That's the nature of clean air work anywhere..
+
+And you'll get to hear all the details about it shortly by a truly inspiring panel and our moderator.. But the bottom line is that hopefully you find some takeaways that are relevant for the clean air work you're doing wherever that is around the world..
+
+So with that, I'm going to turn it over to Tannushri Gangali, the director of the AQI here at Epic for some context setting remarks to start us off.. Over to you, Tenushri..
+
+which Christa I'm going to quickly share my screen and it would be lovely if Christa you could confirm that my screen's visible.. >> Yes, I see the data to action..
+
+I see the data to action thing.. Yeah..
+
+>> Excellent.. Thank you so much Christa and thank you everyone who has tuned in today for this super interesting discussion..
+
+This promises to be a cracker of a conversation.. At least that's what we've been discussing internally..
+
+like Christa said, I'm Tanish Ganguli and I run a program called the air quality life index.. to put simply, what air quality life index does is it lets people around the world see how much longer they could live if they had access to cleaner air..
+
+And the idea with us sort of providing people with this information is to raise political and public attention towards the issue of air pollution so that we can catalyze cleaner action globally.. Now in this process what we do is every single year we release an annual report which looks at global pollution trends and the impacts thereof on life expectancy for people living in different parts of the world..
+
+We also spotlight specific regions as you can see on my screen right now..
+
+Thailand is a region that we've been covering for a while primarily because air pollution has emerged as such a significant challenge in the country.. This time we went one step beyond..
+
+what we did is we revamped our entire website to democratize access to information.. To put things to perspective, what this means is that every single piece of information that you will see in my presentation is something that you can generate..
+
+So no matter where you are in the world, right now if you're tuning us from Thailand, you can strengthen your case for action by simply going onto our website..
+
+You'll see the link appear in, you know, across all my slides and I'll help you navigate it a little bit  during the course of my presentation..
+
+Now what I'm going to do right now is sort of set a context the context in which community action citizenled action is driving change in Thailand..
+
+And of course you know there are many different statistics which are available but what I thought is for the purpose of this presentation I will distill all of it to four basic questions..
+
+And you know what I want to say is that our thesis with these webinar series has been to understand how citizens can meaningfully engage on the issue of air pollution..
+
+And for meaningful engagement, it's also important for citizens to be equipped with very specific insights on points of intervention.. So with a little bit of thinking around specific points on which interventions could happen, I frame my slides..
+
+It'll be super short because we really want to hear from our excellent speakers who've made time for this webinar today.. So insight number one and this is sort of loud and clear message which is coming from different studies including us which is that an average resident of Thailand could gain nearly 2 years of life expectancy if they had access to cleaner air..
+
+By cleaner air I mean what the World Health Organization defines as clean air.. The flip side of this is if the current levels of pollution continue in Thailand, then every Thai citizen could be at the risk of losing 2 years of their life..
+
+So air pollution is cutting your lives short.. A little more nuance to this story is the fact the impacts are also highly unequal..
+
+So while the average number is about 2 years, the most polluted regions in the country, people are at the risk of losing more than three and a half years of their life.. Just imagine what you could do if you had three more years to live..
+
+And if you want to realize that, then we need access to clean air..
+
+The second major insight, and this is where it gets really concerning, which is that pollution in Thailand is on the rise.. In just the last five years, our analysis shows a 15% increase in pollution levels..
+
+So what this means is that the levels that we saw in 2017, if they were sustained, people could live 4 months longer than they are currently living because the pollution has increased by 15% between 2017 and 2023.. So even if you just compare the recent past, people are now at the risk of losing more years of their life because of air pollution..
+
+Insight number three, which is setting aside the WHO standard, the country is struggling to meet its own national standard of 15 microgram per meter cube, which I want to remind itself is three times higher than the WH standard.. So you see that dark blue region on Thailand..
+
+So that dark blue means that every single region down to the district level in Thailand does not meet the country's own standard of 15 microgram per meter cube.. And here's where it gets interesting..
+
+Even if every region in the country were to meet its own national standard, then people could live a year longer..
+
+So here is a message very loud and clear for the policy makers that's let's first prioritize meeting the country's national standard if you want the citizens to live longer and better lives and my fourth and most important insight is that air pollution is the greatest external threat in Thailand which means that the impact of air pollution in Thailand is greater than other risks like tobacco dietary risks or transport injuries.. What this means is that public health expenses which probably go more towards some of these other other issues rightly so perhaps should also account for the damages that air pollution is imposing on people's lives..
+
+Now with that context I want to open it up for conversation to see that with these challenges in mind or with these challenges forming the backdrop what are our community actors doing to address air pollution in Thailand..
+
+I'm going to stop sharing my screen and hand it back to Christa.. Take us forward..
+
+>> Thanks so much Tushri for really distilling  very clearly I think the air pollution and and health map in in Thailand and the landscape.. and I think it orients us well as we get into the panel..
+
+So to moderate our panel today we had the pleasure of inviting Pi Ja an award-winning journalist who has lived in and reported across Southeast Asia.. She's now in London covering stories at the intersection of politics, health, and human rights, and increasingly the growing movement for clean air..
+
+Her stories have run in the BBC, AFP, and elsewhere.. In fact, you may have most recently caught her New York Times article on the role lowcost sensors are playing in sparking action across the world, including Thailand..
+
+, and she just hasn't just covered air pollution issues, she's also been engaged as a citizen, too.. For example, she's been active in the Breathe London community program..
+
+So with that, I'll put you into the highly capable expert hands of of Pry.. Over to you, Pry..
+
+>> Thanks so much, Christa.. Hello everyone..
+
+I'm really excited for our conversation today about the role that data plays in driving action on air pollution.. Thailand rightly takes center stage  as one of the countries, as we've just heard, worst affected by poor air quality, but also because it's home to one of the world's most exciting citizen-led movements tackling this public health crisis headon..
+
+So, we're going to hear from three stellar panelists at the forefront of driving change in Thailand on what it takes to unpack and shape this narrative on air pollution.. I just wanted to describe  and introduce them briefly in turn..
+
+first up we have Vina Leanon, a former World Bank economist who eight years ago co-founded the Thailand Clean Air Network.. That's a group of citizens that developed a clean air bill which just two weeks ago was approved by nearly all of the MPs voting at the Thai Parliament..
+
+we'll learn more about this  brilliant milestone in just a few minutes.. but the bill right now is making its way through the Thai Senate and if greenlighted it will be passed into law..
+
+we also have Canthana Apira Pagon also from the Thailand Clean Air Network a longtime branding and marketing expert who leads on all the communications for the group and she can tell us more about how they've been building momentum so effectively in this space.. And finally, we have AIM H, a former project manager at the engineering firm Seammens, who six years ago founded the company Air Gradient, which designs open-source air quality monitors and advocates for open air pollution data across the world..
+
+, we'll have around 20 minutes for our discussion and I'll leave around 10 at the end for questions from  those of you watching.. So please do post  questions as they come to you in the chat box and I will try and run through as many of them as possible..
+
+Great.. So let us dive straight in and  I would love to start with  Vina..
+
+Congratulations  first up  on this major win  as we were discussing just before a few weeks ago.. it marks one of the first times a citizen-led clean air bill has been approved by a parliament in any country around the world..
+
+And I think everyone would love to know how did this movement begin?.
+
+>>  thank you so much for your  kind introduction pretty.. it's  I'd say it's a huge and ginormous  team effort to get where we got to   at the moment..
+
+this really started eight years ago and it really was a personal journey.. I I'm a runner and  I started to see the impact of  getting some really terrible migraines..
+
+It just wasn't actually going away.. and I was testly aware of some of the air quality issues and was  sus suspicious that it may be that..
+
+but it was about 3 weeks into after seeing my own symptoms that I heard the  the government had announced that you know  that the air quality outside was was pretty to was pretty toxic..
+
+and that kind of led to a sense of  I would put it mildly rage a sense of well okay this is not okay.. I mean you know as an individual I I should be able to have the right information to take decisions on my that has impact on my health and you know my nephews also have really bad nose bleeds and stuff like that..
+
+So it all started that way from a oneperson effort, you know, it became a twoperson effort, became a fourperson effort and now we're sort of a seven person strong core team with with a huge network of of strategic partners that include incredible people like Akim  and and others who are joining us..
+
+So  that's sort of how it all started sort of from a sense of of of injustice that you know that the right to breathe itself is an fundamental right to life that we all should have and that we should have that information to be able to to take really basic life decisions..
+
+>> Yeah, >> that that's that makes total sense and so often I found it really is a personal  story that then leads to engagement with  air pollution..
+
+I think maybe a good time to bring in Canthana here like could tell us a bit more about how you went from that  this founding  of of the I think you call it Tyan  for short.. How you went from that to engaging people like what how did you turn something that can often feel quite invisible people say on air pollution and abstract into something more tangible..
+
+How did you build this momentum?. >> Okay, thanks for the question..
+
+It's been an a journey as well.. So me working in advertising, creating  some  urgencies, call to action to do certain things was very easy when comparing to the work that I'm doing for for Ty Clean Air Network..
+
+, it's like when you want to create something like let get people to move to to act, you definitely want to create this the design a message that shocks people and makes them feel something  like want to do something.. But I in if if when we do this  and and only wanting to create the urgency of getting people out to hey we want clean air and then what what next?.
+
+It's like telling someone that you have cancer and you must change your lifestyle.. they may understand the danger but to to make the behavior change doesn't happen overnight..
+
+It requires new knowledge, new habits and time..
+
+So when when communicating urgency alone is not enough, we we may have to do a lot more.. So I think the biggest challenge in Thailand is not only that air pollution feels  invisible, it is that many people feel powerless to change it..
+
+So for us communication couldn't start just with creating urgency or fear.. It has to start with rebuilding agencies..
+
+I think this is a good time to bring in  Akim as well because I think  as part of making things tangible  and to build agency I think data does play a role as as I as I know that you found and that's been sort of at the crux of air gradient's mission..
+
+Could you could you tell us a little bit more about  the role that data has been playing  in driving  behavior change and driving  awareness  and engagement with air pollution.. Yeah..
+
+, thank you pretty for the introduction.. I think this brings us actually right back to how we started..
+
+So  I'm living in Thailand since nearly 20 years now and my kids  go to school and in 2019 I was on a sabbatical was a parents president at my kids school and I think probably Mina and Kana probably remember 2019 which was probably one of the worst seasons and I'm living just right where you have the darkest  colors in your map unfortunately..
+
+So  when this pollution season hit really hard  like the school didn't know are the classroom safe you know the parents didn't know should they keep the kids at home can they send them to school  the school was experimenting with different types of air purifiers they actually didn't know which ones work well which ones don't work and that's when we [clears throat] came in and said okay like we have to measure the air quality you know we need data to to really understand the situation So we we put then air quality monitors in in in each classroom as as a volunteer project and then actually for the first time the school got this transparency that they could see like which spaces Yeah..
+
+like they can open which spaces they have to close, how to rearrange the the purifiers for example.. and and so this data is actually how we how we how we started and also seeing how how this really like drove change..
+
+So with with that school where we started like so when they realized actually the air purifiers don't work very well like the the following year they looked at more professional equipment and then and and a lot of the vendors like you know came with all kinds of promises..
+
+So they just said okay we install four different systems and four different classrooms.. We put in monitors we go through the next pollution season and then actually we can we can see what what works and what doesn't work..
+
+So, so this this role and this is a very very kind of local  application like in in one school they can already see like how the data helps the same in your household you know like you want to see like does in in Delhi right now for example does the app work well enough or not but we can actually and that's what we did then with gradient we we kind of translated this effect that we have very localized into a kind of global  effect where we say like we we have to  develop the the monitors basically in a way and the communication which is the key thing then to make this invisible thing you know which maybe just makes us cough or headache  a lot more visible and so if if we can create this kind of awareness through data  then the awareness actually can create accountability and and that's I think where it's it can be on a very low level it can be the head of school you know that suddenly is confronted with the data I mean she was very cooperative so which was great but let's say if somebody's less cooperative actually the parents can come in with the data and make a case for clean air in the classroom similar to what Vina and Kandana did for the whole country so so you can create with the data you can create this kind of accountability and also data in the first step is is neutral you know it's it's like it's it's just a a value and then you have the WHO which says okay you should be there and then you most of the time you see a certain gap and then it can go into a very productive hopefully discussion then okay how can we can we close the gap and that's basically then the yeah the base to drive change >> yeah no thanks aim and can h how how have you been sort of incorporating data in the narrative that you have been building  as part of your movement , data is has been essential..
+
+>> It's been   we've been using a lot.. But data alone doesn't move people..
+
+Data is like a spine and but we need a soul in the body to to to really do something.. for for data actually  to mobilize action I think there are two things that important in Thai context..
+
+So first data must be as I mentioned in earlier personalized or or even like localized personalized I I think these two things are are similar.. So different people experience the same AQI number very differently..
+
+A healthy adult might not feel  anything  at the AQI of 80, but a child with asthma can end up in an emergency room at the same level.. So  we don't just show the city's air quality..
+
+We show your school, your neighbor, your market, and we explain what it means for you.. This is about  moving from interesting information to  the effect that that  that what can affect my family today..
+
+and the second thing I think data must be linked to action.. So it should show this is what  happened today, what you can do today and this is the policy that we need to fix  at the root cause because I think the the long-term solution is not an individual behavior change..
+
+It's not just about not do stop driving cars.. it's it's better regulation, better standard, transparency and funding to support a cleaner practice and that's when the data become a tool for collective agency not just creating awareness..
+
+>> Thank you.. That's yeah I think that's key isn't it?.
+
+how you use that data, how you personalize it, make it relevant, and then the bigger the bigger picture on  change, which will bring us back to Vina, I think, on  on on the bill..
+
+and you know that we we mentioned you've successfully seen it being passed by MPs at Parliament..
+
+It's now at the Senate..
+
+Could you I think it'd be fascinating for people who are in different parts of the world to hear like  what what what is the bill?. like could you tell us a few of the key components and and the main ones really that you're that you're hoping will drive change?.
+
+>> Yeah.. Okay..
+
+Thanks for that question.. I think in your early question I didn't  quite give the full background of our group..
+
+and what we have in our group is actually  a a a mixture of people with very strong skill sets that complement each other very well.. So  we have a very solid  legal team..
+
+So we have  led by our environmental lawyer and she has a breath of experience in legal reform work.. we also have human rights lawyers..
+
+We have finance lawyers.. We have public sector lawyers..
+
+we have economists in our group.. So not just myself, we've also got environmental  economists in there..
+
+We've got medical doctors in there as well.. we collaborate a lot with our air pollution scientists and we've got  and her team..
+
+So, so what what I'm trying to say is because of the skill sets that we bring to bear and we've got a medical doctor as well.. This is ultimately a very complex systemic problem and it requires the knowhow and the knowledge of everybody to come together and weave together our knowhow to be able to solve this problem is cross ministerial is cross- sectoral right it's not just a silo one sectoral issue  and having said that what that's  I would say that's why the clean air legislation is so critically important and I would categorize the three key key features of what's in this one as the first thing is the right to clean air giving people the right to clean air which is fundamentally the right to life itself and what it does is it then creates the obligation of the state to respect protect and fulfill that right for all its citizens going back to what was saying about how data and how different types of air quality impacts people differently and one of the groups that we are very concerned about which is very much focused in this legislation is vulnerable groups vulnerable groups includes children particularly those under the age of five..
+
+It includes pregnant women.. It includes  older people..
+
+It includes anyone who's sick and it includes people who work outdoors in the elements because the exposure that they are subjected to to to  in toxic air quality periods.. the second key feature is the concept of co-management and this is very very unique in Thailand..
+
+and the concept is co-management between the state and civil society in addressing this and and by civil society we mean a lot of all of us are civil society members  and we all have various expertise and knowledge and knowhow to bring to the table and opening that gap and that's critically important is to assist  in this very complicated  problem..
+
+and I think the third big key feature of this important legislation is the concept of economic incentives.. So  if you go back and look at the very ethos of environmental legislation, environment is not a top-down  legislation that enforces ch  changes and even if you do try to do that, right, it it has not been effective, right?.
+
+So very a very simple case.. How would you stop all the fields in Thailand from being burned in the burning season?.
+
+Will we bring to bear every single soldier and every single policeman we have to run around and monitor it?. No, it's not possible..
+
+So an important ethos of environmental legislation  and also of economics is the concept of builds bringing the the right economic incentives for economic actors to change their behavior and that is the concept of bringing carrots but also sticks as well sanctions when that's not being abide by  and we and we incorporate the concept of polluter pay principle into this polluters pay for what they've done and all the fund the money coming through from from polluters is channeled into a very important clean air fund.. Now that is a critical component because having enough money had referenced it and we all know anybody in the space would pretty much know that there's absolutely no money whether in Thailand or globally to address air quality which is ridiculous because we all need to breathe to remain alive but it's a different thing..
+
+So without money you can't solve this problem and this fund is critically important.. It will do different things..
+
+One of it is actually to to assist  operators who are eligible  and are unable to transition because we are cognizant of the fact that clean technology is not cheap.. And so for that to do that it's also to help with   environmental    justice for victims..
+
+It is also meant to help with    research and development  work.. It is also meant to help with    taking care of health of sick vict victims in areas where is already not being covered under the universal health system in Thailand..
+
+So there many many uses of it.. The crux of it really is to try to shift behavior so that when you shift behavior that's how you're going to have to change because at the end of the day there's no us or them when it comes to air quality..
+
+We are breathing the same thing in.. So hope that answers the question..
+
+Thank you, Vina.. And it seems building this economic case really has been  a key component..
+
+And on that, I wondered  the push back that you might be getting  in Thailand  the resistance.. The economic case ties into building an argument I I I'm sure how else are you trying to counter the resistance?.
+
+Can you tell us about that and how you manage it because it could be useful for others I think as well.. Yeah..
+
+So I think  there've been a lot of analysis that I've done in terms of how much Thailand is  how much it's costing Thailand as a country, you know, air pollution and we've got figures that were from 6% of our GDP all the way out to around 10 or 11% of our GDP, right?.
+
+And this is health cost.. This is opportunity cost, you know, people falling sick, not being able productivity loss that happens..
+
+It's also lost to very key sectors.. For example, tourism..
+
+Thailand's a huge tourism sector and you know no one wants to come to this country with toxic air right and the toxic air period happens to coincide with our peak travel season..
+
+So there is a huge economic loss on many many fronts.. and  so we've we've communicated that out quite clearly and the work  from with from the  a  the air quality quality life index work the incredible work done by the University of Chicago has been absolutely phenomenal and we've cited that a lot you know to say tell people you know your life has been cut short by two years prematurely right and I'm talking about we're not talking about hey you just dropped dead I'm sorry It's unfortunately it is really really bad illnesses..
+
+We're talking about cancer.. We're talking about you know really terrible heart disease..
+
+We're talking about dementia.. We're talking about you know Alzheimer's..
+
+These are really critically sick illnesses that are chronic and it does lead to fatality.. So that period of life quality of life is not there..
+
+And so a lot of times it is not just showing the numbers from from from just pure economics is it's also trying to communicate to people at a very human level because I think one of the things that we've realized is that with the different modes of persuasion  we are very good with pathos and ethos but the thing that's going to move people  we're very good with logos and and ethos but when when it comes to pathos which is emotion that is the crux to the to the do the doing and the knowing doing gap that people have >> and that's >> that's what we trying to do with with our communication..
+
+Yeah.. And and with with you whether it's economics or sooner you're dying or you know how Yeah..
+
+to try to convey that and to try to tell people you know there there there really is no there there is a a sense of trying to create the sense of otherness and and othering people..
+
+and that's something we're trying to push back against.. So for example, right now one of the the narrative that we've gotten today which seems ridiculous is that there was a joint committee   represented by the Fed Federation of Thai Industry, the  the Thai Chamber of Commerce and as well as the Thai bankers association and they've come out formally to say they're against the clean air legislation and their claim is that  it's really going to be bad formemes and it's like   in all due respect in terms of actual footprint and this I I don't I thinkmemes are are are one of the biggest polluters out there..
+
+and in order respect  that is they will probably qualify for for a lot of funding support through the clean air fund you know..
+
+>> Yeah.. >> Super interesting..
+
+Cantana does this now affect your  narrative and strategy building in in sort of like the ways you'll counter that messaging going forwards?.
+
+it's it's been it's been  you know setting strategy when communicating this is it's it's been difficult..
+
+It's been a learning process and  we failed in the beginning actually  because we we thought that giving knowledge people getting people to understand the the the effects showing presentation showing a lot of data researchers would help when people understand when people has knowledge they will stand up they will be powerful and they will make change..
+
+It's what it was it was not like that and we learned the hard way.. but when when like  Winarin said  when we can actually make them feel relevance to them to to them make them feel that this is their problem and make them feel that they have a power to to change and do something there..
+
+There are actually stages there steps in that that we  actually listed down a little bit like the first step was we have to build trust and share understanding and and by doing this is not just like  showing  data as I said it's like  telling them how dirty air steal their health and income  or the their children's what are their children's breathing now what did what's the effect the second step was like  to  empowering with the the knowledge..
+
+So not the lecture style.. We have to use the simple language, the visual and everyday example to to make them understand and have  make them know that this matters to them..
+
+the third one is focusing on mobilizing collective action.. So we work with voices people naturally trust like doctor, priest, monks, spiritual leaders,   community leaders and also we we do creating like public expression like nose  exhibition work with artists  composing songs doing music videos and  lastly we we have to show them what we can connect the grassroot  energy to the policy..
+
+So this has to be simplified the draft the legal draft into plain language that  the community can understand.. So that's how we do..
+
+>> Thank you.. Some really important points there..
+
+Akim, I just would love to bring you back in on  the work you're doing which I know is also trying to  connect the data back to people and you've got some exciting projects that I think  one in particular about about this global app that I I think it'd be great to to hear about..
+
+Yeah, sure.. [clears throat] so like when when we started and then  developed these these monitors  I think the first couple of years you know we figured out how to produce them  that they're accurate that they're relatively affordable how to ship them into like 90 countries and then  last year when we kind of figured out all this stuff and we we did pretty well with the hardware we felt we we are still falling short from an impact perspective..
+
+you know, we figured out the hardware, the data, , but we we we we somehow felt like there's still something missing basically..
+
+So, we we set up something we call internally gradient 3.0, zero which  I think underlines the importance and what's what's behind is basically  how can we maximize our impact and and and for this we  we we founded  a program we call clean air advocates which is basically these these applications but it's it's a bigger platform and the idea behind that we we yeah we create a platform that's localized that can be used all around the world that's also open source that can be used by you know like local groups  I just had a call with UNICEF at the  a couple of hours ago it can be used by you know my my kids school it could be used by  NOS's like you know  Thailand cleaner network for example that helps them to make the data more meaningful but that's only the first step and then to encourage actually behavior change towards lowering like your [clears throat] pollution your your own pollution and also carbon emissions..
+
+I think that's goes really really hand in hand and and the way it works the the apps that we currently publish are first step and what we want to do there and I just give you an example  so  let's say there's  let's say a school in in Laos  sets up a clean air club okay now  these this this platform would then allow the students for example to submit activities that they do towards  lowering air pollution..
+
+So it could be like a YouTube video, it could be a workshop at the school or it could be go going to their village leaders talking about them with air quality.. So they can submit this and then  teachers or other community leaders can then award points for for this activity to these students..
+
+Now, if we get some local businesses on board, for example, coffee shops in in the same village, put them on the map and say, "Hey, look like  this coffee shop actually gives you a discount or free coffee for your points." We actually create some kind of market mechanism for behavior change..
+
+so that's the bigger picture and the way we envision is it's really a kind of decentralized platform open source.. So it's not belonging to us or anybody that then these these local communities can actually jump on and have something that they can use to to to drive change because in my opinion  you know like political climates change every four years  massively and we have to find base which  I always say that the revolution has to come from the from the people from the bottom up..
+
+So if we can create this kind of platform where we can  motivate and incentivize  like this behavior change  I think it can become a very very powerful tool to then basically make the final step which is cleaner air..
+
+>> That's  so interesting and and amazing how you're tailoring it in different ways  in different contexts.. I'm just seeing that we're getting some questions through and I'd love to encourage more..
+
+So whenever you get them throw them into the chat box.. A few from Tanushi here..
+
+so one for  Kina again  on what people's agency should look like.. I I I I think it I think you and Vina mentioned that but  would you like to elaborate on that?.
+
+One or both of you?. , you're on mute just to come back on..
+
+So what people agency should look like?. well I I'm not good at give the definition but I can just give some example that  we will see people's agency when we see parents start asking for the school whether they have the protocols for  for for the kids to to feel safe and come to school and knowing  whether what kind of activity suits the day we start seeing artist  posting some something  or composing  songs..
+
+We start to see  priests and monks speaking value about value about responsibilities and we start seeing  well engineers and scientists coming up with  research evidence.. And lastly, we we can see some of the  politicians who never ever were interested in this topic before starting copying our phrase  and saying something that  makes them look good..
+
+>> I love that answer.. I love that answer..
+
+So tangible actually all specific things.. thank you..
+
+And for Vina the question  from Tanushi here is  what should platforms for co-management of air pollution look like?. >>  so in in specifically in the legislation we've actually provided the   positions for for for qualified very qualified civil society members..
+
+So we need an expert in this and they need to come from you know we've opened it up we've  to ensure that that that civil society who who have the skill set to bear will have the space to be able to do that and we are at the decision table..
+
+It's not just provide your advice and and be off.. It's you are part of decision- making process in this entire space..
+
+Beyond that, we've also provided for avenues for you know citizen watchdog systems and programs and we also have platforms at a provincial level because we believe that there's no one one sizefits-all solution and that a lot of these issues are very very regional and at provincial levels and so  people who are living from that area will have the the ability to qualify to sit at their own   ability levels to to come up with solutions and to drive it forward..
+
+Yeah.. >> Thank you, Vina..
+
+there's also a question for Akim.. You you you touched on a little bit already on on how you're seeing people engaging with data, but I think there's an interesting one on the sorts of questions  they ask when they start generating the data..
+
+That's quite yeah quite a good practical question there from Dutri.. >> Yeah..
+
+So I think what we see is like when people see like data for the first time that they're trying to understand the data they trying to see like what what are the potential sources of the air pollution what are certain patterns so for example we see often in Thailand  that during the afternoons you know the air quality actually improves and in the night it's much worse and that helps them then also to you know protect themselves better..
+
+So if they do if they go running for example to to put this maybe to towards the afternoon.. So so kind of really understanding kind of what's going on and sometimes also indoor air pollution you know if they use  you know wood burning for example  inside okay they see wow suddenly this is so bad you know that they they can  yeah change change behaviors..
+
+I think what's a second thing that's quite interesting is actually comparing data and there was a really interesting story.. So  I think two or three months back  we worked with a researcher in in Colorado and she works with high school students and she actually called me up and said hey we have a problem..
+
+I said what's your problem?. our air quality is too good, you know, like we we we like I want to show and explain the kids that you know air pollution is a problem..
+
+But at that time it was it was really really good.. And then she asked me can you connect me with with a school somewhere else and actually just coincidentally a couple of days earlier I had a call with  somebody doing a project in Ghana  with a high school and at that time they had terrible air quality..
+
+So I connect connected basically these two schools and they started like exchanging data and I think that's really important because often like you just see what's around you and you you don't see what's possible.. So when the when the students in Ghana saw, wow, the air quality can be that good, you know, they start asking the right questions..
+
+Why is it that bad in in in my city, in my in my country?. And I think also for for for the high school students in Colorado to see actually, wow, it it can be a real real problem I think is is is very eye openening..
+
+So I think yeah I think and at the heart is really this like yeah like dealing with data understanding data  trying to make sense of it I think is the key thing there.. >> Thank you..
+
+It's again such a great example I think to to understand this  globally.. we've got a question from Yasmin Yao..
+
+H thank you so much.. She thanks you for the the great session and congrats on the clean air bill..
+
+And is the question is how are you using health data to also demonstrate the impacts  and how are communities engaging with the health data and how will you measure the benefits on health  care and the economy after the implementation of the clean air bill.. Okay..
+
+There's a few few questions there.. I'm wondering who wants to to sort of take that first..
+
+Maybe maybe one for you Vina.. >> Yeah..
+
+just really quickly  what that's the key thing that's very unique about this legislation.. It's the first time we've actually brought the concept of environment and public health together because without a clean environment you'll never have good health, right?.
+
+And so that's been very very a critical part of this.. and one of the things that we've incorporated in this bill is a concept of the air quality  health index..
+
+So actually personalizing health very specifically for vulnerable groups and in the entire world understand it's only Canada and Hong Kong that actually has it.. We've mandated it into the legislation..
+
+So in this way people can actually manage it at a very customized personalized level how this air quality is impacting their health.. in terms of the measurement part of it, I think it it will I mean if we're talking about  6% of GDP  as the cost of health  that the country is bearing  my public sector experts tell me around 5% is actually when the system starts to starts breaking at the seams..
+
+So we're at crisis level.. So any movement beyond this p pushing us back into the fray is it is actually will be will be something  that will be greatly  beneficial and I think one of the things too that we've come to realize  in working we initially took a very strong health angle and worked directly with the ministry of public health and one of the key things that  that it's been quite quite challenging is   there are great silos everywhere including within the health sector and so health data is is sort of every there's a whole little different silos but I think at the end of the day what we're trying to do is to to to break the silos and one of the key things that we've been trying to push for doctors to do which will help on on the health data side of it is to be very dogmatic when they actually denote cases of clients that come to them patients that come to them whose case is highly likely due to environment mental cause and highly likely lead to air pollution..
+
+We're starting to already see this.. There's about six or or eight clinics in Thailand that actually provide that type of analysis, but actually it needs to be rolled out throughout the country and to have that running..
+
+So, I think that would be one way you need to have that data and with that we measure, you know, how how the numbers are are improving over time..
+
+>> Fascinating >> how you're connecting the the story basically with the data and the actual impact.. , thank you..
+
+I think we have time for one more question and there's a there's one from the team here on So again, I I'll I'll pose it and see who who'd like to take it on.. , which is the easiest group to activate  on  on air pollution and  the other side of that is which is the most difficult group to activate and what can be done to bring this difficult group to the table..
+
+So what's who's the easiest and who's the most difficult?. may maybe you'd like to to jump in..
+
+>> We used to think parents  are the are the  easiest group to activates.. but at the end  of the day some parents are very  caught up with with the raising work that they are doing struggling with   the things that that they they have in front of them..
+
+So  we were not quite right but  not quite right about that.. but  surprisingly the young younger generation was not in our thought in the beginning..
+
+but  eventually they they have time they are more interested in in in the world that is that we have left for them.. So  at [clears throat] the moment and I actually find that  younger generation are easier easy easier to to to activate to to get them interested but in order to keep them sustaining them with the the thing that we are feeding them..
+
+We have to really try hard have that arts and and and  listen a lot  and then adjusting the way and and very be be very flexible..
+
+So it's easy and difficult at the same times.. But  I would say  younger generation..
+
+Do you think differently?. Do we know?.
+
+I don't know..
+
+I'm not sure.. >> Yeah..
+
+No, but actually there's one group and and  Akim probably I think it's based on what we chatted on about actually akim.. and we  we had heard about  you know that Chung Mai has a pretty active  community and da da da da and and and that's been the reputation and I think actually through talking to you Akim it it actually dawned upon me it's actually because of the large expert population in Mai it's not the ties in Mai it's the expats in Mai and it's the long-term expats in Mai and  from my direct experience for example We've got, you know, , we have a cover for our the citizen clean air legislation..
+
+Do you know who Diva designed it?.
+
+A lady in Portugal who lives in Lisbon.. She heard about us through the RSA..
+
+She was pass she loved what we did.. She reached out..
+
+She said, "That's my skill set." She said, "Let me let me know what I can do." And she is the designer of our book cover..
+
+, there was another gentleman.. He's from the UK..
+
+He moved to Thailand literally within the first two days, realized how bad the air quality is, Googled our group, reached out to us, bought three of our t-shirts, asked for all our logos, created a banner, walked around Bangkok with a sign telling people to sign up on our petition.. Those are active citizens..
+
+Having said that, the challenging part is a lot of experts.. A lot of them are not here for the long haul and so the continue continuity isn't there..
+
+And and also beyond that, this is a tie issue.. ties really have to step up and and fight this battle right I mean you know what happens in the parliament no expert's going to be able to understand what is happening how things are changing and it moves and weaves every 5 seconds so it is really really challenging the news for example if you don't read Thai news you won't actually understand what's happening because it's it's not there the nuance aren't there or it's not even covered at all  but and and going to the most difficult people I would find the business Yeah, the ones that are that are really pulling the strings, they're very myopic in their viewpoint..
+
+They don't look beyond their quarterly numbers.. I mean, I've spoken to people who are  factory owners and and their point is and they said, ", yeah, of course, I'd love to have clean air, but  a if it's going to create an in any slight increase in my cost of doing business, there's no way I'm going to support this, >> right?" Yeah..
+
+>> And I almost want to say I hear you, but you're probably more exposed than I am because you're at your factory.. >> You know, >> that's one of the ways to bring them to the table to make it personal for them as well..
+
+>> Yeah.. Yeah..
+
+So >> maybe I want to just throw in something quickly.. I I agree with  Kandana and Vinarin, but I have also a theory..
+
+So I traveled  quite often to Africa recently and the young generation is so energetic there.. It's unbelievable..
+
+It's it's nothing I saw in Europe or in Asia or in in in Americas.. So I think there's definitely  a drive from from the young generation, but I also have a theory what  what's a difficult group and I think it comes back to what Vina said..
+
+you know you often you have more fundamental issues you have to deal with with in in your life..
+
+you don't have enough food on the table or you don't have a job or  you know somebody in your family is sick..
+
+So  so I think there's a certain correlation with like how well you are off and at some point you start more caring about like air pollution that could be the reason why the experts are driving it so much because on the one hand yes they probably  have maybe less of the fundamental issues to deal with then they also probably know okay the is really bad because they not used to that..
+
+So I think this is something that we always have to keep in mind that you know if if I don't have enough to eat then the food has probably higher priority than than cleaner air..
+
+and making these long-term impacts doesn't make it easier.. You know, it's not like you have a a car that's nearly breaking down and you know, if you have an accident, you will get injured..
+
+Then you you you have a much more immediate need to fix something then like okay, I might die 3 years earlier in 30 years..
+
+You know, that's I think that the problems we are we are dealing with..
+
+Yeah, >> that that thanks so much all of you.. I think we are getting close to wrap-up time..
+
+So just want to say a big thank you for all of your  brilliant answers and  to the to the audience as well for sharing their questions.. just to sort of have a few quick takeaways because I want to pass back to Christa..
+
+I think we've talked about today  the importance of data in sort of telling the story  driving the narrative and air pollution, the importance of making it personal  to make sure that it's tangible and that in turn  is something that can be tackled.. but we've also talked about that data isn't really enough..
+
+It's the starting point.. It's  the action that comes from collaboration between different groups..
+
+Vina mentioned the importance of breaking silos  and and and Canaan mentioned the importance of maintaining engagement even among groups that you think are important.. And I think what I loved as well is that this is truly global..
+
+Akim, you brought this out in different ways.. What we can learn from each other is really key because this isn't  a problem anyone's going to solve alone..
+
+It does take this collaboration.. so yeah, with that, thank you for sharing  what you did..
+
+very inspired by  the Thailand draft clean air act and look forward to sort of hearing more on that.. but yes, thank you to  to to Christa and back to you..
+
+Thanks so much Pretty and thank you all of you.. It was a fantastic conversation..
+
+absolutely   captivating and also  very inspiring but also very grounded in what it actually takes, the reality of it.. the years of work  the the small groups who  slog away with very few resources but make a huge difference  and and I I I think it's a great  and realistic   story to share with others across the world   confident mentioned  you know it's not just about using data and stories for communicating  urgency and relevance important stuff but that this word  agency kept coming up in conversations and and  that really sticks with me..
+
+, and as Wina mentions, , a key ingredient to clean air action is also resources.. , and to be blunt, that means money..
+
+And there's no way around it that that it's just lacking in the space, , to to globally to support clean air , despite it being the the largest global threat to health.. And at Epic, this is a core question we are asking with our work..
+
+how can we put the the necessary resources whether it's information, funding in terms of money  or solutions in the hands of more people  that you heard from on the panel today but many others who are not here but are part of this specific story but the larger global story too.. the kind of folks whether they're they're an advocate or a government official or a scientist or or running a an air quality monitoring company or an ordinary citizen  who if you give an inch they will take a mile and I do mean that in the the best way possible..
+
+so on that note  next week at COP we'll be launching  a 2025 clean air investment map..
+
+It's a tool designed to highlight where the biggest outsized opportunities exist to support leaders like those you heard from today, but where there is very little basic data or resources to get to a a critical mass of action.. So,  it's about helping funders, governments, and citizens see where smart and even small investments to start  could drive large-scale clean air change na nationally..
+
+So, we plan to use it ourselves again next year and we anticipate having another call  for the epic air quality fund and and please stay tuned..
+
+So, as we close, I want to thank our panel and our moderator again and all of you  listening in to join us.. If  today's conversation inspired you, please stay connected, follow AQI and join us for our next data to action webinar..
+
+and tell us who you  who we should invite to our be our next guest which will happen in 2026..
+
+as we continue to spotlight the people proving that data doesn't just describe the world, it can change it.. Thank you everyone.

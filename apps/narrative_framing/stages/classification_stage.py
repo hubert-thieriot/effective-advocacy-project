@@ -49,6 +49,11 @@ class ClassificationStage(PipelineStage[StageContext, DocumentClassifications]):
         self._classifications_path = paths.classifications_path
         self._classifications_dir = paths.classifications_dir
 
+        # Skip if classification size is 0 or None
+        if not config.classification.size:
+            self.logger.info("Classification size is 0 or not set - skipping")
+            return False
+
         # Skip in regenerate mode
         if config.regenerate_report_only:
             self.logger.info("Regenerate mode - will load cached classifications")
@@ -194,7 +199,8 @@ class ClassificationStage(PipelineStage[StageContext, DocumentClassifications]):
             except Exception as e:
                 self.logger.warning(f"Failed to load classifications from folder: {e}")
 
-        raise FileNotFoundError(f"Classifications not found at {self._classifications_path} or {self._classifications_dir}")
+        # Return empty classifications if not found (e.g., when classification size is 0)
+        return DocumentClassifications()
 
     def get_metadata(self) -> dict:
         return {"stage": self.name}

@@ -1,13 +1,12 @@
 """Narrative framing application package."""
 
 from .config import NarrativeFramingConfig, ClassifierSettings, load_config
-from .run import main, run_workflow, run_pipeline
+from .run import main, run_pipeline
 
 __all__ = [
     "NarrativeFramingConfig",
     "ClassifierSettings",
     "load_config",
-    "run_workflow",
     "run_pipeline",
     "main",
 ]

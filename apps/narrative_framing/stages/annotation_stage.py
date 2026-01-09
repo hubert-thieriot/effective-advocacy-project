@@ -50,6 +50,11 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
         if not input_data.state.schema:
             return False
 
+        # Skip if annotation size is 0 or None
+        if not config.annotation.size:
+            self.logger.info("Annotation size is 0 or not set - skipping")
+            return False
+
         # In regenerate mode, just load cached
         if config.regenerate_report_only:
             self.logger.info("Regenerate mode - will load cached annotations")
@@ -196,7 +201,8 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
             assignments = FrameAssignments.load(self._assignments_path)
             self.logger.info(f"Loaded {assignments.count} cached assignments")
             return assignments
-        raise FileNotFoundError(f"Assignments not found at {self._assignments_path}")
+        # Return empty assignments if not found (e.g., when annotation size is 0)
+        return FrameAssignments()
 
     def get_metadata(self) -> dict:
         return {"stage": self.name}

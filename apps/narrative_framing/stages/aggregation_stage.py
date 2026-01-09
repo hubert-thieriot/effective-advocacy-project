@@ -46,9 +46,15 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
 
         config = input_data.config
         paths = input_data.paths
+        state = input_data.state
 
         # Store path for later use (before any early returns)
         self._aggregates_dir = paths.aggregates_dir
+
+        # Skip if no classifications or assignments available (induction-only mode)
+        if not state.classifications and not state.assignments:
+            self.logger.info("No classifications or assignments available - skipping aggregation")
+            return False
 
         # Skip if aggregates directory not configured
         if not paths.aggregates_dir:
@@ -159,14 +165,15 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
 
         return aggregates
 
-    def load_cached(self) -> Aggregates:
+    def load_cached(self) -> Optional[Aggregates]:
         """Load aggregates from cache."""
         if self._aggregates_dir and self._aggregates_dir.exists():
             aggregates = Aggregates.load(self._aggregates_dir)
             if aggregates:
                 self.logger.info(f"Loaded cached aggregates from {self._aggregates_dir}")
                 return aggregates
-        raise FileNotFoundError(f"Aggregates not found at {self._aggregates_dir}")
+        # Return None if not found (e.g., induction-only mode)
+        return None
 
     def save_result(self, result: Aggregates) -> None:
         """Save aggregates (already saved by AggregatesBuilder)."""

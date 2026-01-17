@@ -64,6 +64,19 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
         # Otherwise run if new work is allowed
         if config.reload_annotation:
             if self._assignments_path and self._assignments_path.exists():
+                # Check if cached size is less than target size
+                try:
+                    cached_assignments = FrameAssignments.load(self._assignments_path)
+                    cached_size = cached_assignments.count
+                    target_size = config.annotation.size
+                    if target_size and cached_size < target_size:
+                        self.logger.info(
+                            f"Reload requested but cached size ({cached_size}) < target size ({target_size}) - will run"
+                        )
+                        return input_data.allow_new_work
+                except Exception as e:
+                    self.logger.warning(f"Failed to check cached assignments size: {e} - will run")
+                    return input_data.allow_new_work
                 self.logger.info("Reload from cache requested - will load cached annotations")
                 return False
             self.logger.warning("Reload requested but cached annotations not found - will run")

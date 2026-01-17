@@ -66,7 +66,7 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
             self.logger.info("Regenerate mode - will load cached aggregates")
             return False
 
-        # If reload requested, skip execution (load cached)
+        # If reload_aggregates is True, use cached aggregates if available
         if config.reload_aggregates:
             aggregates = Aggregates.load(paths.aggregates_dir)
             if aggregates is not None:
@@ -75,37 +75,9 @@ class AggregationStage(PipelineStage[StageContext, Aggregates]):
             self.logger.warning("Reload requested but cached aggregates not found - will build")
             return True
 
-        # Check if aggregates exist
-        aggregates_dir = paths.aggregates_dir
-        if not aggregates_dir.exists():
-            self.logger.info("Aggregates directory doesn't exist - will build")
-            return True
-
-        # Try to load aggregates
-        aggregates = Aggregates.load(aggregates_dir)
-        if aggregates is None:
-            self.logger.info("No cached aggregates found - will build")
-            return True
-
-        # Check if aggregates are in sync with classifications
-        if input_data.state.classifications:
-            classifications = input_data.state.classifications
-            if classifications.n_docs > 0:
-                agg_doc_ids = {agg.doc_id for agg in aggregates.documents_weighted}
-                class_doc_ids = {doc.doc_id for doc in classifications if doc.doc_id}
-                overlap = len(agg_doc_ids & class_doc_ids)
-                total_agg = len(agg_doc_ids)
-
-                # If less than 50% overlap, rebuild
-                if total_agg > 0 and overlap / total_agg < 0.5:
-                    self.logger.warning(
-                        f"Aggregates out of sync ({overlap}/{total_agg} match) - will rebuild"
-                    )
-                    return True
-
-        # Aggregates exist and are in sync
-        self.logger.info("Aggregates exist and are in sync - skipping")
-        return False
+        # If reload_aggregates is False, always rebuild
+        self.logger.info("reload_aggregates=False - will rebuild aggregates")
+        return True
 
     def execute(self, input_data: StageContext) -> Aggregates:
         """Build aggregations from classifications.

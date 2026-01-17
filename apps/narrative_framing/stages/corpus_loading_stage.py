@@ -13,6 +13,7 @@ from efi_core.pipeline import PipelineStage
 
 from efi_corpus.embedded import EmbeddedCorpus
 from efi_analyser.chunkers.sentence_chunker import SentenceChunker
+from efi_analyser.chunkers import TextChunker, TextChunkerConfig
 from efi_analyser.frames.corpora import EmbeddedCorpora
 from efi_analyser.frames.classifier import EmbeddedCorporaSampler
 
@@ -59,9 +60,19 @@ class CorpusLoadingStage(PipelineStage[StageContext, EmbeddedCorpora]):
 
             self.logger.info(f"  Loading {corpus_name}...")
 
-            # Create chunker
-            # Note: SentenceChunker doesn't take parameters, uses defaults
-            chunker = SentenceChunker()
+            # Create chunker based on config
+            if config.chunking.chunker_type == "text":
+                # Use TextChunker with specified max_words and spacy_model
+                chunker_config = TextChunkerConfig(
+                    max_words=config.chunking.target_words,
+                    spacy_model=config.chunking.chunker_model,
+                )
+                chunker = TextChunker(chunker_config)
+                self.logger.info(f"    Using TextChunker (max_words={config.chunking.target_words}, model={config.chunking.chunker_model})")
+            else:
+                # Use SentenceChunker
+                chunker = SentenceChunker()
+                self.logger.info(f"    Using SentenceChunker")
 
             # Load corpus
             # Note: dataclass inheritance requires both data_path (base) and corpus_path (subclass)

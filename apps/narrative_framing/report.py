@@ -321,16 +321,38 @@ class ReportBuilder:
                 print(f"⚠️ Failed to generate results browser: {exc}")
 
         if schema and html_path and has_document_aggregates:
-            # Build classifier lookup for report
+            # Build classifier lookup for report from classifications (chunk-level predictions)
             classifier_lookup: Optional[Dict[str, Dict[str, object]]] = None
-            if classifier_predictions:
+            if classifications:
+                # Extract chunk-level predictions from classifications
+                classifier_lookup = {}
+                for doc_record in classifications:
+                    payload = doc_record.payload if hasattr(doc_record, "payload") else doc_record
+                    if not isinstance(payload, dict):
+                        continue
+                    chunks = payload.get("chunks", [])
+                    if not isinstance(chunks, Sequence):
+                        continue
+                    for chunk in chunks:
+                        if not isinstance(chunk, dict):
+                            continue
+                        chunk_id = chunk.get("chunk_id")
+                        probabilities = chunk.get("probabilities", {})
+                        if chunk_id and isinstance(probabilities, dict):
+                            classifier_lookup[chunk_id] = {
+                                "passage_id": chunk_id,
+                                "probabilities": probabilities,
+                                "text": chunk.get("text", ""),
+                            }
+            elif classifier_predictions:
+                # Fallback to old classifier_predictions format if available
                 classifier_lookup = {
                     item["passage_id"]: item
                     for item in classifier_predictions
                     if isinstance(item, dict) and item.get("passage_id")
                 }
 
-            include_classifier_plots = True if classifier_predictions else False
+            include_classifier_plots = True if (classifications or classifier_predictions) else False
 
             # Count total number of classified passages (chunks) from classifications
             # If classifications is empty (e.g., in regenerate mode), use document count as fallback
@@ -388,6 +410,7 @@ class ReportBuilder:
                 domain_yearly_top_domains=self.config.report.domain_yearly_top_domains,
                 domain_yearly_version=self.config.report.domain_yearly_version,
                 domain_yearly_include_empty=self.config.report.domain_yearly_include_empty,
+                corpora_map=self.corpora_map,
             )
 
             # Publish PNGs and HTML to docs for GitHub Pages
@@ -1443,6 +1466,7 @@ def write_html_report(
     domain_yearly_top_domains: int = 5,
     domain_yearly_version: str = "weighted",
     domain_yearly_include_empty: bool = False,
+    corpora_map: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Render a compact HTML report for frame assignments."""
     
@@ -2359,11 +2383,30 @@ def write_html_report(
         """
 
     # Build corpus index to look up titles
+    # Use corpora_map if provided to build index
     corpus_index: Dict[str, dict] = {}
-    if output_path:
+    if corpora_map:
+        # Build index from corpora_map (in-memory, fast)
+        for corpus_name, embedded_corpus in corpora_map.items():
+            # Get all doc IDs for this corpus
+            try:
+                doc_ids = list(embedded_corpus.corpus.list_doc_ids())
+                for local_id in doc_ids:
+                    metadata = embedded_corpus.corpus.get_metadata(local_id)
+                    if metadata:
+                        # Store under both local and global IDs
+                        corpus_index[local_id] = metadata
+                        # Also store with corpus prefix for multi-corpus setups
+                        global_id = f"{corpus_name}::{local_id}"
+                        corpus_index[global_id] = metadata
+            except Exception as e:
+                # Skip if corpus doesn't support listing or has issues
+                pass
+    elif output_path:
+        # Fallback: try to load from file
         from efi_analyser.frames.plotting._utils import load_corpus_index
         corpus_index = load_corpus_index(output_path.parent)
-    
+
     top_stories_by_frame = collect_top_stories_by_frame(
         document_aggregates_weighted,
         corpus_index=corpus_index,

@@ -7,5 +7,13 @@ from .example import ExampleCorpusBuilder
 from .mediacloud import MediaCloudCorpusBuilder
 from .youtube import YouTubeCorpusBuilder
 from .manifesto import ManifestoCorpusBuilder
+from .europarl_speeches import EuroparlSpeechesCorpusBuilder
 
-__all__ = ["BaseCorpusBuilder", "ExampleCorpusBuilder", "MediaCloudCorpusBuilder", "YouTubeCorpusBuilder", "ManifestoCorpusBuilder"]
+__all__ = [
+    "BaseCorpusBuilder",
+    "ExampleCorpusBuilder",
+    "MediaCloudCorpusBuilder",
+    "YouTubeCorpusBuilder",
+    "ManifestoCorpusBuilder",
+    "EuroparlSpeechesCorpusBuilder",
+]

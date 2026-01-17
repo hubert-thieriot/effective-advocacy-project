@@ -98,8 +98,14 @@ class CorpusManager:
                 corpus_dir=base_dir,
                 countries=countries
             )
+        elif builder_type in ("europarl_speeches", "europarl"):
+            from .builders.europarl_speeches import EuroparlSpeechesCorpusBuilder
+            return EuroparlSpeechesCorpusBuilder(corpus_dir=base_dir)
         else:
-            raise ValueError(f"Unsupported builder type: {builder_type}. Supported types: 'mediacloud', 'youtube', 'manifesto'")
+            raise ValueError(
+                "Unsupported builder type: "
+                f"{builder_type}. Supported types: 'mediacloud', 'youtube', 'manifesto', 'europarl_speeches'"
+            )
 
     # ------------- helpers -------------
 

@@ -9,6 +9,7 @@ from typing import Callable, Dict, Any, Type
 
 from .mediacloud import MediaCloudCorpusBuilder
 from .manifesto import ManifestoCorpusBuilder
+from .europarl_speeches import EuroparlSpeechesCorpusBuilder
 from ..rate_limiter import RateLimitConfig
 
 
@@ -16,6 +17,7 @@ from ..rate_limiter import RateLimitConfig
 _REGISTRY: Dict[str, Callable[..., Any]] = {
     "mediacloud": MediaCloudCorpusBuilder,
     "manifesto": ManifestoCorpusBuilder,
+    "europarl_speeches": EuroparlSpeechesCorpusBuilder,
 }
 
 
@@ -34,5 +36,4 @@ def create(builder_name: str, *, corpus_dir: Path, rate_limit_config: RateLimitC
     if ctor is None:
         raise ValueError(f"Unknown builder: {builder_name}")
     return ctor(corpus_dir=corpus_dir, rate_limit_config=rate_limit_config, **kwargs)
-
 

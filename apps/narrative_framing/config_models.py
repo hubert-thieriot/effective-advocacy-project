@@ -199,8 +199,9 @@ class FilterConfig(BaseModel):
 
 class ChunkingConfig(BaseModel):
     """Chunking configuration"""
+    chunker_type: str = "sentence"  # "sentence" or "text"
     target_words: int = 200
-    chunker_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    chunker_model: str = "en_core_web_sm"  # For TextChunker: spacy model name
 
 
 # ============================================================================

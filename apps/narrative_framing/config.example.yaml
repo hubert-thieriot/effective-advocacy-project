@@ -13,6 +13,8 @@ induction_frame_target: "between 6 and 10"
 # Temperature settings (optional - will use model defaults if not specified)
 # induction_temperature: 0.0  # Override for induction (will be adjusted to 1.0 for gpt-5-nano)
 # application_temperature: 0.0  # Override for application (will be adjusted to 1.0 for gpt-5-nano)
+# Flex processing (optional - reduces costs by 50% but may be slower)
+# flex_processing: true  # Enable flex processing for both induction and annotation
 seed: 42
 
 # Filter configuration

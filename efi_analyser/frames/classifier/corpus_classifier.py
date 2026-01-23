@@ -107,6 +107,7 @@ class FrameClassifier:
         *,
         doc_ids: Optional[Sequence[str]] = None,
         output_dir: Optional[Path] = None,
+        desc: Optional[str] = None,
     ) -> DocumentClassifications:
         """Classify corpus documents into per-chunk frame scores."""
         doc_id_list = self._resolve_doc_ids(doc_ids, sample_size)
@@ -121,7 +122,7 @@ class FrameClassifier:
         )
 
         classified_docs = DocumentClassifications()
-        iterator = tqdm(doc_id_list, desc="Classifying documents", unit="doc", leave=False)
+        iterator = tqdm(doc_id_list, desc=desc or "Classifying documents", unit="doc", leave=False)
 
         for doc_id in iterator:
             classification = self._classify_document(doc_id, spec)

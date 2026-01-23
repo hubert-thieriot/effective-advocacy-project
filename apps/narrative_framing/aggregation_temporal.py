@@ -35,6 +35,7 @@ class TemporalAggregator:
         keep_documents_with_no_frames: bool = False,
         avg_or_sum: Literal["avg", "sum"] = "avg",
         weight_by_document_weight: bool = True,
+        weight_by_relevance: bool = True,
         rolling_window: Optional[int] = None,
     ):
         """Initialize temporal aggregator.
@@ -42,14 +43,17 @@ class TemporalAggregator:
         Args:
             period: Time period type for aggregation, or "all" for global aggregation
             keep_documents_with_no_frames: If False, exclude documents where all frame scores are 0
-            normalize_each_period: Whether to normalize scores within each period
-            weight_by_document: Whether to weight by document length/weight
+            weight_by_document_weight: Whether to weight by document length/weight
+            weight_by_relevance: Whether to weight by document relevance (sum of raw frame probs).
+                When True, irrelevant documents (low raw probability sums) contribute less.
             avg_or_sum: Whether to average or sum the frame scores
+            rolling_window: Optional rolling window size for smoothing
         """
         self.period = period
         self.keep_documents_with_no_frames = keep_documents_with_no_frames
         self.avg_or_sum = avg_or_sum
         self.weight_by_document_weight = weight_by_document_weight
+        self.weight_by_relevance = weight_by_relevance
         self.rolling_window = rolling_window
 
     def aggregate(
@@ -74,8 +78,14 @@ class TemporalAggregator:
         
         # Transform to pandas DataFrame
         df = pd.DataFrame([agg.to_dict() for agg in aggregates])
-        df = df[['frame_scores', 'published_at', 'total_weight', 'doc_id']]
-        
+        # Include relevance_weight if available (default to 1.0 for backwards compatibility)
+        cols = ['frame_scores', 'published_at', 'total_weight', 'doc_id']
+        if 'relevance_weight' in df.columns:
+            cols.append('relevance_weight')
+        else:
+            df['relevance_weight'] = 1.0
+        df = df[cols]
+
         # Define indicator for documents with frames
         df['has_frames'] = df['frame_scores'].apply(lambda x: any(score > 0.0 for score in x.values()))
         
@@ -112,12 +122,18 @@ class TemporalAggregator:
         # Handle empty DataFrame (no documents with frames after filtering)
         if df.empty:
             return []
-        
-        # weight_by_document or not
+
+        # Compute combined weight: document_weight * relevance_weight (if enabled)
         if self.weight_by_document_weight:
-            df.loc[:, 'weight'] = df['total_weight']
+            base_weight = df['total_weight']
         else:
-            df.loc[:, 'weight'] = 1
+            base_weight = pd.Series(1.0, index=df.index)
+
+        if self.weight_by_relevance:
+            # Multiply by relevance_weight so irrelevant docs contribute less
+            df.loc[:, 'weight'] = base_weight * df['relevance_weight']
+        else:
+            df.loc[:, 'weight'] = base_weight
         
         # Explode it long format, so each frame score is a separate row
         df = df.reset_index(drop=True) # Important to reset index to avoid mismatched indices

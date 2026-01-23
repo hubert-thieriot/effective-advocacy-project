@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 class CacheEntry:
     """Represents a single cache entry."""
     model: str
-    messages: List[Dict[str, str]]
+    instructions: str
+    input: str
     parameters: Dict[str, Any]
     response: str
     timestamp: float
@@ -66,12 +67,13 @@ class LLMCacheManager:
             self.model_dirs[model] = model_dir
         return self.model_dirs[model]
     
-    def _generate_cache_key(self, model: str, messages: List[Dict[str, str]], parameters: Dict[str, Any]) -> str:
+    def _generate_cache_key(self, model: str, instructions: str, input: str, parameters: Dict[str, Any]) -> str:
         """Generate a unique cache key for the query."""
-        # Create a deterministic key based on model, messages, and parameters
+        # Create a deterministic key based on model, instructions, input, and parameters
         key_data = {
             "model": model,
-            "messages": messages,
+            "instructions": instructions,
+            "input": input,
             "parameters": parameters
         }
         
@@ -87,18 +89,19 @@ class LLMCacheManager:
         subdir.mkdir(exist_ok=True)
         return subdir / f"{cache_key}.json"
     
-    def get(self, model: str, messages: List[Dict[str, str]], parameters: Dict[str, Any]) -> Optional[CacheEntry]:
+    def get(self, model: str, instructions: str, input: str, parameters: Dict[str, Any]) -> Optional[CacheEntry]:
         """Get cached response if available.
         
         Args:
             model: Model name
-            messages: Input messages
+            instructions: Instructions
+            input: Input
             parameters: Model parameters (temperature, etc.)
             
         Returns:
             CacheEntry if found, None otherwise
         """
-        cache_key = self._generate_cache_key(model, messages, parameters)
+        cache_key = self._generate_cache_key(model, instructions, input, parameters)
         cache_file = self._get_cache_file_path(model, cache_key)
         
         if not cache_file.exists():
@@ -114,7 +117,7 @@ class LLMCacheManager:
             logger.warning(f"Failed to read cache file {cache_file}: {e}")
             return None
     
-    def put(self, model: str, messages: List[Dict[str, str]], parameters: Dict[str, Any], 
+    def put(self, model: str, instructions: str, input: str, parameters: Dict[str, Any], 
             response: str, inference_time: float) -> str:
         """Store response in cache.
         
@@ -128,12 +131,13 @@ class LLMCacheManager:
         Returns:
             Cache key for the stored entry
         """
-        cache_key = self._generate_cache_key(model, messages, parameters)
+        cache_key = self._generate_cache_key(model, instructions, input, parameters)
         cache_file = self._get_cache_file_path(model, cache_key)
         
         entry = CacheEntry(
             model=model,
-            messages=messages,
+            instructions=instructions,
+            input=input,
             parameters=parameters,
             response=response,
             timestamp=time.time(),

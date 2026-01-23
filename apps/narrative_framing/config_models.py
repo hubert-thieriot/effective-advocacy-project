@@ -216,6 +216,7 @@ class InductionConfig(BaseModel):
     temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0)
     guidance: Optional[str] = None
     batch_size: Optional[int] = None
+    flex_processing: Optional[bool] = False
 
     @field_validator('guidance')
     @classmethod
@@ -249,6 +250,7 @@ class AnnotationConfig(BaseModel):
     verbose: Optional[bool] = None
     export_annotated_html: bool = False
     annotated_html_subfolder_fields: Optional[List[str]] = None
+    flex_processing: Optional[bool] = False
 
     @field_validator('guidance')
     @classmethod

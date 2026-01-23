@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, List, Sequence, Optional
+from typing import Any, Dict, Iterable, List, Sequence, Optional, Tuple
 
 from jinja2 import Template
 
@@ -124,21 +124,18 @@ class FrameInducer:
             "passages_joined": passages_joined,
             "max_passages_per_call": self.max_passages_per_call,
         }
-        sys_content = Template(self._system_template).render(**ctx)
-        usr_content = Template(self._user_template).render(**ctx)
-        return [
-            {"role": "system", "content": sys_content},
-            {"role": "user", "content": usr_content},
-        ]
+        instructions = Template(self._system_template).render(**ctx)
+        input = Template(self._user_template).render(**ctx)
+        return (instructions, input)
 
     def _induce_single(self, passages: Sequence[str]) -> FrameSchema:
-        messages = self._build_messages(passages)
-        self.last_built_messages = list(messages)
-        self.emitted_messages.append(list(messages))
+        instructions, input = self._build_messages(passages)
+        self.last_built_messages = (instructions, input)
+        self.emitted_messages.append((instructions, input))
         infer_kwargs: dict[str, Any] = {}
         if self.infer_timeout is not None and self._infer_supports_timeout:
             infer_kwargs["timeout"] = self.infer_timeout
-        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+        raw_response = self.llm_client.infer(instructions, input, **infer_kwargs)
         return self._parse_response(raw_response)
 
     def _chunk_passages(self, passages: Sequence[str]) -> List[Sequence[str]]:
@@ -155,18 +152,18 @@ class FrameInducer:
         if len(partial_schemas) == 1:
             return partial_schemas[0]
 
-        messages = self._build_merge_messages(all_passages, partial_schemas)
-        self.last_built_messages = list(messages)
-        self.emitted_messages.append(list(messages))
+        instructions, input = self._build_merge_messages(all_passages, partial_schemas)
+        self.last_built_messages = (instructions, input)
+        self.emitted_messages.append((instructions, input))
         infer_kwargs: dict[str, Any] = {}
         if self.infer_timeout is not None and self._infer_supports_timeout:
             infer_kwargs["timeout"] = self.infer_timeout
-        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+        raw_response = self.llm_client.infer(instructions, input, **infer_kwargs)
         return self._parse_response(raw_response)
 
     def _build_merge_messages(
         self, passages: Sequence[str], partial_schemas: Sequence[FrameSchema]
-    ) -> List[dict[str, str]]:
+    ) -> Tuple[str, str]:
         frames_summary = []
         for batch_idx, schema in enumerate(partial_schemas, start=1):
             for frame in schema.frames:
@@ -211,10 +208,7 @@ class FrameInducer:
             "Do not include regular expression or anything that could lead to JSONDecodeError."
         )
 
-        return [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
+        return (self.SYSTEM_PROMPT, user_prompt)
 
     def _schema_instruction(self) -> str:
         instruction = (

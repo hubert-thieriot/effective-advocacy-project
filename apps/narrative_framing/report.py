@@ -1702,7 +1702,20 @@ def write_html_report(
                     except Exception:
                         continue
 
+    # Helper to check if all probabilities are below threshold
+    def _all_below(d: Dict[str, float], thr: float) -> bool:
+        try:
+            if not d:
+                return True
+            return max(float(v) for v in d.values()) < thr
+        except Exception:
+            return True
+
     rows = []
+    # Track which passage_ids have LLM annotations
+    llm_passage_ids = {a.passage_id for a in assignments}
+
+    # First, add rows for LLM-annotated passages
     for assignment in assignments:
         llm_probs_html = render_probability_bars(assignment.probabilities, frame_lookup, color_map)
 
@@ -1720,13 +1733,6 @@ def write_html_report(
         # Optionally hide passages with no associated frame.
         # Treat probabilities below a small threshold as effectively zero to avoid rows that render as 0%.
         if hide_empty_passages:
-            def _all_below(d: Dict[str, float], thr: float) -> bool:
-                try:
-                    if not d:
-                        return True
-                    return max(float(v) for v in d.values()) < thr
-                except Exception:
-                    return True
             # Use metrics_threshold as the display threshold for emptiness (fallback to 0.0)
             _thr = float(metrics_threshold or 0.0)
             llm_empty = _all_below(assignment.probabilities or {}, _thr)
@@ -1748,7 +1754,7 @@ def write_html_report(
         metadata = assignment.metadata if isinstance(assignment.metadata, dict) else {}
         url = metadata.get("url") or ""
         doc_folder_path = metadata.get("doc_folder_path") or ""
-        
+
         url_icon = (
             f"<a class=\"link-icon\" href=\"{html.escape(url)}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open original URL\">🔗</a>"
             if url
@@ -1759,12 +1765,12 @@ def write_html_report(
             if doc_folder_path
             else ""
         )
-        
+
         link_icons = f"{url_icon}{folder_icon}"
         passage_html = f"{link_icons}<span class=\"passage-text\">{html.escape(assignment.passage_text)}</span>"
 
         rows.append(
-            "<tr>"
+            "<tr data-has-llm=\"true\">"
             f"<td class=\"passage\">{passage_html}</td>"
             f"<td>{llm_probs_html}</td>"
             f"<td>{classifier_html}</td>"
@@ -1772,6 +1778,44 @@ def write_html_report(
             f"<td>{evidence_text}</td>"
             "</tr>"
         )
+
+    # Then, add rows for classifier-only passages (not in LLM annotations)
+    if classifier_lookup:
+        for passage_id, entry in classifier_lookup.items():
+            if passage_id in llm_passage_ids:
+                continue  # Already added above
+
+            probs = entry.get("probabilities", {})
+            if not isinstance(probs, dict) or not probs:
+                continue
+
+            # Optionally hide passages with no associated frame
+            if hide_empty_passages:
+                _thr = float(metrics_threshold or 0.0)
+                if _all_below({k: float(v) for k, v in probs.items()}, _thr):
+                    continue
+
+            classifier_html = render_probability_bars(
+                {fid: float(score) for fid, score in probs.items()},
+                frame_lookup,
+                color_map,
+            )
+
+            passage_text = entry.get("text", "")
+            if not passage_text:
+                continue
+
+            passage_html = f"<span class=\"passage-text\">{html.escape(str(passage_text))}</span>"
+
+            rows.append(
+                "<tr data-has-llm=\"false\" style=\"display: none;\">"
+                f"<td class=\"passage\">{passage_html}</td>"
+                "<td>—</td>"
+                f"<td>{classifier_html}</td>"
+                "<td>—</td>"
+                "<td>—</td>"
+                "</tr>"
+            )
 
     table_html = "\n".join(rows) if rows else "<tr><td colspan=5>No assignments available</td></tr>"
 
@@ -2482,9 +2526,15 @@ def write_html_report(
     applications_block = f"""
     <div class=\"developer-block\">
         <h3>Applications</h3>
+        <div style=\"margin-bottom: 12px;\">
+            <label style=\"display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--ink-600);\">
+                <input type=\"checkbox\" id=\"llm-only-filter\" checked onchange=\"toggleLLMFilter(this.checked)\" style=\"cursor: pointer;\">
+                Show only LLM-annotated chunks
+            </label>
+        </div>
         <div class=\"card table-card\">
             <div class=\"table-wrapper\">
-                <table>
+                <table id=\"applications-table\">
                     <thead>
                         <tr>
                             <th>Passage Text<div class=\"resizer\"></div></th>
@@ -2501,6 +2551,18 @@ def write_html_report(
             </div>
         </div>
     </div>
+    <script>
+    function toggleLLMFilter(showOnlyLLM) {{
+        const rows = document.querySelectorAll('#applications-table tbody tr[data-has-llm]');
+        rows.forEach(row => {{
+            if (showOnlyLLM) {{
+                row.style.display = row.dataset.hasLlm === 'true' ? '' : 'none';
+            }} else {{
+                row.style.display = '';
+            }}
+        }});
+    }}
+    </script>
     """
 
     developer_components: List[str] = []

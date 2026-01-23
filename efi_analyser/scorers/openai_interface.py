@@ -31,9 +31,11 @@ class OpenAIConfig:
     cache_dir: Path = Path("cache") / "openai"
     ignore_cache: bool = False
     verbose: bool = False
+    flex_processing: bool = False
     
     # Models that don't support custom temperature (must use default or omit parameter)
     _NO_TEMP_MODELS = {"gpt-5", "gpt-5-nano", "gpt-5-mini"}
+    _FLEX_PROCESSING_MODELS = {"gpt-5", "gpt-5-nano", "gpt-5-mini"}
     
     def __post_init__(self):
         """Validate and adjust temperature based on model capabilities."""
@@ -52,6 +54,11 @@ class OpenAIConfig:
     def supports_custom_temperature(cls, model: str) -> bool:
         """Check if a model supports custom temperature values."""
         return model not in cls._NO_TEMP_MODELS
+    
+    @classmethod
+    def supports_flex_processing(cls, model: str) -> bool:
+        """Check if a model supports flex processing."""
+        return model in cls._FLEX_PROCESSING_MODELS
 
 
 class OpenAIInterface:
@@ -92,18 +99,19 @@ class OpenAIInterface:
 
         return hashlib.sha1(serialized.encode("utf-8")).hexdigest()[:12]
 
-    def infer(self, messages: List[Dict[str, str]]) -> str:
+    def infer(self, instructions: str, input: str) -> str:
         """Send messages to OpenAI and get response.
         
         Args:
-            messages: List of message dictionaries with 'role' and 'content'
+            instructions: Instructions for the OpenAI model
+            input: Input for the OpenAI model
             
         Returns:
             Raw response string from OpenAI
         """
-        return self._inference_with_cache(messages)
+        return self._inference_with_cache(instructions, input)
 
-    def _inference_with_cache(self, messages: List[Dict[str, str]]) -> str:
+    def _inference_with_cache(self, instructions: str, input: str) -> str:
         """Get response from OpenAI with centralized caching."""
         # Prepare parameters for cache lookup
         parameters = {
@@ -113,7 +121,7 @@ class OpenAIInterface:
         
         # Check cache first
         if not self.config.ignore_cache:
-            cached_entry = self.cache_manager.get(self.config.model, messages, parameters)
+            cached_entry = self.cache_manager.get(self.config.model, instructions, input, parameters)
             if cached_entry is not None:
                 # Skip cached error responses (re-fetch them)
                 if self._is_error_response(cached_entry.response):
@@ -129,7 +137,7 @@ class OpenAIInterface:
             print(f"🚀 Making OpenAI API call to {self.name} ({self.config.model})...")
         
         start_time = time.time()
-        response = self._safe_infer(messages)
+        response = self._safe_infer(instructions, input)
         inference_time = time.time() - start_time
         
         if self.config.verbose:
@@ -139,7 +147,8 @@ class OpenAIInterface:
         if not self._is_error_response(response):
             self.cache_manager.put(
                 model=self.config.model,
-                messages=messages,
+                instructions=instructions,
+                input=input,
                 parameters=parameters,
                 response=response,
                 inference_time=inference_time
@@ -160,24 +169,29 @@ class OpenAIInterface:
         ]
         return any(indicator in response for indicator in error_indicators)
 
-    def _safe_infer(self, messages: List[Dict[str, str]]) -> str:
+    def _safe_infer(self, instructions: str, input: str) -> str:
         """Make OpenAI API call with retry logic and error handling."""
         for attempt in range(self.config.max_retries):
             try:
                 # Build API call parameters
                 api_params = {
                     "model": self.config.model,
-                    "messages": messages,
-                    "timeout": self.config.timeout
+                    "instructions": instructions,
+                    "input": input
                 }
                 
                 # Only include temperature if the model supports it
                 if self.config.supports_custom_temperature(self.config.model):
-                    api_params["temperature"] = self.config.temperature
+                    api_params["temperature"] = str(self.config.temperature)
                 
-                response = self.client.chat.completions.create(**api_params)
+                # Add service_tier for flex processing (50% cost reduction)
+                if self.config.flex_processing and self.config.supports_flex_processing(self.config.model):
+                    api_params["service_tier"] = "flex"
                 
-                return response.choices[0].message.content
+                response = self.client.with_options(timeout=self.config.timeout) \
+                    .responses.create(**api_params)
+                
+                return response.output_text
                 
             except Exception as e:
                 if attempt < self.config.max_retries - 1:
@@ -190,13 +204,17 @@ class OpenAIInterface:
                     if self.config.verbose:
                         print(f"❌ {error_msg}")
                     return json.dumps({"error": error_msg, "score": 0.0, "rationale": "API call failed"})
+        
+        # Fallback if max_retries is 0 or somehow loop doesn't execute
+        return json.dumps({"error": "OpenAI API call failed: max_retries is 0", "score": 0.0, "rationale": "API call failed"})
 
-    def _make_cache_key(self, messages: List[Dict[str, str]]) -> str:
+    def _make_cache_key(self, instructions: str, input: str) -> str:
         """Generate cache key for messages."""
         import hashlib
         payload = json.dumps({
             "model": self.config.model,
-            "messages": messages,
+            "instructions": instructions,
+            "input": input,
             "temperature": self.config.temperature
         }, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()

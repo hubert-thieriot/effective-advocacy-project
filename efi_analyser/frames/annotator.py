@@ -61,9 +61,9 @@ class LLMFrameAnnotator:
         self._system_template = system_template
         self._user_template = user_template
         # Expose last built messages (last batch) for provenance
-        self.last_built_messages: Optional[List[Dict[str, str]]] = None
+        self.last_built_messages: Optional[Tuple[str, str]] = None
         # Collect all batch messages for this run
-        self.emitted_messages: List[List[Dict[str, str]]] = []
+        self.emitted_messages: List[Tuple[str, str]] = []
         # Optional per-passage metadata attached by upstream samplers
         self._current_metadata: Dict[str, Dict[str, Any]] = {}
         # Optional directory for saving resolved messages
@@ -146,17 +146,17 @@ class LLMFrameAnnotator:
         try:
             if pending:
                 for batch in self._chunk(pending, self.batch_size):
-                    messages = self._build_messages(schema, batch, top_k)
-                    self.last_built_messages = list(messages)
-                    self.emitted_messages.append(list(messages))
+                    instructions, input = self._build_messages(schema, batch, top_k)
+                    self.last_built_messages = (instructions, input)
+                    self.emitted_messages.append((instructions, input))
                     # Save messages if directory is configured
                     if self._resolved_messages_dir is not None:
-                        self._save_resolved_messages_batch(list(messages), len(self.emitted_messages))
+                        self._save_resolved_messages_batch(instructions, input, len(self.emitted_messages))
                     infer_kwargs: Dict[str, Any] = {}
                     if self.infer_timeout is not None and self._infer_supports_timeout:
                         infer_kwargs["timeout"] = self.infer_timeout
                     try:
-                        raw_response = self.llm_client.infer(messages, **infer_kwargs)
+                        raw_response = self.llm_client.infer(instructions, input, **infer_kwargs)
                         parsed = self._parse_batch_response(schema, batch, raw_response, top_k)
                     except ValueError as exc:
                         print(
@@ -417,7 +417,7 @@ class LLMFrameAnnotator:
         schema: FrameSchema,
         batch: Sequence[Tuple[str, str, str]],
         top_k: int,
-    ) -> List[Dict[str, str]]:
+    ) -> Tuple[str, str]:
         frame_lines = []
         for frame in schema.frames:
             keywords = ", ".join(frame.keywords) if frame.keywords else "(no keywords)"
@@ -476,12 +476,9 @@ class LLMFrameAnnotator:
             "top_k": top_k,
             "guidance": getattr(self, "_current_guidance", None) or "",
         }
-        sys_content = Template(self._system_template).render(**ctx)
-        usr_content = Template(self._user_template).render(**ctx)
-        return [
-            {"role": "system", "content": sys_content},
-            {"role": "user", "content": usr_content},
-        ]
+        instructions = Template(self._system_template).render(**ctx)
+        input = Template(self._user_template).render(**ctx)
+        return (instructions, input)
 
     def _parse_batch_response(
         self,
@@ -675,16 +672,12 @@ class LLMFrameAnnotator:
                 return True
         return any(param.name == "timeout" for param in params)
 
-    def _save_resolved_messages_batch(self, messages: List[Dict[str, str]], batch_index: int) -> None:
-        """Save a single batch of resolved messages to disk."""
+    def _save_resolved_messages_batch(self, instructions: str, input: str, batch_index: int) -> None:
         if self._resolved_messages_dir is None:
             return
         self._resolved_messages_dir.mkdir(parents=True, exist_ok=True)
-        for msg in messages:
-            role = str(msg.get("role", "unknown")).lower()
-            content = str(msg.get("content", ""))
-            out_path = self._resolved_messages_dir / f"{self._resolved_messages_prefix}_{batch_index:03d}_{role}.txt"
-            out_path.write_text(content, encoding="utf-8")
+        out_path = self._resolved_messages_dir / f"{self._resolved_messages_prefix}_{batch_index:03d}.json"
+        out_path.write_text(json.dumps({"instructions": instructions, "input": input}, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _clone_assignment(self, assignment: FrameAssignment, new_passage_id: str | None = None) -> FrameAssignment:
         passage_id_to_use = new_passage_id if new_passage_id is not None else assignment.passage_id

@@ -483,8 +483,8 @@ class FrameClassifierTrainer:
             else:
                 batch_size = self.spec.batch_size
                 print(
-                    f"[FrameTrainer] Running classifier inference on {len(texts)} passages "
-                    f"(batch size {batch_size})..."
+                    f"[FrameTrainer] Running classifier inference on {len(texts)} annotated passages "
+                    f"(batch size {batch_size}) for training diagnostics..."
                 )
                 probs = model.predict_proba_batch(texts, batch_size=batch_size)
                 for assignment, prob_dict in zip(assignments, probs):

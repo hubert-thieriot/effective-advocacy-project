@@ -4,6 +4,7 @@ from .types import Candidate, Frame, FrameSchema, FrameAssignment, FrameAssignme
 from .induction import FrameInducer
 from .annotator import LLMFrameAnnotator
 from .corpora import EmbeddedCorpora
+from .framer import Framer, FramerPaths, FramingResult
 
 __all__ = [
     "Candidate",
@@ -14,4 +15,7 @@ __all__ = [
     "FrameInducer",
     "LLMFrameAnnotator",
     "EmbeddedCorpora",
+    "Framer",
+    "FramerPaths",
+    "FramingResult",
 ]

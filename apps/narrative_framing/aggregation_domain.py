@@ -32,6 +32,7 @@ class DomainAggregator:
         keep_documents_with_no_frames: bool = False,
         avg_or_sum: Literal["avg", "sum"] = "avg",
         weight_by_document_weight: bool = True,
+        weight_by_relevance: bool = True,
     ):
         """Initialize domain aggregator.
 
@@ -39,10 +40,13 @@ class DomainAggregator:
             keep_documents_with_no_frames: If False, exclude documents where all frame scores are 0
             avg_or_sum: Whether to average or sum the frame scores
             weight_by_document_weight: Whether to weight by document length/weight
+            weight_by_relevance: Whether to weight by document relevance (sum of raw frame probs).
+                When True, irrelevant documents (low raw probability sums) contribute less.
         """
         self.keep_documents_with_no_frames = keep_documents_with_no_frames
         self.avg_or_sum = avg_or_sum
         self.weight_by_document_weight = weight_by_document_weight
+        self.weight_by_relevance = weight_by_relevance
 
     def aggregate(
         self,
@@ -66,7 +70,13 @@ class DomainAggregator:
         
         # Transform to pandas DataFrame
         df = pd.DataFrame([agg.to_dict() for agg in aggregates])
-        df = df[['frame_scores', 'total_weight', 'doc_id', 'domain']]
+        # Include relevance_weight if available (default to 1.0 for backwards compatibility)
+        cols = ['frame_scores', 'total_weight', 'doc_id', 'domain']
+        if 'relevance_weight' in df.columns:
+            cols.append('relevance_weight')
+        else:
+            df['relevance_weight'] = 1.0
+        df = df[cols]
         
         # Filter out documents without domain
         df = df[df['domain'].notna()]
@@ -83,12 +93,18 @@ class DomainAggregator:
         
         if df.empty:
             return []
-        
-        # weight_by_document_weight or not
+
+        # Compute combined weight: document_weight * relevance_weight (if enabled)
         if self.weight_by_document_weight:
-            df['weight'] = df['total_weight']
+            base_weight = df['total_weight']
         else:
-            df['weight'] = 1
+            base_weight = pd.Series(1.0, index=df.index)
+
+        if self.weight_by_relevance:
+            # Multiply by relevance_weight so irrelevant docs contribute less
+            df['weight'] = base_weight * df['relevance_weight']
+        else:
+            df['weight'] = base_weight
         
         # Explode it long format, so each frame score is a separate row
         x = pd.DataFrame(pd.json_normalize(df['frame_scores']).stack()).reset_index(level=1)

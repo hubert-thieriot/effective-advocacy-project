@@ -167,6 +167,7 @@ class ClassificationStage(PipelineStage[StageContext, DocumentClassifications]):
                 sample_size=None,  # Already sampled
                 doc_ids=doc_ids,
                 output_dir=paths.classifications_dir,
+                desc="Classifying documents (narrative framing)",
             )
 
             # Convert list to DocumentClassifications

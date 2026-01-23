@@ -49,6 +49,11 @@ class DocumentFrameAggregate:
     # Optional: source corpus name (filled from global doc id when available)
     corpus: Optional[str] = field(default=None, init=False)
     top_frames: List[str] = field(default_factory=list)
+    # Relevance weight: sum of raw (pre-normalization) frame scores, indicating
+    # how relevant this document is to the frame schema. Documents with higher
+    # relevance_weight should contribute more to aggregate statistics.
+    # Typically ~1.0 for relevant documents, ~0.05-0.1 for irrelevant ones.
+    relevance_weight: float = 1.0
 
     def __post_init__(self) -> None:
         """Auto-extract domain from URL if not provided."""
@@ -66,6 +71,7 @@ class DocumentFrameAggregate:
             "domain": self.domain,
             "corpus": self.corpus,
             "top_frames": self.top_frames,
+            "relevance_weight": self.relevance_weight,
         }
 
 
@@ -121,6 +127,7 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
             {
                 "frame_sums": {frame_id: 0.0 for frame_id in self._frame_ids},
                 "weight": 0.0,
+                "raw_prob_sum": 0.0,  # Track sum of raw probabilities for relevance weighting
                 "published_at": None,
                 "title": None,
                 "url": None,
@@ -128,6 +135,10 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
         )
 
         frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+        # Sum raw probabilities for this passage (before any thresholding)
+        passage_raw_prob_sum = sum(probabilities.get(fid, 0.0) for fid in self._frame_ids)
+        state["raw_prob_sum"] = float(state["raw_prob_sum"]) + weight * passage_raw_prob_sum
+
         for frame_id in self._frame_ids:
             probability = probabilities.get(frame_id, 0.0)
             # Apply threshold to ignore low-probability frames
@@ -149,10 +160,16 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
         for doc_id, state in self._state.items():
             weight = float(state["weight"])  # type: ignore[arg-type]
             frame_sums: Dict[str, float] = state["frame_sums"]  # type: ignore[assignment]
+            raw_prob_sum = float(state.get("raw_prob_sum", 0.0))
+
             if weight <= 0.0:
                 frame_scores = {frame_id: 0.0 for frame_id in self._frame_ids}
+                relevance_weight = 0.0
             else:
                 frame_scores = {frame_id: frame_sums[frame_id] / weight for frame_id in self._frame_ids}
+                # Relevance weight is the weighted average of raw probability sums.
+                # For relevant documents this is ~1.0, for irrelevant ~0.05-0.1.
+                relevance_weight = raw_prob_sum / weight
 
             # Optional per-document normalization to sum to 1.0 (unless all zeros)
             if self._normalize:
@@ -171,6 +188,7 @@ class WeightedFrameAggregator(FrameAggregationStrategy):
                 title=state.get("title"),
                 url=state.get("url"),
                 top_frames=top_frames,
+                relevance_weight=relevance_weight,
             )
             try:
                 corpus_name, _ = split_global_doc_id(doc_id)

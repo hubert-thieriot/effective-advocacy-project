@@ -141,6 +141,7 @@ class InductionStage(PipelineStage[StageContext, FrameSchema]):
         llm_config = OpenAIConfig(
             model=config.induction.model,
             temperature=config.induction.temperature or 0.0,
+            flex_processing=config.induction.flex_processing or False,
         )
         inducer_client = OpenAIInterface(name="frame_induction", config=llm_config)
 

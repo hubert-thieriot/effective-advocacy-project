@@ -1,0 +1,64 @@
+corpus: my_corpus
+corpora_root: ~/corpora
+results_dir: ~/results/discourse_analysis
+reload_stance: false
+
+chunking:
+  chunker_type: sentence
+  target_words: 200
+  chunker_model: en_core_web_sm
+
+filter:
+  date_from: null
+  document:
+    keywords: null
+    domain_whitelist: null
+  chunk:
+    exclude_regex: null
+    exclude_min_hits: null
+    trim_after_markers: null
+
+framing:
+  enabled: true
+  domain: "Air Pollution Coverage"
+  schema:
+    source: induction
+    schema_path: null
+    induction_size: 100
+    induction_model: claude-sonnet-4
+    induction_temperature: 0.0
+    frame_target: "10"
+  annotation:
+    size: 500
+    model: claude-sonnet-4
+    batch_size: 5
+    top_k: 3
+  classifier:
+    enabled: true
+    model_name: distilbert-base-multilingual-cased
+    batch_size: 8
+  classification:
+    size: 1000
+
+stance:
+  enabled: true
+  mode: zero_shot
+  chunk_limit: 500
+  targets:
+    - "coal mining"
+    - "renewable energy"
+    - "government policy"
+  zero_shot_model: facebook/bart-large-mnli
+  annotation:
+    size: 300
+    model: claude-sonnet-4
+    batch_size: 5
+  classifier:
+    enabled: true
+    model_name: distilbert-base-multilingual-cased
+    batch_size: 8
+  classification:
+    size: 1000
+
+report:
+  title: "Discourse Analysis Report"

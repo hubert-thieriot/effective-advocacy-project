@@ -47,6 +47,7 @@ def load_document_aggregates(path: Path) -> List[DocumentFrameAggregate]:
                 title=item.get("title"),
                 url=item.get("url"),
                 top_frames=list(item.get("top_frames", [])),
+                relevance_weight=float(item.get("relevance_weight", 1.0)),
             )
         )
     return aggregates
@@ -62,6 +63,7 @@ def _compute_corpus_aggregates(
     *,
     keep_documents_with_no_frames: bool,
     weight_by_document_weight: bool,
+    weight_by_relevance: bool = True,
 ) -> List[Dict[str, object]]:
     """Compute per-corpus aggregates from document-level aggregates."""
     if not doc_aggs:
@@ -71,6 +73,10 @@ def _compute_corpus_aggregates(
     for col in ["frame_scores", "total_weight", "doc_id"]:
         if col not in df.columns:
             return []
+
+    # Include relevance_weight if available (default to 1.0 for backwards compatibility)
+    if "relevance_weight" not in df.columns:
+        df["relevance_weight"] = 1.0
 
     if "corpus" not in df.columns:
         df["corpus"] = None
@@ -97,10 +103,17 @@ def _compute_corpus_aggregates(
     if df.empty:
         return []
 
+    # Compute combined weight: document_weight * relevance_weight (if enabled)
     if weight_by_document_weight:
-        df["weight"] = df["total_weight"]
+        base_weight = df["total_weight"]
     else:
-        df["weight"] = 1.0
+        base_weight = pd.Series(1.0, index=df.index)
+
+    if weight_by_relevance:
+        # Multiply by relevance_weight so irrelevant docs contribute less
+        df["weight"] = base_weight * df["relevance_weight"]
+    else:
+        df["weight"] = base_weight
 
     x = pd.DataFrame(pd.json_normalize(df["frame_scores"]).stack()).reset_index(level=1)
     x.columns = ["frame", "value"]

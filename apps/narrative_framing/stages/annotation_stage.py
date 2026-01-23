@@ -153,6 +153,7 @@ class AnnotationStage(PipelineStage[StageContext, FrameAssignments]):
                     llm_config = OpenAIConfig(
                         model=config.annotation.model,
                         temperature=config.annotation.temperature or 0.0,
+                        flex_processing=config.annotation.flex_processing or False,
                     )
                     annotator_client = OpenAIInterface(
                         name="frame_annotation",

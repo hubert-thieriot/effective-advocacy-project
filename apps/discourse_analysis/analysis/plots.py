@@ -323,6 +323,193 @@ def plot_by_domain(
     return _fig_to_html_fragment(fig, "by-domain")
 
 
+def plot_co_occurrence_matrix(
+    co_occurrence: pd.DataFrame,
+    frame_labels: Optional[Dict[str, str]] = None,
+    *,
+    max_frames: int = 18,
+    export_path: Optional[Path] = None,
+) -> str:
+    """Plot frame co-occurrence as a heatmap.
+
+    Args:
+        co_occurrence: DataFrame with columns [frame_id, co_frame_id, count, cooccurrence_rate].
+        frame_labels: Optional mapping of frame_id to display label.
+        max_frames: Max number of frames to include (by diagonal count).
+        export_path: Optional path to export PNG/HTML.
+
+    Returns:
+        HTML fragment for embedding.
+    """
+    if co_occurrence is None or co_occurrence.empty:
+        return ""
+
+    df = co_occurrence.copy()
+    required_cols = {"frame_id", "co_frame_id", "cooccurrence_rate"}
+    if not required_cols.issubset(df.columns):
+        return ""
+
+    diag = df[df["frame_id"] == df["co_frame_id"]]
+    if not diag.empty and "count" in diag.columns:
+        frame_order = diag.sort_values("count", ascending=False)["frame_id"].tolist()
+    else:
+        frame_order = (
+            df.groupby("frame_id")["cooccurrence_rate"]
+            .sum()
+            .sort_values(ascending=False)
+            .index.tolist()
+        )
+
+    if max_frames and len(frame_order) > max_frames:
+        frame_order = frame_order[:max_frames]
+
+    df = df[df["frame_id"].isin(frame_order) & df["co_frame_id"].isin(frame_order)]
+    if df.empty:
+        return ""
+
+    pivot = (
+        df.pivot(index="frame_id", columns="co_frame_id", values="cooccurrence_rate")
+        .reindex(index=frame_order, columns=frame_order)
+        .fillna(0.0)
+    )
+
+    if frame_labels is None:
+        frame_labels = {}
+
+    labels = [wrap_label_html(frame_labels.get(fid, fid), 14) for fid in frame_order]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=pivot.values,
+            x=labels,
+            y=labels,
+            colorscale="Blues",
+            zmin=0.0,
+            zmax=max(0.01, float(pivot.values.max())),
+            hovertemplate="Row: %{y}<br>Col: %{x}<br>Rate: %{z:.1%}<extra></extra>",
+        )
+    )
+    size = max(420, 24 * len(labels))
+    fig.update_layout(
+        margin={"l": 120, "r": 20, "t": 20, "b": 120},
+        height=size,
+        xaxis={"tickangle": -45},
+        yaxis={"autorange": "reversed"},
+    )
+
+    _export_figure(fig, export_path, "co-occurrence")
+    return _fig_to_html_fragment(fig, "co-occurrence")
+
+
+def plot_by_domain_year(
+    by_domain_year: pd.DataFrame,
+    frame_labels: Optional[Dict[str, str]] = None,
+    color_map: Optional[Dict[str, str]] = None,
+    *,
+    top_n: int = 8,
+    export_path: Optional[Path] = None,
+) -> str:
+    """Plot frame distribution by domain and year as stacked bars in facets.
+
+    Args:
+        by_domain_year: DataFrame with columns [domain, year, frame_id, weight, doc_count].
+        frame_labels: Optional mapping of frame_id to display label.
+        color_map: Optional mapping of frame_id to color.
+        top_n: Number of top domains to show.
+        export_path: Optional path to export PNG/HTML.
+
+    Returns:
+        HTML fragment for embedding.
+    """
+    if by_domain_year is None or by_domain_year.empty:
+        return ""
+
+    df = by_domain_year.copy()
+    df = df[df["domain"].notna() & df["year"].notna()]
+    if df.empty:
+        return ""
+
+    domain_counts = df.groupby("domain")["doc_count"].sum().sort_values(ascending=False)
+    top_domains = domain_counts.head(top_n).index.tolist()
+    if not top_domains:
+        return ""
+
+    df = df[df["domain"].isin(top_domains)]
+    years = sorted(df["year"].dropna().unique())
+    if not years:
+        return ""
+
+    frame_ids = df.groupby("frame_id")["weight"].mean().sort_values(ascending=False).index.tolist()
+
+    if color_map is None:
+        color_map = build_color_map(frame_ids)
+    if frame_labels is None:
+        frame_labels = {}
+
+    year_labels = [
+        str(int(year)) if isinstance(year, (int, float)) and not pd.isna(year) else str(year)
+        for year in years
+    ]
+
+    from plotly.subplots import make_subplots
+
+    n_domains = len(top_domains)
+    cols = min(3, max(2, int(n_domains**0.5 * 1.2)))
+    rows = (n_domains + cols - 1) // cols
+
+    subplot_titles = [
+        f"<b>{domain}</b> (n={int(domain_counts[domain])})" for domain in top_domains
+    ]
+
+    fig = make_subplots(
+        rows=rows,
+        cols=cols,
+        subplot_titles=subplot_titles,
+        vertical_spacing=0.08,
+        horizontal_spacing=0.06,
+        shared_xaxes=True,
+        shared_yaxes=True,
+    )
+
+    for idx, domain in enumerate(top_domains):
+        row = (idx // cols) + 1
+        col = (idx % cols) + 1
+        domain_df = df[df["domain"] == domain]
+        pivot = domain_df.pivot(index="year", columns="frame_id", values="weight").reindex(index=years)
+        for frame_id in frame_ids:
+            label = frame_labels.get(frame_id, frame_id)
+            legend_label = wrap_label_html(label, 18)
+            if frame_id in pivot.columns:
+                weights = pivot[frame_id].fillna(0.0).tolist()
+            else:
+                weights = [0.0] * len(years)
+            fig.add_trace(
+                go.Bar(
+                    x=year_labels,
+                    y=weights,
+                    name=legend_label,
+                    marker_color=color_map.get(frame_id, "#057d9f"),
+                    showlegend=(idx == 0),
+                    hovertemplate="%{x}<br>%{y:.1%}<extra></extra>",
+                ),
+                row=row,
+                col=col,
+            )
+
+    fig.update_layout(
+        barmode="stack",
+        height=max(450, rows * 220),
+        margin={"t": 40, "b": 40, "l": 40, "r": 20},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0.5, "xanchor": "center"},
+    )
+    fig.update_yaxes(tickformat=".0%")
+    fig.update_xaxes(tickangle=0)
+    fig.update_annotations(font_size=9)
+
+    _export_figure(fig, export_path, "by-domain-year")
+    return _fig_to_html_fragment(fig, "by-domain-year")
+
+
 def plot_by_corpus(
     by_corpus: pd.DataFrame,
     frame_labels: Optional[Dict[str, str]] = None,
@@ -439,6 +626,8 @@ __all__ = [
     "plot_global_distribution",
     "plot_by_year",
     "plot_by_domain",
+    "plot_co_occurrence_matrix",
+    "plot_by_domain_year",
     "plot_by_corpus",
     "plot_document_count_by_domain",
 ]

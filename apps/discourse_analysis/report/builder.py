@@ -19,9 +19,12 @@ from apps.discourse_analysis.analysis.plots import (
     plot_global_distribution,
     plot_by_year,
     plot_by_domain,
+    plot_co_occurrence_matrix,
+    plot_by_domain_year,
     plot_by_corpus,
     plot_document_count_by_domain,
 )
+from apps.discourse_analysis.analysis.aggregator import build_aggregates, DocumentFilter
 from efi_analyser.stance.types import StanceAssignments
 
 
@@ -589,6 +592,24 @@ class ReportBuilder:
                     "</div>"
                 )
 
+            # By domain and year
+            if frames.by_domain_year is not None and not frames.by_domain_year.empty:
+                export_path = Path(plots_dir) / "by_domain_year.png" if plots_dir else None
+                domain_year_html = plot_by_domain_year(
+                    frames.by_domain_year,
+                    frame_labels=frame_labels,
+                    color_map=color_map,
+                    top_n=8,
+                    export_path=export_path,
+                )
+                if domain_year_html:
+                    sections.append(
+                        "<div class=\"plot-section\">"
+                        "<h3>Distribution by Domain and Year</h3>"
+                        f"{domain_year_html}"
+                        "</div>"
+                    )
+
             # Domain counts
             export_path = Path(plots_dir) / "domain_counts.png" if plots_dir else None
             counts_html = plot_document_count_by_domain(
@@ -601,6 +622,23 @@ class ReportBuilder:
                     "<div class=\"plot-section\">"
                     "<h3>Document Counts by Domain</h3>"
                     f"{counts_html}"
+                    "</div>"
+                )
+
+        # Co-occurrence
+        if frames.co_occurrence is not None and not frames.co_occurrence.empty:
+            export_path = Path(plots_dir) / "co_occurrence.png" if plots_dir else None
+            coocc_html = plot_co_occurrence_matrix(
+                frames.co_occurrence,
+                frame_labels=frame_labels,
+                max_frames=18,
+                export_path=export_path,
+            )
+            if coocc_html:
+                sections.append(
+                    "<div class=\"plot-section\">"
+                    "<h3>Frame Co-occurrence (Document-level)</h3>"
+                    f"{coocc_html}"
                     "</div>"
                 )
 

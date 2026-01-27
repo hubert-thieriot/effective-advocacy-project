@@ -8,6 +8,8 @@ from .plots import (
     plot_global_distribution,
     plot_by_year,
     plot_by_domain,
+    plot_co_occurrence_matrix,
+    plot_by_domain_year,
     plot_by_corpus,
     plot_document_count_by_domain,
 )
@@ -28,6 +30,8 @@ __all__ = [
     "plot_global_distribution",
     "plot_by_year",
     "plot_by_domain",
+    "plot_co_occurrence_matrix",
+    "plot_by_domain_year",
     "plot_by_corpus",
     "plot_document_count_by_domain",
 ]

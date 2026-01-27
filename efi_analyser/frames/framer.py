@@ -23,6 +23,8 @@ from efi_analyser.frames.classifier import (
 )
 from efi_analyser.frames.corpora import EmbeddedCorpora
 from efi_analyser.frames.classifier import EmbeddedCorporaSampler
+from efi_analyser.frames.identifiers import split_passage_id, split_global_doc_id
+from efi_analyser.frames.filter import DocumentFilter
 from efi_analyser.scorers.openai_interface import OpenAIInterface, OpenAIConfig
 
 
@@ -138,6 +140,7 @@ class Framer:
 
         assignments, annotation_candidates = self._annotate(
             sampler,
+            corpora,
             schema,
             allow_new_work=allow_new_work,
             filter_kwargs=filter_kwargs,
@@ -252,6 +255,7 @@ class Framer:
     def _annotate(
         self,
         sampler: EmbeddedCorporaSampler,
+        corpora: EmbeddedCorpora,
         schema: FrameSchema,
         *,
         allow_new_work: bool,
@@ -268,6 +272,14 @@ class Framer:
         if annotation_cfg.size <= 0:
             return assignments, []
 
+        # Build document filter for cached data
+        doc_filter = DocumentFilter(
+            keywords=list(doc_keywords) if doc_keywords else None,
+            domain_whitelist=list(domain_whitelist) if domain_whitelist else None,
+            date_from=date_from,
+            date_windows=list(date_windows) if date_windows else None,
+        )
+
         assignments_path = self.paths.assignments_path
         if (
             getattr(self.config, "regenerate_report_only", False)
@@ -275,6 +287,7 @@ class Framer:
         ) and assignments_path.exists():
             try:
                 assignments = FrameAssignments.load(assignments_path)
+                assignments = self._filter_assignments(assignments, doc_filter, corpora)
                 assignments = self._limit_assignments(assignments, annotation_cfg.size)
                 self.logger.info(
                     "Loaded %s frame annotations from cache (target %s).",
@@ -321,6 +334,7 @@ class Framer:
 
         if not allow_new_work and assignments_path.exists():
             assignments = FrameAssignments.load(assignments_path)
+            assignments = self._filter_assignments(assignments, doc_filter, corpora)
             assignments = self._limit_assignments(assignments, annotation_cfg.size)
             self.logger.info(
                 "Loaded %s frame annotations from cache (target %s).",
@@ -422,6 +436,51 @@ class Framer:
             return assignments.select_random(target_size, self.config.seed + 97)
         return assignments
 
+    def _filter_assignments(
+        self,
+        assignments: FrameAssignments,
+        doc_filter: DocumentFilter,
+        corpora: EmbeddedCorpora,
+    ) -> FrameAssignments:
+        """Filter assignments using document filter applied to corpus metadata."""
+        if doc_filter.is_empty():
+            return assignments
+        filtered = FrameAssignments()
+        for assignment in assignments:
+            corpus_name, local_doc_id, _ = split_passage_id(assignment.passage_id)
+            try:
+                embedded = corpora.get_embedded(corpus_name)
+                if doc_filter.matches(local_doc_id, embedded.corpus):
+                    filtered.append(assignment)
+            except Exception:
+                # Skip assignments where corpus lookup fails
+                continue
+        return filtered
+
+    def _filter_classifications(
+        self,
+        classifications: DocumentClassifications,
+        doc_filter: DocumentFilter,
+        corpora: EmbeddedCorpora,
+    ) -> DocumentClassifications:
+        """Filter classifications using document filter applied to corpus metadata."""
+        if doc_filter.is_empty():
+            return classifications
+        filtered = DocumentClassifications()
+        for doc in classifications:
+            doc_id = doc.doc_id
+            if not doc_id:
+                continue
+            corpus_name, local_doc_id = split_global_doc_id(doc_id)
+            try:
+                embedded = corpora.get_embedded(corpus_name)
+                if doc_filter.matches(local_doc_id, embedded.corpus):
+                    filtered.append(doc)
+            except Exception:
+                # Skip classifications where corpus lookup fails
+                continue
+        return filtered
+
     def _train(
         self,
         schema: FrameSchema,
@@ -496,6 +555,14 @@ class Framer:
         if not classification_cfg.size:
             return DocumentClassifications()
 
+        # Build document filter for cached data
+        doc_filter = DocumentFilter(
+            keywords=list(doc_keywords) if doc_keywords else None,
+            domain_whitelist=list(domain_whitelist) if domain_whitelist else None,
+            date_from=date_from,
+            date_windows=list(date_windows) if date_windows else None,
+        )
+
         classifications_dir = self.paths.classifications_dir
         doc_ids: Optional[List[str]] = None
         desired_doc_ids: Optional[List[str]] = None
@@ -506,6 +573,7 @@ class Framer:
             or getattr(self.config, "reload_framing_classifications", False)
         ) and classifications_dir.exists():
             cached = DocumentClassifications.from_folder(classifications_dir)
+            cached = self._filter_classifications(cached, doc_filter, corpora)
             if cached.n_docs > 0:
                 if allow_new_work:
                     desired_doc_ids = sampler.collect_docs(
@@ -519,6 +587,7 @@ class Framer:
                     cached = DocumentClassifications.from_folder(
                         classifications_dir, doc_ids=desired_doc_ids
                     )
+                    cached = self._filter_classifications(cached, doc_filter, corpora)
                     cached_doc_ids = {doc.doc_id for doc in cached if doc.doc_id}
                     missing = [doc_id for doc_id in desired_doc_ids if doc_id not in cached_doc_ids]
                     if not missing:
@@ -538,6 +607,7 @@ class Framer:
 
         if not allow_new_work and classifications_dir.exists():
             cached = DocumentClassifications.from_folder(classifications_dir)
+            cached = self._filter_classifications(cached, doc_filter, corpora)
             return self._limit_classifications(cached, classification_cfg.size)
         if not allow_new_work:
             raise RuntimeError("Frame classifications missing and new work is disabled.")

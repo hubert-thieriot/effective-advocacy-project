@@ -52,8 +52,10 @@ class FrameAggregates:
     documents: pd.DataFrame  # doc_id, date, year, domain, corpus, frame_id, weight, method
     by_domain: Optional[pd.DataFrame] = None
     by_year: Optional[pd.DataFrame] = None
+    by_domain_year: Optional[pd.DataFrame] = None
     by_corpus: Optional[pd.DataFrame] = None
     global_totals: Optional[pd.DataFrame] = None
+    co_occurrence: Optional[pd.DataFrame] = None
 
     def save(self, directory: Path) -> None:
         """Save all DataFrames to a directory as CSV files."""
@@ -63,10 +65,14 @@ class FrameAggregates:
             self.by_domain.to_csv(directory / "by_domain.csv", index=False)
         if self.by_year is not None:
             self.by_year.to_csv(directory / "by_year.csv", index=False)
+        if self.by_domain_year is not None:
+            self.by_domain_year.to_csv(directory / "by_domain_year.csv", index=False)
         if self.by_corpus is not None:
             self.by_corpus.to_csv(directory / "by_corpus.csv", index=False)
         if self.global_totals is not None:
             self.global_totals.to_csv(directory / "global_totals.csv", index=False)
+        if self.co_occurrence is not None:
+            self.co_occurrence.to_csv(directory / "co_occurrence.csv", index=False)
 
     @classmethod
     def load(cls, directory: Path) -> "FrameAggregates":
@@ -74,24 +80,32 @@ class FrameAggregates:
         documents = pd.read_csv(directory / "documents.csv")
         by_domain = None
         by_year = None
+        by_domain_year = None
         by_corpus = None
         global_totals = None
+        co_occurrence = None
 
         if (directory / "by_domain.csv").exists():
             by_domain = pd.read_csv(directory / "by_domain.csv")
         if (directory / "by_year.csv").exists():
             by_year = pd.read_csv(directory / "by_year.csv")
+        if (directory / "by_domain_year.csv").exists():
+            by_domain_year = pd.read_csv(directory / "by_domain_year.csv")
         if (directory / "by_corpus.csv").exists():
             by_corpus = pd.read_csv(directory / "by_corpus.csv")
         if (directory / "global_totals.csv").exists():
             global_totals = pd.read_csv(directory / "global_totals.csv")
+        if (directory / "co_occurrence.csv").exists():
+            co_occurrence = pd.read_csv(directory / "co_occurrence.csv")
 
         return cls(
             documents=documents,
             by_domain=by_domain,
             by_year=by_year,
+            by_domain_year=by_domain_year,
             by_corpus=by_corpus,
             global_totals=global_totals,
+            co_occurrence=co_occurrence,
         )
 
 

@@ -6,93 +6,17 @@ Provides document-level and group-level aggregation for frame classifications.
 from __future__ import annotations
 
 import logging
-import re
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Literal, Optional, Tuple
-from urllib.parse import urlparse
+from typing import List, Literal, Optional
 
 import pandas as pd
 
 from efi_analyser.frames.classifier import DocumentClassifications
+from efi_analyser.frames.filter import DocumentFilter, extract_domain
 
 
 logger = logging.getLogger(__name__)
 
 AggregationMethod = Literal["length_weighted", "occurrence"]
-
-
-@dataclass
-class DocumentFilter:
-    """Document-level filtering configuration for aggregation.
-
-    All filters are optional. Documents must pass ALL specified filters.
-    """
-
-    keywords: Optional[List[str]] = None  # Document must contain at least one keyword
-    domain_whitelist: Optional[List[str]] = None  # Domain must be in whitelist
-    date_from: Optional[str] = None  # published_at >= date_from
-    date_windows: Optional[List[Tuple[str, str]]] = None  # published_at within any window
-
-    def is_empty(self) -> bool:
-        """Return True if no filters are configured."""
-        return not any([
-            self.keywords,
-            self.domain_whitelist,
-            self.date_from,
-            self.date_windows,
-        ])
-
-    @classmethod
-    def from_config(cls, config) -> "DocumentFilter":
-        """Create DocumentFilter from a config object (FilterConfig or similar)."""
-        if config is None:
-            return cls()
-
-        # Handle FilterConfig structure
-        keywords = None
-        domain_whitelist = None
-        date_from = getattr(config, "date_from", None)
-        date_windows = getattr(config, "date_windows", None)
-
-        doc_filter = getattr(config, "document", None)
-        if doc_filter:
-            keywords = getattr(doc_filter, "keywords", None)
-            domain_whitelist = getattr(doc_filter, "domain_whitelist", None)
-
-        return cls(
-            keywords=keywords,
-            domain_whitelist=domain_whitelist,
-            date_from=date_from,
-            date_windows=date_windows,
-        )
-
-
-def extract_domain(url: Optional[str]) -> Optional[str]:
-    """Extract base domain from URL, ignoring subdomains.
-
-    Examples:
-        https://www.bbc.co.uk/news -> bbc.co.uk
-        https://kota.tribunnews.com/article -> tribunnews.com
-    """
-    if not url:
-        return None
-    parsed = urlparse(url)
-    netloc = parsed.netloc or parsed.path
-    if not netloc:
-        return None
-    domain = netloc.lower()
-    if domain.startswith("www."):
-        domain = domain[4:]
-
-    parts = domain.split(".")
-    if len(parts) >= 2:
-        # Handle two-part TLDs like .co.uk, .co.id, .com.au
-        if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "net", "ac", "gov"):
-            return ".".join(parts[-3:])
-        return ".".join(parts[-2:])
-
-    return domain or None
 
 
 class FrameAggregator:
@@ -383,6 +307,108 @@ class FrameAggregator:
         """
         return self._group_aggregate(doc_df, group_col="domain", normalize=normalize)
 
+    def co_occurrence(
+        self,
+        classifications: DocumentClassifications,
+        *,
+        threshold: float = 0.3,
+    ) -> pd.DataFrame:
+        """Compute document-level frame co-occurrence matrix.
+
+        A frame is considered present in a document if any chunk has prob >= threshold.
+
+        Args:
+            classifications: Document classifications with chunk-level probabilities.
+            threshold: Minimum per-chunk probability to count a frame as present.
+
+        Returns:
+            DataFrame with columns: frame_id, co_frame_id, count, cooccurrence_rate
+        """
+        filter_stats = {
+            "total": 0,
+            "keyword_filtered": 0,
+            "domain_filtered": 0,
+            "date_filtered": 0,
+            "passed": 0,
+        }
+
+        co_counts: dict[tuple[str, str], int] = {}
+        observed_frames: set[str] = set()
+        total_docs = 0
+
+        for doc in classifications:
+            payload = doc.payload
+            doc_id = str(payload.get("doc_id", "")).strip()
+            if not doc_id:
+                continue
+
+            filter_stats["total"] += 1
+
+            published_at = payload.get("published_at")
+            date = self._parse_date(published_at)
+            url = payload.get("url")
+            domain = extract_domain(url)
+
+            chunks = payload.get("chunks", [])
+            if not isinstance(chunks, list) or not chunks:
+                continue
+
+            if not self._passes_filters(payload, chunks, domain, date, filter_stats):
+                continue
+
+            filter_stats["passed"] += 1
+            total_docs += 1
+
+            frames_present: set[str] = set()
+            for chunk in chunks:
+                if not isinstance(chunk, dict):
+                    continue
+                probs = chunk.get("probabilities") or {}
+                if isinstance(probs, dict) and probs:
+                    for frame_id, prob in probs.items():
+                        try:
+                            prob_val = float(prob)
+                        except (TypeError, ValueError):
+                            continue
+                        if prob_val >= threshold:
+                            frames_present.add(str(frame_id))
+                else:
+                    top_frames = chunk.get("top_frames") or []
+                    for frame_id in top_frames:
+                        if frame_id:
+                            frames_present.add(str(frame_id))
+
+            if self.frame_ids:
+                frames_present = {fid for fid in frames_present if fid in self.frame_ids}
+
+            if not frames_present:
+                continue
+
+            observed_frames.update(frames_present)
+            frame_list = sorted(frames_present)
+            for left in frame_list:
+                for right in frame_list:
+                    key = (left, right)
+                    co_counts[key] = co_counts.get(key, 0) + 1
+
+        frame_ids = self.frame_ids or sorted(observed_frames)
+        if not frame_ids:
+            return pd.DataFrame(columns=["frame_id", "co_frame_id", "count", "cooccurrence_rate"])
+
+        rows = []
+        denom = total_docs if total_docs > 0 else 1
+        for left in frame_ids:
+            for right in frame_ids:
+                count = co_counts.get((left, right), 0)
+                rows.append({
+                    "frame_id": left,
+                    "co_frame_id": right,
+                    "count": count,
+                    "cooccurrence_rate": count / denom,
+                })
+
+        return pd.DataFrame(rows)
+
     def by_year(
         self,
         doc_df: pd.DataFrame,
@@ -398,6 +424,26 @@ class FrameAggregator:
             DataFrame with columns: year, frame_id, weight, doc_count
         """
         return self._group_aggregate(doc_df, group_col="year", normalize=normalize)
+
+    def by_domain_year(
+        self,
+        doc_df: pd.DataFrame,
+        normalize: bool = True,
+    ) -> pd.DataFrame:
+        """Aggregate document-level weights by domain and year.
+
+        Args:
+            doc_df: Output from aggregate_documents().
+            normalize: If True, normalize weights within each domain-year to sum to 1.
+
+        Returns:
+            DataFrame with columns: domain, year, frame_id, weight, doc_count
+        """
+        return self._group_aggregate_multi(
+            doc_df,
+            group_cols=["domain", "year"],
+            normalize=normalize,
+        )
 
     def by_corpus(
         self,
@@ -474,5 +520,29 @@ class FrameAggregator:
         result = grouped.merge(doc_counts, on=group_col, how="left")
         return result
 
+    def _group_aggregate_multi(
+        self,
+        doc_df: pd.DataFrame,
+        group_cols: List[str],
+        normalize: bool = True,
+    ) -> pd.DataFrame:
+        """Generic multi-column group aggregation helper."""
+        if doc_df.empty:
+            return pd.DataFrame(columns=[*group_cols, "frame_id", "weight", "doc_count"])
 
-__all__ = ["FrameAggregator", "AggregationMethod", "extract_domain"]
+        df = doc_df.dropna(subset=group_cols).copy()
+        if df.empty:
+            return pd.DataFrame(columns=[*group_cols, "frame_id", "weight", "doc_count"])
+
+        doc_counts = df.groupby(group_cols)["doc_id"].nunique().reset_index(name="doc_count")
+        grouped = df.groupby([*group_cols, "frame_id"], as_index=False)["weight"].mean()
+
+        if normalize:
+            group_totals = grouped.groupby(group_cols)["weight"].transform("sum")
+            grouped["weight"] = grouped["weight"] / group_totals.where(group_totals > 0, 1.0)
+
+        result = grouped.merge(doc_counts, on=group_cols, how="left")
+        return result
+
+
+__all__ = ["FrameAggregator", "AggregationMethod", "DocumentFilter", "extract_domain"]

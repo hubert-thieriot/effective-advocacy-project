@@ -106,6 +106,7 @@ def build_frame_aggregates(
     frame_classifications: DocumentClassifications,
     frame_ids: Optional[List[str]] = None,
     doc_filter: Optional[DocumentFilter] = None,
+    cooccurrence_threshold: float = 0.3,
 ) -> FrameAggregates:
     """Build frame aggregates from document classifications.
 
@@ -113,6 +114,7 @@ def build_frame_aggregates(
         frame_classifications: Document classifications with chunk-level probabilities.
         frame_ids: Optional list of frame IDs to include.
         doc_filter: Optional document filter to apply.
+        cooccurrence_threshold: Chunk-level probability threshold for co-occurrence.
 
     Returns:
         FrameAggregates with document-level and group-level DataFrames.
@@ -131,15 +133,22 @@ def build_frame_aggregates(
     # Group-level aggregations
     by_domain = aggregator.by_domain(documents)
     by_year = aggregator.by_year(documents)
+    by_domain_year = aggregator.by_domain_year(documents)
     by_corpus = aggregator.by_corpus(documents)
     global_totals = aggregator.global_totals(documents)
+    co_occurrence = aggregator.co_occurrence(
+        frame_classifications,
+        threshold=cooccurrence_threshold,
+    )
 
     return FrameAggregates(
         documents=documents,
         by_domain=by_domain,
         by_year=by_year,
+        by_domain_year=by_domain_year,
         by_corpus=by_corpus,
         global_totals=global_totals,
+        co_occurrence=co_occurrence,
     )
 
 
@@ -148,6 +157,7 @@ def build_aggregates(
     stance_results: Optional[StanceAssignments] = None,
     frame_ids: Optional[List[str]] = None,
     doc_filter: Optional[DocumentFilter] = None,
+    cooccurrence_threshold: float = 0.3,
 ) -> DiscourseAggregates:
     """Build combined frame and stance aggregates.
 
@@ -156,6 +166,7 @@ def build_aggregates(
         stance_results: Optional stance assignments for stance aggregation.
         frame_ids: Optional list of frame IDs to include in frame aggregation.
         doc_filter: Optional document filter to apply to both frame and stance aggregation.
+        cooccurrence_threshold: Chunk-level probability threshold for co-occurrence.
 
     Returns:
         DiscourseAggregates containing frame and stance aggregates.
@@ -164,6 +175,7 @@ def build_aggregates(
         frame_classifications,
         frame_ids=frame_ids,
         doc_filter=doc_filter,
+        cooccurrence_threshold=cooccurrence_threshold,
     )
 
     # Get valid doc_ids from the filtered frame aggregates

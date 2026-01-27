@@ -10,11 +10,14 @@ import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
-
+import logging
 import openai
 from dotenv import load_dotenv
 
 from efi_analyser.cache.llm_cache_manager import get_cache_manager
+
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Load environment variables
 load_dotenv()

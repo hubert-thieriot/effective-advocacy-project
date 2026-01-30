@@ -23,6 +23,9 @@ class WorkflowPaths:
     framing_classifier_dir: Path
     framing_classifications_dir: Path
 
+    ner_dir: Path
+    ner_entities_path: Path
+
     stance_dir: Path
     stance_annotation_path: Path
     stance_classifier_dir: Path
@@ -45,6 +48,8 @@ class WorkflowState:
     frame_assignments: Optional[Any] = None  # FrameAssignments
     frame_classifications: Optional[Any] = None  # DocumentClassifications
     frame_annotation_candidates: List[Any] = field(default_factory=list)  # List[Candidate]
+
+    ner_result: Optional[Any] = None  # NERResult
 
     stance_assignments: Optional[Any] = None  # StanceAssignments
     stance_classifications: Optional[Any] = None  # StanceAssignments

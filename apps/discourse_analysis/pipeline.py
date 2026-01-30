@@ -15,6 +15,7 @@ from .config_models import DiscourseAnalysisConfig
 from .stages import (
     CorpusLoadingStage,
     FramingStage,
+    NERStage,
     StanceDetectionStage,
     AnalysisStage,
     ReportStage,
@@ -45,6 +46,7 @@ class DiscourseAnalysisPipeline(Pipeline):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         framing_dir = output_dir / "framing"
+        ner_dir = output_dir / "ner"
         stance_dir = output_dir / "stance"
         report_dir = output_dir / "report"
         plots_dir = report_dir / "plots"
@@ -56,6 +58,8 @@ class DiscourseAnalysisPipeline(Pipeline):
             framing_assignments_path=framing_dir / "assignments.json",
             framing_classifier_dir=framing_dir / "classifier",
             framing_classifications_dir=framing_dir / "classifications",
+            ner_dir=ner_dir,
+            ner_entities_path=ner_dir / "entities.json",
             stance_dir=stance_dir,
             stance_annotation_path=stance_dir / "assignments.json",
             stance_classifier_dir=stance_dir / "classifier",
@@ -100,6 +104,7 @@ class DiscourseAnalysisPipeline(Pipeline):
         stages = [
             CorpusLoadingStage("corpus_loading", self.output_dir),
             FramingStage("framing", self.output_dir),
+            NERStage("ner", self.output_dir),
             StanceDetectionStage("stance_detection", self.output_dir),
             AnalysisStage("analysis", self.output_dir),
             ReportStage("report", self.output_dir),
@@ -140,6 +145,8 @@ class DiscourseAnalysisPipeline(Pipeline):
             self.state.frame_assignments = data.assignments
             self.state.frame_classifications = data.classifications
             self.state.frame_annotation_candidates = data.annotation_candidates
+        elif stage_name == "ner":
+            self.state.ner_result = data
         elif stage_name == "stance_detection":
             self.state.stance_assignments = data.assignments
             self.state.stance_classifications = data.classifications

@@ -47,6 +47,7 @@ lxml-html-clean = "^0.4.3"
 spacy-huggingface-hub = "^0.0.10"
 geopandas = "^1.1.1"
 geodatasets = "^2024.8.0"
+stanza = "^1.11.0"
 
 [tool.poetry.group.analysis]
 optional = true

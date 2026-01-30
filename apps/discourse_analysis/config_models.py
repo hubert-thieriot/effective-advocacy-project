@@ -110,6 +110,23 @@ class StanceConfig(BaseModel):
         return v if v > 0 else None
 
 
+class NERConfig(BaseModel):
+    """Configuration for Named Entity Recognition stage."""
+
+    enabled: bool = False
+    language: str = "en"  # Stanza language code
+    frame_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    entity_types: Optional[List[str]] = None  # Filter to specific types (None = all)
+    batch_size: int = 32
+
+    reload_ner: bool = False
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        return str(v).strip().lower() or "en"
+
+
 class ReportConfig(BaseModel):
     title: str = "Discourse Analysis Report"
     subtitle: Optional[str] = None
@@ -141,6 +158,7 @@ class DiscourseAnalysisConfig(BaseModel):
 
     # Sections
     framing: FramingConfig = Field(default_factory=FramingConfig)
+    ner: NERConfig = Field(default_factory=NERConfig)
     stance: StanceConfig = Field(default_factory=StanceConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
 
@@ -177,6 +195,7 @@ class DiscourseAnalysisConfig(BaseModel):
             self.reload_framing_annotation = True
             self.reload_framing_classifier = True
             self.reload_framing_classifications = True
+            self.ner.reload_ner = True
             self.stance.reload_annotation = True
             self.stance.reload_classifier = True
             self.stance.reload_classifications = True
@@ -223,6 +242,7 @@ __all__ = [
     "FramingConfig",
     "FramingSchemaConfig",
     "FramingAnnotationConfig",
+    "NERConfig",
     "StanceConfig",
     "StanceAnnotationConfig",
     "ReportConfig",

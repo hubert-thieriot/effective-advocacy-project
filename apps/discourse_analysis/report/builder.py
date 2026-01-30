@@ -12,6 +12,7 @@ import json
 from efi_analyser.frames.framer import load_schema
 from efi_analyser.frames.types import FrameSchema, FrameAssignments
 from efi_analyser.frames.classifier import DocumentClassifications, FrameClassifierArtifacts
+from efi_analyser.ner import NERResult
 
 from apps.discourse_analysis.analysis.types import DiscourseAggregates
 from apps.discourse_analysis.analysis.plots import (
@@ -36,6 +37,7 @@ class ReportContext:
     stance_classifications: StanceAssignments
     frame_assignments: FrameAssignments
     frame_classifier_predictions: List[Dict[str, object]]
+    ner_result: Optional[NERResult]
     title: str
     subtitle: Optional[str]
 
@@ -55,6 +57,7 @@ class ReportBuilder:
         stance_classifications = self._resolve_stance_classifications()
         frame_assignments = self._resolve_frame_assignments()
         frame_classifier_predictions = self._resolve_frame_classifier_predictions()
+        ner_result = self._resolve_ner_result()
         context = ReportContext(
             schema=schema,
             aggregates=aggregates,
@@ -62,6 +65,7 @@ class ReportBuilder:
             stance_classifications=stance_classifications,
             frame_assignments=frame_assignments,
             frame_classifier_predictions=frame_classifier_predictions,
+            ner_result=ner_result,
             title=self.config.report.title,
             subtitle=self.config.report.subtitle,
         )
@@ -130,12 +134,24 @@ class ReportBuilder:
             return StanceAssignments.load(stance_path)
         return StanceAssignments()
 
+    def _resolve_ner_result(self) -> Optional[NERResult]:
+        if getattr(self.state, "ner_result", None) is not None:
+            return self.state.ner_result
+        ner_path = getattr(self.paths, "ner_entities_path", None)
+        if ner_path and Path(ner_path).exists():
+            try:
+                return NERResult.load(Path(ner_path))
+            except Exception:
+                return None
+        return None
+
     def _render(self, ctx: ReportContext) -> str:
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         frames_html = self._render_frames(ctx.schema)
         frame_distribution_html = self._render_frame_distribution(ctx)
         frame_shares_html = self._render_frame_shares(ctx)
         frame_attr_html = self._render_frame_attributions(ctx)
+        ner_entities_html = self._render_ner_entities(ctx)
         overall_html = self._render_overall_stance(ctx.aggregates)
         frame_target_html = self._render_frame_target(ctx.aggregates, ctx.schema)
         examples_html = self._render_examples(ctx)
@@ -487,6 +503,10 @@ class ReportBuilder:
     <section class="section">
       <h2>Frame Attributions</h2>
       {frame_attr_html}
+    </section>
+    <section class="section">
+      <h2>Named Entities</h2>
+      {ner_entities_html}
     </section>
     <section class="section">
       <h2>Overall Stance</h2>
@@ -846,11 +866,11 @@ class ReportBuilder:
 <div class="controls">
   <label>Rows per page
     <select id="frame-page-size">
-      <option value="10">10</option>
+      <option value="10" selected>10</option>
       <option value="50">50</option>
       <option value="100">100</option>
       <option value="500">500</option>
-      <option value="1000" selected>1000</option>
+      <option value="1000">1000</option>
     </select>
   </label>
   <button id="frame-prev">Prev</button>
@@ -974,6 +994,268 @@ class ReportBuilder:
   // Apply filters on initial load (respects default "llm_only" selection)
   applyFiltersAndSort();
   renderFrameTable();
+}})();
+</script>
+"""
+
+    def _render_ner_entities(self, ctx: ReportContext) -> str:
+        """Render NER entities as an interactive table with filters."""
+        if not ctx.ner_result or not ctx.ner_result.documents:
+            return "<p class=\"subtitle\">No named entities extracted. Enable NER in config with <code>ner.enabled: true</code>.</p>"
+
+        # Build lookup from doc_id to URL from frame_classifications (URL is at document level)
+        doc_to_url: Dict[str, str] = {}
+        for doc_class in ctx.frame_classifications or []:
+            payload = doc_class.payload if isinstance(doc_class.payload, dict) else {}
+            doc_id = str(payload.get("doc_id", "")).strip()
+            url = str(payload.get("url", "")).strip()
+            if doc_id and url:
+                doc_to_url[doc_id] = url
+
+        # Aggregate entities by (type, text) -> count
+        entity_counts: Dict[tuple, int] = {}
+        entity_frames: Dict[tuple, Dict[str, int]] = {}  # Track which frames each entity appears in
+        entity_articles: Dict[tuple, Dict[str, str]] = {}  # Track doc_id -> url for each entity
+
+        for doc in ctx.ner_result.documents:
+            doc_url = doc_to_url.get(doc.doc_id, "")
+            for chunk in doc.chunks:
+                frame_id = chunk.frame_id
+                for entity in chunk.entities:
+                    key = (entity.type, entity.text)
+                    entity_counts[key] = entity_counts.get(key, 0) + 1
+                    if key not in entity_frames:
+                        entity_frames[key] = {}
+                    entity_frames[key][frame_id] = entity_frames[key].get(frame_id, 0) + 1
+                    # Track articles (use doc_id as key to deduplicate)
+                    if key not in entity_articles:
+                        entity_articles[key] = {}
+                    if doc.doc_id not in entity_articles[key] and doc_url:
+                        entity_articles[key][doc.doc_id] = doc_url
+
+        if not entity_counts:
+            return "<p class=\"subtitle\">No entities found in chunks meeting the frame threshold.</p>"
+
+        # Get frame labels
+        frame_labels = {}
+        if ctx.schema and ctx.schema.frames:
+            frame_labels = {f.frame_id: (f.short_name or f.name or f.frame_id) for f in ctx.schema.frames}
+
+        # Build rows sorted by count descending
+        rows = []
+        for (ent_type, ent_text), count in sorted(entity_counts.items(), key=lambda x: -x[1]):
+            # Get top frame for this entity
+            frames_for_entity = entity_frames.get((ent_type, ent_text), {})
+            top_frame = ""
+            if frames_for_entity:
+                top_frame_id = max(frames_for_entity.items(), key=lambda x: x[1])[0]
+                top_frame = frame_labels.get(top_frame_id, top_frame_id)
+            # Get article URLs for this entity
+            articles = list(entity_articles.get((ent_type, ent_text), {}).values())
+            rows.append({
+                "type": ent_type,
+                "text": ent_text,
+                "count": count,
+                "topFrame": top_frame,
+                "articles": articles,
+            })
+
+        # Get unique entity types for filter
+        entity_types = sorted(set(r["type"] for r in rows))
+
+        payload = json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")
+        entity_types_json = json.dumps(entity_types, ensure_ascii=False)
+
+        stats = (
+            f"<p class=\"subtitle\">"
+            f"{len(rows)} unique entities from {ctx.ner_result.n_chunks} chunks "
+            f"(threshold: {ctx.ner_result.frame_threshold}, language: {ctx.ner_result.language})"
+            f"</p>"
+        )
+
+        return f"""{stats}
+<div class="controls">
+  <label>Entity Type
+    <select id="ner-type-filter">
+      <option value="all">All types</option>
+    </select>
+  </label>
+  <label>Search
+    <input type="text" id="ner-search" placeholder="Filter by text..." style="padding:6px 10px;border-radius:8px;border:1px solid #e7e1d8;">
+  </label>
+  <label>Sort by
+    <select id="ner-sort">
+      <option value="count_desc" selected>Count (high to low)</option>
+      <option value="count_asc">Count (low to high)</option>
+      <option value="text_asc">Text (A-Z)</option>
+      <option value="type_asc">Type (A-Z)</option>
+    </select>
+  </label>
+</div>
+<div class="controls">
+  <label>Rows per page
+    <select id="ner-page-size">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="500">500</option>
+    </select>
+  </label>
+  <button id="ner-prev">Prev</button>
+  <span id="ner-page-info"></span>
+  <button id="ner-next">Next</button>
+</div>
+<div class="ner-table" style="border-radius:14px;overflow:hidden;border:1px solid #efe9df;">
+  <div class="ner-header" style="display:grid;grid-template-columns:120px 2fr 80px 1fr 1.5fr;gap:12px;padding:10px 14px;background:#f7f3ed;font-weight:600;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.04em;">
+    <div>Type</div>
+    <div>Entity</div>
+    <div>Count</div>
+    <div>Top Frame</div>
+    <div>Articles</div>
+  </div>
+  <div id="ner-body"></div>
+</div>
+<script id="ner-data" type="application/json">{payload}</script>
+<script>
+(function() {{
+  const allNerRows = JSON.parse(document.getElementById('ner-data').textContent);
+  const entityTypes = {entity_types_json};
+  const nerBody = document.getElementById('ner-body');
+  const nerTypeFilter = document.getElementById('ner-type-filter');
+  const nerSearch = document.getElementById('ner-search');
+  const nerSort = document.getElementById('ner-sort');
+  const nerPageSize = document.getElementById('ner-page-size');
+  const nerPageInfo = document.getElementById('ner-page-info');
+
+  // Populate type filter
+  entityTypes.forEach(t => {{
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    nerTypeFilter.appendChild(opt);
+  }});
+
+  let pageSize = parseInt(nerPageSize.value, 10);
+  let page = 0;
+  let filteredRows = allNerRows;
+
+  function escapeHtml(value) {{
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }}
+
+  function applyFiltersAndSort() {{
+    const typeVal = nerTypeFilter.value;
+    const searchVal = nerSearch.value.toLowerCase().trim();
+    const sortVal = nerSort.value;
+
+    filteredRows = allNerRows.filter(row => {{
+      if (typeVal !== 'all' && row.type !== typeVal) return false;
+      if (searchVal && !row.text.toLowerCase().includes(searchVal)) return false;
+      return true;
+    }});
+
+    if (sortVal === 'count_desc') {{
+      filteredRows.sort((a, b) => b.count - a.count);
+    }} else if (sortVal === 'count_asc') {{
+      filteredRows.sort((a, b) => a.count - b.count);
+    }} else if (sortVal === 'text_asc') {{
+      filteredRows.sort((a, b) => a.text.localeCompare(b.text));
+    }} else if (sortVal === 'type_asc') {{
+      filteredRows.sort((a, b) => a.type.localeCompare(b.type) || b.count - a.count);
+    }}
+
+    page = 0;
+  }}
+
+  function renderArticleLinks(articles, rowIdx) {{
+    if (!articles || articles.length === 0) {{
+      return '<span style="color:var(--muted);font-size:0.85rem;">—</span>';
+    }}
+    const maxVisible = 3;
+    const visibleLinks = articles.slice(0, maxVisible).map((url, i) =>
+      `<a href="${{escapeHtml(url)}}" target="_blank" rel="noopener noreferrer" class="link-icon" title="${{escapeHtml(url)}}">🔗</a>`
+    ).join(' ');
+
+    if (articles.length <= maxVisible) {{
+      return `<div class="link-icons">${{visibleLinks}}</div>`;
+    }}
+
+    const hiddenLinks = articles.slice(maxVisible).map((url, i) =>
+      `<a href="${{escapeHtml(url)}}" target="_blank" rel="noopener noreferrer" class="link-icon" title="${{escapeHtml(url)}}">🔗</a>`
+    ).join(' ');
+
+    return `
+      <div class="link-icons">
+        ${{visibleLinks}}
+        <span class="ner-expand-toggle" data-row="${{rowIdx}}" style="cursor:pointer;color:var(--accent);font-size:0.85rem;margin-left:4px;" onclick="toggleNerExpand(${{rowIdx}})">+${{articles.length - maxVisible}} more</span>
+        <span class="ner-hidden-links" id="ner-hidden-${{rowIdx}}" style="display:none;margin-left:4px;">${{hiddenLinks}}</span>
+      </div>
+    `;
+  }}
+
+  window.toggleNerExpand = function(rowIdx) {{
+    const hidden = document.getElementById('ner-hidden-' + rowIdx);
+    const toggle = document.querySelector('.ner-expand-toggle[data-row="' + rowIdx + '"]');
+    if (hidden && toggle) {{
+      if (hidden.style.display === 'none') {{
+        hidden.style.display = 'inline';
+        toggle.textContent = 'show less';
+      }} else {{
+        hidden.style.display = 'none';
+        const count = hidden.querySelectorAll('a').length;
+        toggle.textContent = '+' + count + ' more';
+      }}
+    }}
+  }};
+
+  function render() {{
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+    page = Math.max(0, Math.min(page, totalPages - 1));
+    const start = page * pageSize;
+    const slice = filteredRows.slice(start, start + pageSize);
+    nerBody.innerHTML = slice.map((row, idx) => {{
+      const typeColor = {{
+        'PERSON': '#3b82f6',
+        'ORG': '#10b981',
+        'GPE': '#f59e0b',
+        'LOC': '#8b5cf6',
+        'NORP': '#ec4899',
+        'FAC': '#06b6d4',
+        'EVENT': '#ef4444',
+        'PRODUCT': '#84cc16'
+      }}[row.type] || '#6b7280';
+      const articleLinks = renderArticleLinks(row.articles, start + idx);
+      return `
+        <div style="display:grid;grid-template-columns:120px 2fr 80px 1fr 1.5fr;gap:12px;padding:10px 14px;border-top:1px solid #efe9df;background:#fff;font-size:0.95rem;">
+          <div><span class="pill" style="background:${{typeColor}}22;color:${{typeColor}};border-color:${{typeColor}}44;">${{escapeHtml(row.type)}}</span></div>
+          <div style="font-weight:500;">${{escapeHtml(row.text)}}</div>
+          <div style="color:var(--muted);">${{row.count}}</div>
+          <div style="color:var(--muted);font-size:0.9rem;">${{escapeHtml(row.topFrame)}}</div>
+          <div>${{articleLinks}}</div>
+        </div>
+      `;
+    }}).join('');
+    nerPageInfo.textContent = `Page ${{page + 1}} / ${{totalPages}} (${{filteredRows.length}} entities)`;
+  }}
+
+  document.getElementById('ner-prev').addEventListener('click', () => {{ page -= 1; render(); }});
+  document.getElementById('ner-next').addEventListener('click', () => {{ page += 1; render(); }});
+  nerPageSize.addEventListener('change', (e) => {{
+    pageSize = parseInt(e.target.value, 10);
+    page = 0;
+    render();
+  }});
+  nerTypeFilter.addEventListener('change', () => {{ applyFiltersAndSort(); render(); }});
+  nerSearch.addEventListener('input', () => {{ applyFiltersAndSort(); render(); }});
+  nerSort.addEventListener('change', () => {{ applyFiltersAndSort(); render(); }});
+
+  applyFiltersAndSort();
+  render();
 }})();
 </script>
 """

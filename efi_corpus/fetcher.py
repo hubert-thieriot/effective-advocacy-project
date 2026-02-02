@@ -30,15 +30,21 @@ class Fetcher:
         self.timeout = timeout
         
         # Domain-specific fetching strategies for problematic domains
+        _browser_ua_list = [
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        ]
         self.domain_strategies = {
             'itv.com': {
-                'user_agents': [
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-                ],
-                'timeout': 45,  # Longer timeout for ITV
+                'user_agents': _browser_ua_list,
+                'timeout': 45,
+                'retry_with_different_ua': True,
+            },
+            'independent.co.uk': {
+                'user_agents': _browser_ua_list,
+                'timeout': 30,
                 'retry_with_different_ua': True,
             }
         }
@@ -122,12 +128,14 @@ class Fetcher:
         if domain_strategy and domain_strategy.get('retry_with_different_ua', False):
             user_agents_to_try = domain_strategy['user_agents'] + [self.ua]
         
-        # Prepare headers for conditional GET
+        # Prepare headers for conditional GET and domain-specific extras
         headers = {}
         if etag:
             headers["If-None-Match"] = etag
         if last_mod:
             headers["If-Modified-Since"] = last_mod
+        if domain_strategy and domain_strategy.get("extra_headers"):
+            headers.update(domain_strategy["extra_headers"])
         
         # Try fetching with different user agents if needed
         last_exception = None
@@ -177,6 +185,14 @@ class Fetcher:
 
         # Process new content
         content = r.content
+        # Don't cache error pages (Access Denied, blocked) so retries can get fresh response
+        if len(content) < 2000:
+            peek = content[:800].lower()
+            if b"access denied" in peek or b"blocked" in peek or b"captcha" in peek:
+                r.raise_for_status()
+                raise requests.exceptions.HTTPError(
+                    f"Server returned error page ({len(content)} bytes) for {url}", response=r
+                )
         blob_id = hashlib.sha256(content).hexdigest()
         blob_path, meta_path = self._blob_paths(blob_id)
 
@@ -207,14 +223,13 @@ class Fetcher:
         
         return blob_id, blob_path, meta
 
-    def fetch_raw(self, url: str, stable_id: str) -> Tuple[bytes, Dict[str, Any], str]:
+    def fetch_raw(self, url: str, stable_id: str, force_refresh: bool = False) -> Tuple[bytes, Dict[str, Any], str]:
         """
         Fetch raw content from a URL and return (raw_bytes, fetch_meta, raw_ext)
-        
+
         This is a lower-level method used by corpus builders.
         """
-        # Get the content using the high-level get method
-        blob_id, blob_path, fetch_meta = self.get(url, url)
+        blob_id, blob_path, fetch_meta = self.get(url, url, force_refresh=force_refresh)
         
         # Read the compressed blob
         with open(blob_path, 'rb') as f:

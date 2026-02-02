@@ -26,29 +26,28 @@ test_cases:
     expected_min_length: 1000
     site: "hindustantimes.com"
     
-  # NDTV health articles
-  ndtv_diabetes_eye_health:
-    url: "https://www.ndtv.com/health/diabetics-follow-these-precautions-to-prevent-diabetes-related-eye-conditions-8061365"
-    description: "NDTV health article about diabetes and eye conditions"
-    required_text:
-      - "Be vigilant for any changes in vision"
-      - "diabetes"
-      - "eye conditions"
-    expected_min_length: 800
-    site: "ndtv.com"
-    
-  # NDTV Delhi news articles
-  ndtv_delhi_fog_air_quality:
-    url: "https://www.ndtv.com/delhi-news/thick-fog-delays-over-35-trains-in-delhi-air-quality-remains-poor-7468987"
-    description: "NDTV Delhi news article about fog delays and air quality"
-    required_text:
-      - "The IMD has predicted dense to very dense fog for the day"
-      - "fog"
-      - "air quality"
-      - "trains"
-    expected_min_length: 800
-    site: "ndtv.com"
-    
+  # NDTV (www.ndtv.com) – commented out: fetching returns 403 Access Denied, doesn't work anymore
+  # ndtv_diabetes_eye_health:
+  #   url: "https://www.ndtv.com/health/diabetics-follow-these-precautions-to-prevent-diabetes-related-eye-conditions-8061365"
+  #   description: "NDTV health article about diabetes and eye conditions"
+  #   required_text:
+  #     - "Be vigilant for any changes in vision"
+  #     - "diabetes"
+  #     - "eye conditions"
+  #   expected_min_length: 800
+  #   site: "ndtv.com"
+  #
+  # ndtv_delhi_fog_air_quality:
+  #   url: "https://www.ndtv.com/delhi-news/thick-fog-delays-over-35-trains-in-delhi-air-quality-remains-poor-7468987"
+  #   description: "NDTV Delhi news article about fog delays and air quality"
+  #   required_text:
+  #     - "The IMD has predicted dense to very dense fog for the day"
+  #     - "fog"
+  #     - "air quality"
+  #     - "trains"
+  #   expected_min_length: 800
+  #   site: "ndtv.com"
+
   # NDTV Profit business articles
   ndtv_profit_tata_steel_coal:
     url: "https://www.ndtvprofit.com/business/ukraine-conflict-tata-steel-seeks-alternative-to-russian-coal-2819370"
@@ -102,3 +101,22 @@ test_cases:
       - "half a century"
     expected_min_length: 1000
     site: "itv.com"
+
+  # Daily Mail science/tech (Nature's Fynd article) – extracted article body should start/end with these
+  dailymail_nature_fynd:
+    url: "https://www.dailymail.co.uk/sciencetech/article-9096611/Microbes-Yellowstones-hot-springs-turned-protein-make-vegan-hamburgers.html?ns_mchannel=rss&ito=1490&ns_campaign=1490"
+    description: "Daily Mail article about Nature's Fynd microbes-to-protein vegan burgers"
+    required_text: []
+    starts_with: "A Chicago startup"
+    ends_with: "let it rest.'"
+    expected_min_length: 500
+    site: "dailymail.co.uk"
+
+  # The Independent (div#main + domain_trim_after "Get in touch" in extraction_selectors.yaml)
+  independent_china_chicken_fungus:
+    url: "https://www.independent.co.uk/bulletin/news/china-chicken-meat-substitute-fungus-b2881160.html"
+    description: "The Independent article on fungus-based chicken substitute"
+    starts_with: "Scientists create low-cost"
+    ends_with: "scientists say"
+    expected_min_length: 500
+    site: "independent.co.uk"

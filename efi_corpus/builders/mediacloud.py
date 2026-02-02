@@ -9,6 +9,10 @@ import zstandard as zstd
 from decouple import config
 from mediacloud import api
 
+from datetime import datetime
+
+from efi_core.utils import normalize_date
+
 from .base import BaseCorpusBuilder
 from ..types import BuilderParams, DiscoveryItem
 from ..fetcher import Fetcher
@@ -240,12 +244,8 @@ class MediaCloudCorpusBuilder(BaseCorpusBuilder):
         # Sort stories anti-chronologically (most recent first) for better relevance
         # and to prioritize recent articles if processing is interrupted
         def get_publish_timestamp(story):
-            """Extract publish timestamp for sorting"""
-            published_at = story.get('publish_date')
-            if published_at:
-                return published_at
-            # If no publish_date, put at the end (oldest)
-            return 0
+            """Extract comparable datetime for sorting; use normalize_date so cached str vs API date never mix."""
+            return normalize_date(story.get("publish_date")) or datetime.min
 
         all_stories.sort(key=get_publish_timestamp, reverse=True)
         print(f"Stories sorted anti-chronologically (most recent first)")

@@ -3,16 +3,69 @@ Text extraction from various content types
 """
 
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import json
 import time
 
+import yaml
 from newspaper import Article
 from bs4 import BeautifulSoup
 
 # BeautifulSoup is always available since it's imported
 BEAUTIFULSOUP_AVAILABLE = True
+
+_EXTRACTION_SELECTORS_PATH = Path(__file__).parent / "extraction_selectors.yaml"
+_selector_config_cache: Optional[Tuple[Dict[str, Any], List[str], Dict[str, List[str]]]] = None
+
+
+def _load_extraction_selectors() -> Tuple[Dict[str, Any], List[str], Dict[str, List[str]]]:
+    """Load domain_selectors, default_selectors, and domain_trim_after from YAML; cache result."""
+    global _selector_config_cache
+    if _selector_config_cache is not None:
+        return _selector_config_cache
+    domain_selectors: Dict[str, Any] = {}
+    default_selectors: List[str] = [
+        "article", ".article", ".post", ".content", ".story", ".entry",
+        ".article-content", ".article-body", ".entry-content", ".post-content",
+        ".story-content", ".story-body", ".main-content", "#article-body",
+        ".news-content", ".article__content", ".article__body",
+        ".entry-content", ".post-body", ".content-area", ".main-article",
+        ".article-text", ".story-text", ".news-text", ".content-body",
+        "main article", '[role="main"]', ".news-article",
+    ]
+    domain_trim_after: Dict[str, List[str]] = {}
+    if _EXTRACTION_SELECTORS_PATH.exists():
+        try:
+            data = yaml.safe_load(_EXTRACTION_SELECTORS_PATH.read_text(encoding="utf-8")) or {}
+            domain_selectors = data.get("domain_selectors") or {}
+            if data.get("default_selectors"):
+                default_selectors = list(data["default_selectors"])
+            raw = data.get("domain_trim_after") or {}
+            for k, v in raw.items():
+                if isinstance(v, list):
+                    domain_trim_after[str(k).strip().lower()] = [str(m).strip() for m in v if str(m).strip()]
+                elif v:
+                    domain_trim_after[str(k).strip().lower()] = [str(v).strip()]
+        except Exception:
+            pass
+    _selector_config_cache = (domain_selectors, default_selectors, domain_trim_after)
+    return _selector_config_cache
+
+
+def _trim_after_markers(text: str, markers: List[str]) -> str:
+    """Cut text at the first occurrence of any marker (case-insensitive)."""
+    if not text or not markers:
+        return text
+    lowered = text.lower()
+    cut = len(text)
+    for marker in markers:
+        if not marker:
+            continue
+        idx = lowered.find(marker.lower())
+        if idx != -1:
+            cut = min(cut, idx)
+    return text[:cut].strip() if cut < len(text) else text
 
 class TextExtractor:
     """Extract text content from various document formats"""
@@ -108,6 +161,15 @@ class TextExtractor:
             # Try to detect content type and extract accordingly
             result = self._extract_auto_detect(raw_bytes, url, extraction_attempts)
         
+        # Domain-dependent trim: cut at first marker (e.g. "Get in touch") to drop footer
+        if result and result.get("text") and url:
+            _, _, domain_trim_after = _load_extraction_selectors()
+            url_lower = url.lower()
+            for domain_key, markers in domain_trim_after.items():
+                if domain_key in url_lower and markers:
+                    result = {**result, "text": _trim_after_markers(result["text"], markers)}
+                    break
+        
         # If extraction failed, save for debugging
         if not result or not result.get("text"):
             self._save_failed_extraction(url, raw_bytes, raw_ext, extraction_attempts, 
@@ -176,26 +238,52 @@ class TextExtractor:
                 "text_length": len(bs_text) if bs_text else 0
             }
             
-            # Choose the best extraction: prefer longer content
-            # If BeautifulSoup extracted significantly more content, use it instead
-            if bs_text and len(bs_text) > 500:
-                # Use BeautifulSoup if it has substantially more content (at least 2x) than newspaper3k
-                if not newspaper_text or len(bs_text) >= len(newspaper_text) * 1.5:
-                    # Try to extract published date from both HTML and JSON-LD
-                    published_at = self._extract_published_date_from_html(html)
-                    if not published_at and BEAUTIFULSOUP_AVAILABLE:
-                        soup = BeautifulSoup(html, 'html.parser')
-                        published_at = self._extract_published_date_from_json_ld(soup)
-                    
+            # Choose the best extraction: prefer newspaper when it has substantial article content,
+            # otherwise use BeautifulSoup when it has more (e.g. newspaper failed or was short).
+            # For domains with domain-specific selectors (e.g. independent.co.uk #main), prefer BS
+            # so we get scoped article-only text instead of newspaper's full-page mix.
+            SUBSTANTIAL_ARTICLE_MIN_LEN = 3000  # Newspaper article this long is likely complete
+            BS_OVERRIDE_RATIO = 2.5  # Use BS when it has this much more than short newspaper
+            domain_selectors_map, _, _ = _load_extraction_selectors()
+            url_lower = (url or "").lower()
+            force_bs_for_domain = any(d in url_lower for d in domain_selectors_map)
+
+            if newspaper_text and self._is_valid_content(newspaper_text):
+                # Prefer BS when this domain has its own selectors (scoped extraction)
+                use_bs = (
+                    bs_text
+                    and len(bs_text) > 500
+                    and (
+                        force_bs_for_domain
+                        or (
+                            len(newspaper_text) < SUBSTANTIAL_ARTICLE_MIN_LEN
+                            and len(bs_text) >= len(newspaper_text) * BS_OVERRIDE_RATIO
+                        )
+                    )
+                )
+                if not use_bs:
                     return {
-                        "text": bs_text,
-                        "title": self._extract_title_from_html(html) or newspaper_title,
-                        "published_at": published_at or newspaper_published_at,
-                        "language": "en",  # Would need language detection
-                        "authors": newspaper_authors  # Use authors from newspaper3k if available
+                        "text": newspaper_text,
+                        "title": newspaper_title,
+                        "published_at": newspaper_published_at,
+                        "language": "en",
+                        "authors": newspaper_authors
                     }
+
+            # Use BeautifulSoup when newspaper failed, was short, or BS has substantially more content
+            if bs_text and len(bs_text) > 500:
+                published_at = self._extract_published_date_from_html(html)
+                if not published_at and BEAUTIFULSOUP_AVAILABLE:
+                    soup = BeautifulSoup(html, 'html.parser')
+                    published_at = self._extract_published_date_from_json_ld(soup)
+                return {
+                    "text": bs_text,
+                    "title": self._extract_title_from_html(html) or newspaper_title,
+                    "published_at": published_at or newspaper_published_at,
+                    "language": "en",
+                    "authors": newspaper_authors if newspaper_text else []
+                }
             
-            # If BeautifulSoup didn't work well, fall back to newspaper3k if we have it
             if newspaper_text and self._is_valid_content(newspaper_text):
                 return {
                     "text": newspaper_text,
@@ -326,27 +414,26 @@ class TextExtractor:
         for unwanted in soup.select('script, style, nav, header, footer, .ads, .comments, .sidebar, .social-share, .related-posts'):
             unwanted.decompose()
         
-        # Common article content selectors (expanded list)
-        content_selectors = [
-            'article', '.article', '.post', '.content', '.story', '.entry',
-            '.article-content', '.article-body', '.entry-content', '.post-content',
-            '.story-content', '.story-body', '.main-content', '#article-body',
-            '.news-content', '.article__content', '.article__body',
-            '.entry-content', '.post-body', '.content-area', '.main-article',
-            '.article-text', '.story-text', '.news-text', '.content-body',
-            'main article',
-            '[role="main"]',
-            '.news-article',
-        ]
-        
-        # Try to find content using selectors
+        domain_selectors, default_selectors, _ = _load_extraction_selectors()
+        url_lower = (url or "").lower()
         content_element = None
-        for selector in content_selectors:
-            elements = soup.select(selector)
-            if elements:
-                # Find the largest content block
-                content_element = max(elements, key=lambda e: len(e.get_text()))
+        for domain_key, selectors in domain_selectors.items():
+            if domain_key.lower() in url_lower:
+                sel_list = [selectors] if isinstance(selectors, str) else selectors
+                for sel in sel_list:
+                    if not sel:
+                        continue
+                    el = soup.select_one(sel)
+                    if el and el.get_text(strip=True):
+                        content_element = el
+                        break
                 break
+        if not content_element:
+            for selector in default_selectors:
+                elements = soup.select(selector)
+                if elements:
+                    content_element = max(elements, key=lambda e: len(e.get_text()))
+                    break
         
         if content_element:
             # Extract text from the content element

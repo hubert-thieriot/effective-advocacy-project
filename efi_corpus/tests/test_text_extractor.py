@@ -95,7 +95,7 @@ class TestContentFetchingAndExtraction:
         # Test each test case
         for test_name, test_case in test_cases:
             url = test_case['url']
-            required_texts = test_case['required_text']
+            required_texts = test_case.get('required_text', [])
             description = test_case['description']
             expected_min_length = test_case.get('expected_min_length', 1000)
             site = test_case.get('site', 'unknown')
@@ -161,34 +161,34 @@ class TestContentFetchingAndExtraction:
 
     @pytest.mark.internet
     def test_urls_fetch_and_extract_required_text(self, test_cases):
-        """Test that URLs can be fetched and their content contains required text (integration test)"""
-        # Check if integration tests should be run via environment variable
+        """Test that URLs can be fetched and their content contains required text (integration test).
+        Uses Fetcher for all URLs (cache, domain strategies, browser UA)."""
+        from pathlib import Path
 
-        import requests        
-        
+        from efi_corpus.fetcher import Fetcher
+
         if not test_cases:
             pytest.skip("No test cases loaded")
         
         extractor = TextExtractor()
-        
+        fetcher = Fetcher(cache_root=Path("cache"))
+
         for test_name, test_case in test_cases:
             url = test_case['url']
-            required_texts = test_case['required_text']
+            required_texts = test_case.get('required_text', [])
             description = test_case['description']
             expected_min_length = test_case.get('expected_min_length', 1000)
             site = test_case.get('site', 'unknown')
             forbidden_texts = test_case.get('required_not_in_text', [])
+            starts_with = test_case.get('starts_with')
+            ends_with = test_case.get('ends_with')
             
             try:
-                headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
-                response = requests.get(url, headers=headers, timeout=15)
-                response.raise_for_status()
+                raw_bytes, _, raw_ext = fetcher.fetch_raw(url, url)
+                assert raw_bytes, f"No content fetched from {url}"
+                assert len(raw_bytes) > 1000, f"Fetched content too small: {len(raw_bytes)} bytes"
                 
-                # Verify we got HTML content
-                assert response.content, f"No content fetched from {url}"
-                assert len(response.content) > 1000, f"Fetched content too small: {len(response.content)} bytes"
-                
-                result = extractor.extract_text(response.content, 'html', url)
+                result = extractor.extract_text(raw_bytes, raw_ext, url)
                 
                 # Verify text was extracted
                 assert result.get('text'), f"No text was extracted from {url}"
@@ -215,9 +215,18 @@ class TestContentFetchingAndExtraction:
                 if found_forbidden_texts:
                     pytest.fail(f"Found forbidden text in {url}: {found_forbidden_texts}")
                 
+                # Verify optional starts_with / ends_with (e.g. article body boundaries)
+                if starts_with is not None:
+                    assert text.strip().startswith(starts_with), (
+                        f"Expected text to start with {repr(starts_with)} from {url}, got: {repr(text[:80])}"
+                    )
+                if ends_with is not None:
+                    assert text.strip().endswith(ends_with), (
+                        f"Expected text to end with {repr(ends_with)} from {url}, got: {repr(text[-80:])}"
+                    )
+                
                 print(f"✅ {site}: {len(text)} chars, all required text found, no forbidden text found")
                 
             except Exception as e:
                 pytest.fail(f"Failed to process {url}: {e}")
-
 

@@ -32,9 +32,9 @@ class ReportStage(PipelineStage[StageContext, ReportOutput]):
     def should_run(self, input_data: Optional[StageContext]) -> bool:
         if input_data is None:
             return False
-        aggregates_path = input_data.paths.aggregates_dir / "aggregates.json"
+        aggregates_path = input_data.paths.aggregates_dir / "frames" / "documents.csv"
         if not aggregates_path.exists():
-            self.logger.warning("Aggregates not found; skipping report.")
+            self.logger.warning("Frames aggregates not found; skipping report.")
             return False
         self._report_path = input_data.paths.html
         return True

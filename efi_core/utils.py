@@ -7,8 +7,8 @@ from datetime import datetime, date
 from typing import Optional, Union, Sequence, Tuple
 from dateutil import parser
 
-# Type alias for date fields
-DateField = Union[datetime, str, None]
+# Type alias for date-like fields (API may return date, datetime, or cached JSON string)
+DateField = Union[datetime, date, str, None]
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -24,29 +24,43 @@ class DateTimeEncoder(json.JSONEncoder):
 
 def normalize_date(date_value: DateField) -> Optional[datetime]:
     """
-    Normalize various date formats to datetime objects
-    
+    Normalize various date formats to a comparable datetime for sorting/filtering.
+
+    Handles datetime, date, ISO/other date strings (e.g. from cached JSON),
+    and None. All successful results are datetime so comparisons never mix types.
+
     Args:
-        date_value: Date value that could be datetime, string, or None
-        
+        date_value: Date value that could be datetime, date, string, or None.
+
     Returns:
-        datetime object if parsing successful, None otherwise
+        datetime object if parsing successful, None otherwise.
     """
     if date_value is None:
         return None
-    
+
     if isinstance(date_value, datetime):
         return date_value
-    
+
+    if isinstance(date_value, date):
+        return datetime.combine(date_value, datetime.min.time())
+
     if isinstance(date_value, str):
-        try:
-            # Try to parse the date string
-            return parser.parse(date_value)
-        except (ValueError, TypeError):
-            # If parsing fails, return None
+        val = date_value.strip()
+        if not val:
             return None
-    
-    # For any other type, return None
+        try:
+            return parser.parse(val)
+        except (ValueError, TypeError):
+            return None
+
+    # Objects with a .date() method (e.g. datetime-like from another library)
+    if hasattr(date_value, "date"):
+        try:
+            d = date_value.date()
+            return datetime.combine(d, datetime.min.time()) if d else None
+        except (ValueError, TypeError):
+            return None
+
     return None
 
 

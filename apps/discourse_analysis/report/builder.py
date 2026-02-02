@@ -1003,22 +1003,33 @@ class ReportBuilder:
         if not ctx.ner_result or not ctx.ner_result.documents:
             return "<p class=\"subtitle\">No named entities extracted. Enable NER in config with <code>ner.enabled: true</code>.</p>"
 
-        # Build lookup from doc_id to URL from frame_classifications (URL is at document level)
+        # Build lookup from doc_id to URL and year from frame_classifications
         doc_to_url: Dict[str, str] = {}
+        doc_to_year: Dict[str, int] = {}
         for doc_class in ctx.frame_classifications or []:
             payload = doc_class.payload if isinstance(doc_class.payload, dict) else {}
             doc_id = str(payload.get("doc_id", "")).strip()
             url = str(payload.get("url", "")).strip()
+            published_at = payload.get("published_at", "")
             if doc_id and url:
                 doc_to_url[doc_id] = url
+            if doc_id and published_at:
+                try:
+                    year = int(str(published_at)[:4])
+                    if 1900 < year < 2100:
+                        doc_to_year[doc_id] = year
+                except (ValueError, TypeError):
+                    pass
 
         # Aggregate entities by (type, text) -> count
         entity_counts: Dict[tuple, int] = {}
         entity_frames: Dict[tuple, Dict[str, int]] = {}  # Track which frames each entity appears in
         entity_articles: Dict[tuple, Dict[str, str]] = {}  # Track doc_id -> url for each entity
+        entity_by_year: Dict[tuple, Dict[int, int]] = {}  # Track (type, text) -> year -> count
 
         for doc in ctx.ner_result.documents:
             doc_url = doc_to_url.get(doc.doc_id, "")
+            doc_year = doc_to_year.get(doc.doc_id)
             for chunk in doc.chunks:
                 frame_id = chunk.frame_id
                 for entity in chunk.entities:
@@ -1032,6 +1043,11 @@ class ReportBuilder:
                         entity_articles[key] = {}
                     if doc.doc_id not in entity_articles[key] and doc_url:
                         entity_articles[key][doc.doc_id] = doc_url
+                    # Track by year for timeseries
+                    if doc_year:
+                        if key not in entity_by_year:
+                            entity_by_year[key] = {}
+                        entity_by_year[key][doc_year] = entity_by_year[key].get(doc_year, 0) + 1
 
         if not entity_counts:
             return "<p class=\"subtitle\">No entities found in chunks meeting the frame threshold.</p>"
@@ -1052,19 +1068,36 @@ class ReportBuilder:
                 top_frame = frame_labels.get(top_frame_id, top_frame_id)
             # Get article URLs for this entity
             articles = list(entity_articles.get((ent_type, ent_text), {}).values())
+            # Get yearly counts for timeseries
+            yearly = entity_by_year.get((ent_type, ent_text), {})
             rows.append({
                 "type": ent_type,
                 "text": ent_text,
                 "count": count,
                 "topFrame": top_frame,
                 "articles": articles,
+                "yearly": yearly,
             })
+
+        # Build timeseries data for PERSON and ORG entities
+        all_years = sorted(set(y for r in rows for y in r.get("yearly", {}).keys()))
+        person_timeseries = [
+            {"name": r["text"], "total": r["count"], "yearly": r["yearly"]}
+            for r in rows if r["type"] == "PERSON" and r["yearly"]
+        ]
+        org_timeseries = [
+            {"name": r["text"], "total": r["count"], "yearly": r["yearly"]}
+            for r in rows if r["type"] == "ORG" and r["yearly"]
+        ]
 
         # Get unique entity types for filter
         entity_types = sorted(set(r["type"] for r in rows))
 
         payload = json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")
         entity_types_json = json.dumps(entity_types, ensure_ascii=False)
+        person_ts_json = json.dumps(person_timeseries, ensure_ascii=False).replace("</", "<\\/")
+        org_ts_json = json.dumps(org_timeseries, ensure_ascii=False).replace("</", "<\\/")
+        all_years_json = json.dumps(all_years, ensure_ascii=False)
 
         stats = (
             f"<p class=\"subtitle\">"
@@ -1073,7 +1106,115 @@ class ReportBuilder:
             f"</p>"
         )
 
+        # Timeseries charts section
+        timeseries_html = ""
+        if person_timeseries or org_timeseries:
+            timeseries_html = f"""
+<div class="plot-section" style="margin-bottom:24px;">
+  <h3>Entity Mentions Over Time</h3>
+  <div class="controls" style="margin-bottom:12px;">
+    <label>Show top
+      <select id="ner-ts-topn">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div>
+      <h4 style="margin:0 0 8px;font-family:'Space Grotesk',sans-serif;font-size:1rem;">Persons</h4>
+      <div id="ner-person-chart" style="width:100%;height:350px;"></div>
+    </div>
+    <div>
+      <h4 style="margin:0 0 8px;font-family:'Space Grotesk',sans-serif;font-size:1rem;">Organizations</h4>
+      <div id="ner-org-chart" style="width:100%;height:350px;"></div>
+    </div>
+  </div>
+</div>
+<script id="ner-person-ts-data" type="application/json">{person_ts_json}</script>
+<script id="ner-org-ts-data" type="application/json">{org_ts_json}</script>
+<script id="ner-all-years" type="application/json">{all_years_json}</script>
+<script>
+(function() {{
+  const personData = JSON.parse(document.getElementById('ner-person-ts-data').textContent);
+  const orgData = JSON.parse(document.getElementById('ner-org-ts-data').textContent);
+  const allYears = JSON.parse(document.getElementById('ner-all-years').textContent);
+  const topNSelect = document.getElementById('ner-ts-topn');
+
+  const colors = ['#1E3D58', '#057D9F', '#F18F01', '#A23B72', '#6C63FF', '#3A7D44', '#F45B69', '#0E7C7B', '#F2A541', '#8B5CF6',
+                  '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#84cc16', '#a855f7', '#14b8a6', '#f97316'];
+
+  function renderChart(containerId, data, topN) {{
+    const container = document.getElementById(containerId);
+    if (!container || !data || data.length === 0) {{
+      if (container) container.innerHTML = '<p style="color:var(--muted);font-size:0.9rem;">No data available</p>';
+      return;
+    }}
+
+    // Sort by total count and take top N
+    const sorted = [...data].sort((a, b) => b.total - a.total).slice(0, topN);
+    if (sorted.length === 0 || allYears.length === 0) {{
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.9rem;">No data available</p>';
+      return;
+    }}
+
+    const traces = sorted.map((entity, idx) => {{
+      const yValues = allYears.map(year => entity.yearly[year] || 0);
+      return {{
+        x: allYears,
+        y: yValues,
+        mode: 'lines+markers',
+        name: entity.name,
+        line: {{ color: colors[idx % colors.length], width: 2 }},
+        marker: {{ size: 6 }},
+        hovertemplate: '%{{y}} mentions<extra>%{{fullData.name}}</extra>'
+      }};
+    }});
+
+    // Add annotations for labels at end of lines
+    const annotations = sorted.map((entity, idx) => {{
+      const lastYear = allYears[allYears.length - 1];
+      const lastValue = entity.yearly[lastYear] || 0;
+      return {{
+        x: lastYear,
+        y: lastValue,
+        xanchor: 'left',
+        yanchor: 'middle',
+        text: entity.name.length > 15 ? entity.name.slice(0, 15) + '...' : entity.name,
+        font: {{ size: 10, color: colors[idx % colors.length] }},
+        showarrow: false,
+        xshift: 5
+      }};
+    }});
+
+    const layout = {{
+      margin: {{ l: 50, r: 120, t: 20, b: 40 }},
+      xaxis: {{ title: '', tickmode: 'linear', dtick: 1 }},
+      yaxis: {{ title: 'Mentions', rangemode: 'tozero' }},
+      showlegend: false,
+      annotations: annotations,
+      hovermode: 'x unified'
+    }};
+
+    Plotly.newPlot(containerId, traces, layout, {{ displayModeBar: false, responsive: true }});
+  }}
+
+  function updateCharts() {{
+    const topN = parseInt(topNSelect.value, 10);
+    renderChart('ner-person-chart', personData, topN);
+    renderChart('ner-org-chart', orgData, topN);
+  }}
+
+  topNSelect.addEventListener('change', updateCharts);
+  updateCharts();
+}})();
+</script>
+"""
+
         return f"""{stats}
+{timeseries_html}
 <div class="controls">
   <label>Entity Type
     <select id="ner-type-filter">

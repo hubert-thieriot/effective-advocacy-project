@@ -1,7 +1,15 @@
 """Named Entity Recognition module for discourse analysis."""
 
 from .extractor import StanzaNERExtractor
-from .types import EntityMention, ChunkEntities, DocumentEntities, NERResult
+from .types import (
+    EntityMention,
+    ChunkEntities,
+    DocumentEntities,
+    NERResult,
+    ConsolidatedEntity,
+    ConsolidatedNERResult,
+)
+from .consolidator import NERConsolidator
 
 __all__ = [
     "StanzaNERExtractor",
@@ -9,4 +17,7 @@ __all__ = [
     "ChunkEntities",
     "DocumentEntities",
     "NERResult",
+    "ConsolidatedEntity",
+    "ConsolidatedNERResult",
+    "NERConsolidator",
 ]

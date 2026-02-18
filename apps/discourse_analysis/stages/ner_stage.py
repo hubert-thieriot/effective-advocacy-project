@@ -5,7 +5,7 @@ NER (Named Entity Recognition) stage for discourse analysis pipeline.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from efi_core.pipeline import PipelineStage
 from efi_analyser.ner import (
@@ -14,7 +14,10 @@ from efi_analyser.ner import (
     ChunkEntities,
     DocumentEntities,
     NERResult,
+    NERConsolidator,
+    ConsolidatedNERResult,
 )
+from efi_analyser.scorers.openai_interface import OpenAIInterface, OpenAIConfig
 
 from .base import StageContext
 
@@ -28,6 +31,31 @@ class NERStage(PipelineStage[StageContext, NERResult]):
         return bool(input_data.config.ner.enabled)
 
     def execute(self, input_data: StageContext) -> NERResult:
+        """Main execution: runs entity extraction then consolidation."""
+        config = input_data.config
+        state = input_data.state
+        paths = input_data.paths
+
+        # Step 1: Extract entities (with its own caching)
+        ner_result = self._run_entity_extraction(input_data)
+
+        # Step 2: Run consolidation if enabled (with its own caching)
+        if config.ner.consolidation.enabled:
+            consolidated = self._run_consolidation(
+                ner_result,
+                config.ner.consolidation,
+                paths,
+                config,
+            )
+            if consolidated:
+                ner_result.consolidated = consolidated
+                # Save updated result with consolidation
+                ner_result.save(paths.ner_entities_path)
+
+        return ner_result
+
+    def _run_entity_extraction(self, input_data: StageContext) -> NERResult:
+        """Run entity extraction substage with caching."""
         config = input_data.config
         state = input_data.state
         paths = input_data.paths
@@ -60,12 +88,22 @@ class NERStage(PipelineStage[StageContext, NERResult]):
                 self.logger.info(
                     f"Found cached NER results: {cached.n_chunks} chunks already processed"
                 )
+                if not self._languages_match(cached.language, ner_config.language):
+                    self.logger.warning(
+                        "Cached NER language (%s) does not match config (%s).",
+                        self._format_language(cached.language),
+                        self._format_language(ner_config.language),
+                    )
+                    if not config.regenerate_report_only:
+                        cached = None
+                        cached_chunk_ids = set()
             except Exception as e:
                 self.logger.warning(f"Failed to load cached NER results: {e}")
                 cached = None
 
-        # If regenerate_report_only, just return cached (no new processing)
+        # If regenerate_report_only, just return cached (no new extraction, but consolidation may run)
         if config.regenerate_report_only and cached is not None:
+            self.logger.info("Using cached entity extraction results (regenerate_report_only=True).")
             return cached
 
         # Filter to only new chunks (not already in cache)
@@ -78,7 +116,7 @@ class NERStage(PipelineStage[StageContext, NERResult]):
 
         if not new_chunks:
             if cached is not None:
-                self.logger.info("No new chunks to process, using cached results.")
+                self.logger.info("No new chunks to process, using cached entity extraction results.")
                 return cached
             self.logger.info("No chunks to process for NER extraction.")
             return NERResult(language=ner_config.language, frame_threshold=ner_config.frame_threshold)
@@ -86,7 +124,7 @@ class NERStage(PipelineStage[StageContext, NERResult]):
         self.logger.info(
             f"Running NER on {len(new_chunks)} new chunks "
             f"({len(all_chunks_to_process)} total, {len(cached_chunk_ids)} cached) "
-            f"(threshold={ner_config.frame_threshold}, lang={ner_config.language})"
+            f"(threshold={ner_config.frame_threshold}, lang={self._format_language(ner_config.language)})"
         )
 
         # Initialize extractor
@@ -214,7 +252,7 @@ class NERStage(PipelineStage[StageContext, NERResult]):
         self,
         chunks_to_process: List[Dict],
         entity_results: List[List[EntityMention]],
-        language: str,
+        language: Union[str, List[str]],
         threshold: float,
     ) -> NERResult:
         """Build NERResult from extraction results."""
@@ -249,5 +287,115 @@ class NERStage(PipelineStage[StageContext, NERResult]):
             frame_threshold=threshold,
         )
 
+    def _run_consolidation(
+        self,
+        ner_result: NERResult,
+        consolidation_config,
+        paths,
+        config,
+    ) -> Optional[ConsolidatedNERResult]:
+        """Run NER consolidation substage with caching.
+
+        This runs independently of entity extraction, so even if entities
+        are loaded from cache, consolidation can still be performed or
+        loaded from its own cache.
+        """
+        consolidated_path = paths.ner_consolidated_path
+
+        # Try to load cached consolidated results
+        cached_consolidated: Optional[ConsolidatedNERResult] = None
+        if consolidated_path.exists():
+            try:
+                cached_consolidated = ConsolidatedNERResult.load(consolidated_path)
+                self.logger.info(
+                    f"Found cached consolidated NER results: {cached_consolidated.n_entities} entities"
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to load cached consolidated results: {e}")
+
+        # If regenerate_report_only, return cached if available
+        if config.regenerate_report_only and cached_consolidated is not None:
+            self.logger.info("Using cached consolidation results (regenerate_report_only=True).")
+            return cached_consolidated
+
+        # Check if we need to re-run consolidation
+        # Re-run if: no cache exists, or if the raw entity count has changed
+        should_consolidate = (
+            cached_consolidated is None or
+            cached_consolidated.raw_entity_count != ner_result.n_entities
+        )
+
+        if not should_consolidate:
+            self.logger.info("Consolidation already up-to-date, using cached results.")
+            return cached_consolidated
+
+        self.logger.info("Running NER consolidation...")
+
+        try:
+            # Initialize LLM client
+            llm_config = OpenAIConfig(
+                model=consolidation_config.model,
+                temperature=consolidation_config.temperature,
+                flex_processing=consolidation_config.flex_processing,
+            )
+            llm_client = OpenAIInterface(name="ner_consolidation", config=llm_config)
+
+            # Initialize consolidator
+            consolidator = NERConsolidator(
+                llm_client=llm_client,
+                batch_size=consolidation_config.batch_size,
+                min_count=consolidation_config.min_count,
+                entity_types=consolidation_config.entity_types,
+                guidance=consolidation_config.guidance,
+            )
+
+            # Run consolidation
+            domain = getattr(config.framing, "domain", None) or ""
+            consolidated = consolidator.consolidate(ner_result, domain=domain)
+
+            # Save results
+            consolidated.save(consolidated_path)
+            self.logger.info(
+                f"Consolidation complete: {consolidated.raw_entity_count} raw → "
+                f"{consolidated.n_entities} consolidated"
+            )
+
+            return consolidated
+
+        except Exception as e:
+            self.logger.error(f"Consolidation failed: {e}")
+            return None
+
     def get_metadata(self) -> dict:
         return {"stage": self.name}
+
+    @staticmethod
+    def _normalize_languages(language: Union[str, List[str]]) -> List[str]:
+        if isinstance(language, (list, tuple, set)):
+            raw = [str(item).strip().lower() for item in language if str(item).strip()]
+        else:
+            text = str(language).strip()
+            if not text:
+                raw = []
+            elif "," in text:
+                raw = [part.strip().lower() for part in text.split(",") if part.strip()]
+            else:
+                raw = [text.lower()]
+        seen = set()
+        langs = []
+        for lang in raw:
+            if lang not in seen:
+                seen.add(lang)
+                langs.append(lang)
+        return langs or ["en"]
+
+    @classmethod
+    def _languages_match(cls, left: Union[str, List[str]], right: Union[str, List[str]]) -> bool:
+        left_norm = set(cls._normalize_languages(left))
+        right_norm = set(cls._normalize_languages(right))
+        return left_norm == right_norm
+
+    @classmethod
+    def _format_language(cls, language: Union[str, List[str]]) -> str:
+        langs = cls._normalize_languages(language)
+        return ", ".join(langs)

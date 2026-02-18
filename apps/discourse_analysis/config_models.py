@@ -71,60 +71,174 @@ class FramingConfig(BaseModel):
     classifier: ClassifierSettings = Field(default_factory=ClassifierSettings)
     classification: ClassificationConfig = Field(default_factory=ClassificationConfig)
 
-
-class StanceAnnotationConfig(BaseModel):
-    size: int = 500
-    model: str = "claude-sonnet-4"
-    batch_size: int = 5
-    temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0)
-    flex_processing: Optional[bool] = False
-
-
-class StanceConfig(BaseModel):
-    enabled: bool = True
-    mode: str = "zero_shot"  # "zero_shot" or "trained"
-    targets: List[str] = Field(default_factory=list)
-    zero_shot_model: str = "facebook/bart-large-mnli"
-    chunk_limit: Optional[int] = None
-    annotation: StanceAnnotationConfig = Field(default_factory=StanceAnnotationConfig)
-    classifier: ClassifierSettings = Field(default_factory=ClassifierSettings)
-    classification: ClassificationConfig = Field(default_factory=ClassificationConfig)
-
+    # Reload flags
+    reload_schema: bool = False
     reload_annotation: bool = False
     reload_classifier: bool = False
     reload_classifications: bool = False
 
-    @field_validator("mode")
+
+# ---------------------------------------------------------------------------
+# Claims Analysis Configuration (replaces Stance for DNA-style analysis)
+# ---------------------------------------------------------------------------
+
+
+class StatementExtractionConfig(BaseModel):
+    """Configuration for statement extraction from NER chunks."""
+
+    model: str = "gpt-4o-mini"
+    batch_size: int = 10  # Chunks per LLM call
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    max_statements_per_chunk: int = 5
+    min_statement_length: int = 20
+    flex_processing: bool = True
+    chunk_limit: Optional[int] = None  # Limit number of chunks to process (for testing)
+
+
+class ClaimSchemaConfig(BaseModel):
+    """Configuration for claim schema (induction or file)."""
+
+    source: str = "induction"  # "induction" or "file"
+    schema_path: Optional[Path] = None
+
+    # Induction settings
+    induction_size: int = 200  # Statements to sample for induction
+    induction_model: str = "claude-sonnet-4"
+    induction_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    claim_target: str = "10"  # Can be "10" or "8-12 claims"
+    induction_guidance: Optional[str] = None  # Seed claims/hints
+    induction_batch_size: int = 10
+    flex_processing: bool = False
+
+    @field_validator("source")
     @classmethod
-    def validate_mode(cls, v: str) -> str:
+    def validate_source(cls, v: str) -> str:
         v_lower = str(v).strip().lower()
-        if v_lower not in {"zero_shot", "trained"}:
-            return "zero_shot"
+        if v_lower not in {"induction", "file"}:
+            return "induction"
         return v_lower
 
-    @field_validator("chunk_limit")
+    @field_validator("schema_path")
     @classmethod
-    def validate_chunk_limit(cls, v: Optional[int]) -> Optional[int]:
+    def expand_schema_path(cls, v: Optional[Path]) -> Optional[Path]:
         if v is None:
             return None
-        return v if v > 0 else None
+        return Path(v).expanduser().resolve()
+
+
+class AgreementScoringConfig(BaseModel):
+    """Configuration for statement-claim agreement scoring."""
+
+    model: str = "gpt-4o-mini"  # Fast model for many calls
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    flex_processing: bool = True
+    batch_size: int = Field(default=1, ge=1)  # Statements per LLM call
+
+    # Thresholds for labels
+    support_threshold: float = 0.3  # >= 0.3 -> "supports"
+    oppose_threshold: float = -0.3  # <= -0.3 -> "opposes"
+
+
+class DNAConfig(BaseModel):
+    """Configuration for Discourse Network Analysis (DNA).
+
+    Controls actor-actor network building and coalition clustering,
+    both of which run from a shared actor set for consistency.
+    """
+
+    enabled: bool = True
+    min_statements: int = 2  # Minimum supports/opposes agreements per actor
+    max_actors: int = 50  # Maximum actors to include
+    n_clusters_range: Tuple[int, int] = (2, 8)  # K-means N range to test
+    layout: str = "spring"  # Network layout: "spring", "community", "kamada_kawai"
+    reload_dna: bool = False  # True: load saved results from cache; False: rebuild
+
+
+class ClaimsAnalysisConfig(BaseModel):
+    """Configuration for the Claims Analysis stage.
+
+    This stage:
+    1. Extracts statements from chunks with actors (from NER)
+    2. Induces/loads claims (specific policy positions)
+    3. Scores agreement between statements and claims
+    """
+
+    enabled: bool = False
+    domain: Optional[str] = None  # E.g., "Grand National horse racing debate"
+
+    statement: StatementExtractionConfig = Field(default_factory=StatementExtractionConfig)
+    claims: ClaimSchemaConfig = Field(default_factory=ClaimSchemaConfig)
+    scoring: AgreementScoringConfig = Field(default_factory=AgreementScoringConfig)
+    dna: DNAConfig = Field(default_factory=DNAConfig)
+
+    # Reload flags
+    reload_statements: bool = False
+    reload_claims: bool = False
+    reload_agreements: bool = False
+
+
+class NERConsolidationConfig(BaseModel):
+    """Configuration for NER consolidation (entity grouping and enrichment)."""
+
+    enabled: bool = False
+    model: str = "gpt-4o-mini"  # LLM model for consolidation
+    batch_size: int = 50  # Entities per LLM call
+    min_count: int = 2  # Only consolidate entities appearing >= min_count times
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    flex_processing: bool = True  # OpenAI flex processing (50% cost reduction)
+    guidance: Optional[str] = None  # User-provided context/guidance for LLM
+    entity_types: List[str] = Field(
+        default_factory=lambda: ["PERSON", "ORG", "WORK_OF_ART", "EVENT", "FAC", "PRODUCT"]
+    )
 
 
 class NERConfig(BaseModel):
     """Configuration for Named Entity Recognition stage."""
 
     enabled: bool = False
-    language: str = "en"  # Stanza language code
+    language: Union[str, List[str]] = "en"  # Stanza language code(s)
     frame_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     entity_types: Optional[List[str]] = None  # Filter to specific types (None = all)
     batch_size: int = 32
 
+    consolidation: NERConsolidationConfig = Field(default_factory=NERConsolidationConfig)
     reload_ner: bool = False
 
     @field_validator("language")
     @classmethod
-    def validate_language(cls, v: str) -> str:
-        return str(v).strip().lower() or "en"
+    def validate_language(cls, v):
+        if v is None:
+            return "en"
+        if isinstance(v, (list, tuple, set)):
+            raw = [str(item).strip().lower() for item in v if str(item).strip()]
+            seen = set()
+            langs = []
+            for lang in raw:
+                if lang not in seen:
+                    seen.add(lang)
+                    langs.append(lang)
+            if not langs:
+                return "en"
+            if len(langs) == 1:
+                return langs[0]
+            return langs
+        text = str(v).strip()
+        if not text:
+            return "en"
+        if "," in text:
+            raw = [part.strip().lower() for part in text.split(",") if part.strip()]
+            seen = set()
+            langs = []
+            for lang in raw:
+                if lang not in seen:
+                    seen.add(lang)
+                    langs.append(lang)
+            if not langs:
+                return "en"
+            if len(langs) == 1:
+                return langs[0]
+            return langs
+        return text.lower()
 
 
 class ReportConfig(BaseModel):
@@ -144,11 +258,6 @@ class DiscourseAnalysisConfig(BaseModel):
     seed: int = 42
 
     # Reload flags
-    reload_framing_schema: bool = False
-    reload_framing_annotation: bool = False
-    reload_framing_classifier: bool = False
-    reload_framing_classifications: bool = False
-    reload_stance: bool = False
     regenerate_report_only: bool = False
 
     # Shared filters/chunking
@@ -159,7 +268,7 @@ class DiscourseAnalysisConfig(BaseModel):
     # Sections
     framing: FramingConfig = Field(default_factory=FramingConfig)
     ner: NERConfig = Field(default_factory=NERConfig)
-    stance: StanceConfig = Field(default_factory=StanceConfig)
+    claims_analysis: ClaimsAnalysisConfig = Field(default_factory=ClaimsAnalysisConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
 
     source_config_path: Optional[Path] = None
@@ -186,19 +295,12 @@ class DiscourseAnalysisConfig(BaseModel):
 
     @model_validator(mode="after")
     def handle_reload_report_only(self) -> "DiscourseAnalysisConfig":
-        if self.reload_stance:
-            self.stance.reload_annotation = True
-            self.stance.reload_classifier = True
-            self.stance.reload_classifications = True
         if self.regenerate_report_only:
-            self.reload_framing_schema = True
-            self.reload_framing_annotation = True
-            self.reload_framing_classifier = True
-            self.reload_framing_classifications = True
+            self.framing.reload_schema = True
+            self.framing.reload_annotation = True
+            self.framing.reload_classifier = True
+            self.framing.reload_classifications = True
             self.ner.reload_ner = True
-            self.stance.reload_annotation = True
-            self.stance.reload_classifier = True
-            self.stance.reload_classifications = True
         return self
 
     @classmethod
@@ -243,8 +345,12 @@ __all__ = [
     "FramingSchemaConfig",
     "FramingAnnotationConfig",
     "NERConfig",
-    "StanceConfig",
-    "StanceAnnotationConfig",
+    "NERConsolidationConfig",
+    "ClaimsAnalysisConfig",
+    "StatementExtractionConfig",
+    "ClaimSchemaConfig",
+    "AgreementScoringConfig",
+    "DNAConfig",
     "ReportConfig",
     "FilterConfig",
     "ChunkingConfig",

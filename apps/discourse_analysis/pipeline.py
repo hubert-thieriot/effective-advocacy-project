@@ -16,7 +16,8 @@ from .stages import (
     CorpusLoadingStage,
     FramingStage,
     NERStage,
-    StanceDetectionStage,
+    ClaimsAnalysisStage,
+    DNAStage,
     AnalysisStage,
     ReportStage,
     StageContext,
@@ -47,7 +48,8 @@ class DiscourseAnalysisPipeline(Pipeline):
 
         framing_dir = output_dir / "framing"
         ner_dir = output_dir / "ner"
-        stance_dir = output_dir / "stance"
+        claims_dir = output_dir / "claims"
+        dna_dir = output_dir / "dna"
         report_dir = output_dir / "report"
         plots_dir = report_dir / "plots"
 
@@ -60,10 +62,14 @@ class DiscourseAnalysisPipeline(Pipeline):
             framing_classifications_dir=framing_dir / "classifications",
             ner_dir=ner_dir,
             ner_entities_path=ner_dir / "entities.json",
-            stance_dir=stance_dir,
-            stance_annotation_path=stance_dir / "assignments.json",
-            stance_classifier_dir=stance_dir / "classifier",
-            stance_classifications_dir=stance_dir / "classifications",
+            ner_consolidated_path=ner_dir / "entities_consolidated.json",
+            claims_dir=claims_dir,
+            statements_path=claims_dir / "statements.json",
+            claims_schema_path=claims_dir / "claims.json",
+            agreements_path=claims_dir / "agreements.json",
+            dna_dir=dna_dir,
+            dna_network_path=dna_dir / "network.pkl",
+            dna_coalition_path=dna_dir / "coalition.pkl",
             aggregates_dir=output_dir / "analysis",
             report_dir=report_dir,
             plots_dir=plots_dir,
@@ -105,7 +111,8 @@ class DiscourseAnalysisPipeline(Pipeline):
             CorpusLoadingStage("corpus_loading", self.output_dir),
             FramingStage("framing", self.output_dir),
             NERStage("ner", self.output_dir),
-            StanceDetectionStage("stance_detection", self.output_dir),
+            ClaimsAnalysisStage("claims_analysis", self.output_dir),
+            DNAStage("dna", self.output_dir),
             AnalysisStage("analysis", self.output_dir),
             ReportStage("report", self.output_dir),
         ]
@@ -147,9 +154,12 @@ class DiscourseAnalysisPipeline(Pipeline):
             self.state.frame_annotation_candidates = data.annotation_candidates
         elif stage_name == "ner":
             self.state.ner_result = data
-        elif stage_name == "stance_detection":
-            self.state.stance_assignments = data.assignments
-            self.state.stance_classifications = data.classifications
+        elif stage_name == "claims_analysis":
+            self.state.claims_result = data
+        elif stage_name == "dna":
+            dna_result, coalition_result = data
+            self.state.dna_result = dna_result
+            self.state.coalition_result = coalition_result
         elif stage_name == "analysis":
             self.state.aggregates = data
 

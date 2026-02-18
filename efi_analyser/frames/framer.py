@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 import json
 import random
 import logging
@@ -26,6 +26,9 @@ from efi_analyser.frames.classifier import EmbeddedCorporaSampler
 from efi_analyser.frames.identifiers import split_passage_id, split_global_doc_id
 from efi_analyser.frames.filter import DocumentFilter
 from efi_analyser.scorers.openai_interface import OpenAIInterface, OpenAIConfig
+
+if TYPE_CHECKING:
+    from apps.discourse_analysis.config_models import DiscourseAnalysisConfig
 
 
 @dataclass
@@ -103,7 +106,7 @@ class Framer:
 
     def __init__(
         self,
-        config: object,
+        config: DiscourseAnalysisConfig,
         paths: FramerPaths,
         *,
         prompts: Optional[Dict[str, str]] = None,
@@ -197,7 +200,7 @@ class Framer:
         schema_path = self.paths.schema_path
         if (
             getattr(self.config, "regenerate_report_only", False)
-            or getattr(self.config, "reload_framing_schema", False)
+            or getattr(self.config.framing, "reload_schema", False)
         ) and schema_path.exists():
             return load_schema(schema_path)
 
@@ -283,7 +286,7 @@ class Framer:
         assignments_path = self.paths.assignments_path
         if (
             getattr(self.config, "regenerate_report_only", False)
-            or getattr(self.config, "reload_framing_annotation", False)
+            or getattr(self.config.framing, "reload_annotation", False)
         ) and assignments_path.exists():
             try:
                 assignments = FrameAssignments.load(assignments_path)
@@ -495,7 +498,7 @@ class Framer:
         classifier_dir = self.paths.classifier_dir
         if (
             getattr(self.config, "regenerate_report_only", False)
-            or getattr(self.config, "reload_framing_classifier", False)
+            or getattr(self.config.framing, "reload_classifier", False)
         ) and classifier_dir.exists():
             model = FrameClassifierModel.load(classifier_dir)
             self._maybe_save_classifier_predictions(model, assignments)
@@ -570,7 +573,7 @@ class Framer:
         fill_gap = False
         if (
             getattr(self.config, "regenerate_report_only", False)
-            or getattr(self.config, "reload_framing_classifications", False)
+            or getattr(self.config.framing, "reload_classifications", False)
         ) and classifications_dir.exists():
             cached = DocumentClassifications.from_folder(classifications_dir)
             cached = self._filter_classifications(cached, doc_filter, corpora)

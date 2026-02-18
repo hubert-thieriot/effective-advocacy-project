@@ -621,6 +621,158 @@ def plot_document_count_by_domain(
     return _fig_to_html_fragment(fig, "domain-counts")
 
 
+def plot_dna_network(
+    dna_result: "DNANetworkResult",
+    positions: Dict[str, tuple],
+    *,
+    export_path: Optional[Path] = None,
+) -> str:
+    """Plot DNA actor-actor network using Plotly.
+
+    Args:
+        dna_result: DNA network analysis result
+        positions: Node positions from layout algorithm (entity_id -> (x, y))
+        export_path: Optional path to export PNG/HTML
+
+    Returns:
+        HTML fragment for embedding
+    """
+    # Import here to avoid circular imports
+    from apps.discourse_analysis.analysis.dna_network import DNANetworkResult
+
+    if not dna_result or not dna_result.nodes:
+        return ""
+
+    # Community colors - high contrast, colorblind-friendly palette
+    community_colors = [
+        "#E63946",  # Red
+        "#2A9D8F",  # Teal
+        "#E9C46A",  # Yellow/Gold
+        "#264653",  # Dark blue
+        "#F4A261",  # Orange
+        "#8338EC",  # Purple
+        "#06D6A0",  # Green
+        "#EF476F",  # Pink
+        "#118AB2",  # Blue
+        "#FFD166",  # Light yellow
+    ]
+
+    # Create edge traces
+    ally_edge_x: List[Optional[float]] = []
+    ally_edge_y: List[Optional[float]] = []
+    enemy_edge_x: List[Optional[float]] = []
+    enemy_edge_y: List[Optional[float]] = []
+
+    for edge in dna_result.edges:
+        x0, y0 = positions.get(edge.actor1_id, (0, 0))
+        x1, y1 = positions.get(edge.actor2_id, (0, 0))
+
+        if edge.relationship == "allies":
+            ally_edge_x.extend([x0, x1, None])
+            ally_edge_y.extend([y0, y1, None])
+        else:
+            enemy_edge_x.extend([x0, x1, None])
+            enemy_edge_y.extend([y0, y1, None])
+
+    traces = []
+
+    # Ally edges (green) - rendered first so they appear behind nodes
+    if ally_edge_x:
+        traces.append(
+            go.Scatter(
+                x=ally_edge_x,
+                y=ally_edge_y,
+                mode="lines",
+                line={"width": 1, "color": "rgba(42, 157, 143, 0.2)"},
+                hoverinfo="skip",
+                name="Allies",
+                showlegend=True,
+            )
+        )
+
+    # Enemy edges (red) - rendered first so they appear behind nodes
+    if enemy_edge_x:
+        traces.append(
+            go.Scatter(
+                x=enemy_edge_x,
+                y=enemy_edge_y,
+                mode="lines",
+                line={"width": 1, "color": "rgba(230, 57, 70, 0.2)"},
+                hoverinfo="skip",
+                name="Enemies",
+                showlegend=True,
+            )
+        )
+
+    # Node trace
+    node_x = [positions.get(n.entity_id, (0, 0))[0] for n in dna_result.nodes]
+    node_y = [positions.get(n.entity_id, (0, 0))[1] for n in dna_result.nodes]
+
+    # Node sizes based on statement count
+    max_stmts = max(n.statement_count for n in dna_result.nodes) or 1
+    min_size, max_size = 15, 50
+    node_sizes = [
+        min_size + (max_size - min_size) * (n.statement_count / max_stmts)
+        for n in dna_result.nodes
+    ]
+
+    # Node colors based on community
+    node_colors = [
+        community_colors[dna_result.communities.get(n.entity_id, 0) % len(community_colors)]
+        for n in dna_result.nodes
+    ]
+
+    # Hover text
+    hover_texts = []
+    for node in dna_result.nodes:
+        comm_id = dna_result.communities.get(node.entity_id, 0)
+        centrality = dna_result.centrality_scores.get(node.entity_id, 0)
+        hover_texts.append(
+            f"<b>{node.canonical_name}</b><br>"
+            f"Type: {node.entity_type}<br>"
+            f"Statements: {node.statement_count}<br>"
+            f"Community: {comm_id + 1}<br>"
+            f"Centrality: {centrality:.2f}"
+        )
+
+    traces.append(
+        go.Scatter(
+            x=node_x,
+            y=node_y,
+            mode="markers+text",
+            marker={
+                "size": node_sizes,
+                "color": node_colors,
+                "line": {"width": 2, "color": "#fff"},
+            },
+            text=[n.canonical_name for n in dna_result.nodes],
+            textposition="top center",
+            textfont={
+                "size": 10,
+                "color": "#1a1a1a",
+            },
+            hovertemplate="%{customdata}<extra></extra>",
+            customdata=hover_texts,
+            name="Actors",
+        )
+    )
+
+    fig = go.Figure(data=traces)
+    fig.update_layout(
+        showlegend=True,
+        legend={"orientation": "h", "y": -0.1},
+        margin={"l": 20, "r": 20, "t": 20, "b": 60},
+        height=600,
+        xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+        yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+        plot_bgcolor="rgba(0,0,0,0)",
+        hovermode="closest",
+    )
+
+    _export_figure(fig, export_path, "dna-network")
+    return _fig_to_html_fragment(fig, "dna-network")
+
+
 __all__ = [
     "build_color_map",
     "plot_global_distribution",
@@ -630,4 +782,5 @@ __all__ = [
     "plot_by_domain_year",
     "plot_by_corpus",
     "plot_document_count_by_domain",
+    "plot_dna_network",
 ]

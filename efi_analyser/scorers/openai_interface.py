@@ -185,7 +185,7 @@ class OpenAIInterface:
                 
                 # Only include temperature if the model supports it
                 if self.config.supports_custom_temperature(self.config.model):
-                    api_params["temperature"] = str(self.config.temperature)
+                    api_params["temperature"] = float(self.config.temperature)
                 
                 # Add service_tier for flex processing (50% cost reduction)
                 if self.config.flex_processing and self.config.supports_flex_processing(self.config.model):

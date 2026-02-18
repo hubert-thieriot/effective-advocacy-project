@@ -25,11 +25,18 @@ class WorkflowPaths:
 
     ner_dir: Path
     ner_entities_path: Path
+    ner_consolidated_path: Path
 
-    stance_dir: Path
-    stance_annotation_path: Path
-    stance_classifier_dir: Path
-    stance_classifications_dir: Path
+    # Claims analysis paths
+    claims_dir: Path
+    statements_path: Path
+    claims_schema_path: Path
+    agreements_path: Path
+
+    # DNA analysis paths
+    dna_dir: Path
+    dna_network_path: Path
+    dna_coalition_path: Path
 
     aggregates_dir: Path
     report_dir: Path
@@ -49,10 +56,12 @@ class WorkflowState:
     frame_classifications: Optional[Any] = None  # DocumentClassifications
     frame_annotation_candidates: List[Any] = field(default_factory=list)  # List[Candidate]
 
-    ner_result: Optional[Any] = None  # NERResult
+    ner_result: Optional[Any] = None  # NERResult (includes consolidated via ner_result.consolidated)
 
-    stance_assignments: Optional[Any] = None  # StanceAssignments
-    stance_classifications: Optional[Any] = None  # StanceAssignments
+    claims_result: Optional[Any] = None  # ClaimsAnalysisResult
+
+    dna_result: Optional[Any] = None        # DNANetworkResult
+    coalition_result: Optional[Any] = None  # CoalitionAnalysisResult
 
     aggregates: Optional[Any] = None
 

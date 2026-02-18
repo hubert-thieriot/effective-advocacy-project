@@ -1,7 +1,6 @@
 corpus: my_corpus
 corpora_root: ~/corpora
 results_dir: ~/results/discourse_analysis
-reload_stance: false
 
 chunking:
   chunker_type: sentence
@@ -40,25 +39,50 @@ framing:
   classification:
     size: 1000
 
-stance:
+ner:
   enabled: true
-  mode: zero_shot
-  chunk_limit: 500
-  targets:
-    - "coal mining"
-    - "renewable energy"
-    - "government policy"
-  zero_shot_model: facebook/bart-large-mnli
-  annotation:
-    size: 300
-    model: claude-sonnet-4
-    batch_size: 5
-  classifier:
+  # language can be a single code or a list for multilingual NER
+  # language: [en, es]
+  language: en
+  frame_threshold: 0.5
+  consolidation:
     enabled: true
-    model_name: distilbert-base-multilingual-cased
-    batch_size: 8
-  classification:
-    size: 1000
+    model: gpt-4o-mini
+    batch_size: 50
+    min_count: 2
+
+# Claims Analysis (DNA-style)
+claims_analysis:
+  enabled: true
+  domain: "Air Pollution Policy Debate"
+
+  statement:
+    model: gpt-4o-mini
+    batch_size: 10
+    max_statements_per_chunk: 5
+
+  claims:
+    source: induction
+    induction_size: 200
+    induction_model: claude-sonnet-4
+    claim_target: "8-12"
+    induction_guidance: |
+      Extract specific policy positions like:
+      - "Coal power plants should be phased out"
+      - "Government should subsidize renewable energy"
+      NOT abstract themes like "environment" or "health"
+
+  scoring:
+    model: gpt-4o-mini
+
+  # Discourse Network Analysis — runs after claims, before report
+  dna:
+    enabled: true
+    min_statements: 2       # Minimum supports/opposes agreements per actor
+    max_actors: 50          # Cap actor count in network and coalition
+    n_clusters_range: [2, 8]  # K-means range tested; best by silhouette score
+    layout: spring          # Network layout: spring | community | kamada_kawai
+    reload_dna: false       # true: load saved results; false: always rebuild
 
 report:
   title: "Discourse Analysis Report"

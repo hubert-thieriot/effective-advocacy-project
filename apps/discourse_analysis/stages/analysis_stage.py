@@ -25,28 +25,25 @@ class AnalysisStage(PipelineStage[StageContext, DiscourseAggregates]):
     def should_run(self, input_data: Optional[StageContext]) -> bool:
         if input_data is None:
             return False
-        # Run if framing is enabled (stance is optional)
-        if not input_data.config.framing.enabled:
-            return False
         self._aggregates_dir = input_data.paths.aggregates_dir
         return True
 
     def execute(self, input_data: StageContext) -> DiscourseAggregates:
         state = input_data.state
+
         if not state.frame_classifications:
-            raise ValueError("Frame classifications are required for analysis.")
+            self.logger.info("No frame classifications available; producing empty aggregates.")
+            aggregates = DiscourseAggregates()
+        else:
+            # Build document filter from config
+            doc_filter = DocumentFilter.from_config(input_data.config.filter)
 
-        # Stance is optional
-        stance_results = state.stance_classifications if input_data.config.stance.enabled else None
+            aggregates = build_aggregates(
+                state.frame_classifications,
+                stance_results=None,  # Stance has been removed
+                doc_filter=doc_filter,
+            )
 
-        # Build document filter from config
-        doc_filter = DocumentFilter.from_config(input_data.config.filter)
-
-        aggregates = build_aggregates(
-            state.frame_classifications,
-            stance_results=stance_results,
-            doc_filter=doc_filter,
-        )
         self._aggregates_dir.mkdir(parents=True, exist_ok=True)
         aggregates.save(self._aggregates_dir)
         return aggregates

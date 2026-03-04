@@ -118,7 +118,7 @@ This type of analysis could inform advocacy and funding strategies in several wa
 </div>
 
 # Example 2: Did the Grand National protest shift media framing?
-In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
+In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National[^grand-national]—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
 
 Social Change Lab conducted an [evaluation](https://www.socialchangelab.org/shortandlongtermeffects) of the protest's effects, combining longitudinal panels with cross-sectional surveys. Their findings were nuanced: awareness of the protest was initially linked to *worse* attitudes toward animals, but these negative effects faded within six months. Cross-sectional comparisons suggested that overall attitudes toward animals had actually improved over that period.
 
@@ -463,3 +463,5 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 
 
 </div>
+
+[^grand-national]: Thanks to [Michael Johnston](https://www.linkedin.com/in/michaeljohnston0) for suggesting to look at the Grand National Protest.

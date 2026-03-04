@@ -1,0 +1,81 @@
+<style>
+.claims-section-title {
+  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  margin: 28px 0 14px 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  letter-spacing: 0.01em;
+}
+.claims-section-title:first-of-type {
+  margin-top: 0;
+}
+.claims-section-desc {
+  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: -8px 0 16px 0;
+  line-height: 1.45;
+}
+.claims-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.claim-card {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 16px 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+}
+.claim-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 4px;
+  background: var(--claim-accent, #94a3b8);
+  opacity: 0.85;
+}
+.claim-card p {
+  position: relative;
+  margin: 0;
+  font-size: 0.9rem !important;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.4 !important;
+}
+</style>
+
+<p class="claims-section-title" style="color: #c2705a;">Product claims</p>
+<!-- <p class="claims-section-desc">What alternative proteins and conventional animal agriculture <em>are</em> and what they <em>do</em> — health, environment, ethics, market viability, cultural meaning.</p> -->
+
+<div class="claims-card-grid">
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Industrial animal agriculture causes unacceptable animal suffering</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Animal agriculture is a major driver of environmental degradation</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Alternative proteins are better for the environment than conventional animal products</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Alternative proteins are healthier than conventional meat</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Alternative protein products are ultra-processed and not real food</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Food technology can fundamentally transform the food system for the better</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>The alternative protein sector has strong market potential</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Animal agriculture is a growing financial and reputational risk</p></div>
+  <div class="claim-card" style="--claim-accent: #c2705a;"><p>Traditional food culture and meat heritage are valuable and worth preserving</p></div>
+</div>
+
+<p class="claims-section-title" style="color: #3d6b8e;">Policy claims</p>
+<!-- <p class="claims-section-desc">What governments, regulators, or institutions <em>should do</em> regarding alternative proteins and the food system.</p> -->
+
+<div class="claims-card-grid">
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>Cultivated meat should be approved under Novel Food Regulation</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>Plant-based products should not be allowed to use meat-related terminology</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>The EU should invest in and subsidize alternative protein research and production</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>The EU should actively promote reduced meat consumption and plant-based diets</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>Ultra-processed foods, including some alternative proteins, should be more strictly regulated</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>Governments should protect traditional farming livelihoods and the meat industry</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>Alternative protein products should have clear and transparent labeling</p></div>
+  <div class="claim-card" style="--claim-accent: #3d6b8e;"><p>The EU should support domestic protein crop cultivation to reduce import dependency</p></div>
+</div>

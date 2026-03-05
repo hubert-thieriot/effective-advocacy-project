@@ -51,7 +51,7 @@ The chart below shows the claims used in this demo analysis.
 
 ## Coalitions: who aligns with whom?
 
-Do actors naturally cluster into camps? To find out, we compute the similarity between every pair of actors based on their stance profiles across all 16 claims, then apply community detection to identify groups whose positions systematically align[^dna]. The scatter plot below shows the result — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
+To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions[^dna]. The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
 
 {% include arguments_actors/eu_alt_proteins/interactive_pca.html %}
 

@@ -62,7 +62,7 @@ Three broad coalitions emerge. The heatmap below shows what defines each one —
 
 
 
-The clustering is algorithmic, but interpreting what each coalition *means* still requires judgement. In this case, I fed the stance centroids and actor lists to Claude Opus 4.6 to draft coalition profiles, to illustrate how much of this analysis could be produced at scale with modest human oversight. Here is what the model produced:
+The clustering is algorithmic, but interpreting what each coalition *means* still requires some form of judgement. In this case, I fed the stance centroids and actor lists to Claude Opus 4.6 to draft coalition profiles, to illustrate how much of this analysis could be produced at scale with modest human oversight. Here is what the model produced:
 
 - <span class="highlight-marker">**Coalition A (82 actors) — "Skeptics & traditionalists."** </span>Farming lobbies, food-culture advocates, and political figures who have pushed back against alternative proteins — from Coldiretti and Slow Food to Ron DeSantis and Giorgia Meloni, alongside nutrition academics like Marco Springmann and Marion Nestle. What unites them is less a shared programme than a shared set of objections: alternative proteins are ultra-processed, their health claims are overstated, and traditional food culture deserves protection.
 
@@ -72,7 +72,7 @@ The clustering is algorithmic, but interpreting what each coalition *means* stil
 
 The sharpest insight here is the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this distinction matters: Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests.
 
-Notably, all of the 242 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
+Notably, all of the 242 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for, in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
 
 
@@ -80,16 +80,24 @@ Notably, all of the 242 actors were identified automatically from the corpus —
 
 The coalition map above is a snapshot — it shows where actors stand, but not how the debate got there. The chart below tracks how often each claim is invoked over time, broken down by stance (support vs. opposition). This is another potential way for the analysis to be actionable: a claim that was barely mentioned two years ago but is now rapidly gaining traction is the kind of signal an advocate may want to catch early.
 
-{% include arguments_actors/eu_alt_proteins/claims_mentions_over_time.html %}
+<div class="chart-item-lite">
+  {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time.html %}
+  <p class="chart-note">
+    <strong>Note:</strong> The corpus is sourced via MediaCloud, whose coverage of European outlets has itself expanded over time. Some of the upward trend in earlier years may reflect growing corpus coverage rather than genuine shifts in the debate. Disentangling the two would require normalising against total article volume per outlet — a refinement for future work.
+  </p>
+</div>
 
-A caveat: the corpus is sourced via MediaCloud, whose coverage of European outlets has itself expanded over time. Some of the upward trend in earlier years may reflect growing corpus coverage rather than genuine shifts in the debate. Disentangling the two would require normalising against total article volume per outlet — a refinement for future work.
+
+
+One could go deeper and analyse how coalitions evolve over time: do they harden into stable blocs, fracture into subgroups, or blur as actors shift positions?
+
 
 
 # Looking forward
 
-The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, or political manifestos**, in virtually any language LLMs are sufficiently trained on. 
+The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on. 
 
-Below are potential applications of the method:
+Below are potential applications of the underlying methodology:
 
 
 <span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear — before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
@@ -105,7 +113,13 @@ Below are potential applications of the method:
 
 # Limitations
 
-The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity. The pipeline has also not yet been validated against a manually labelled dataset; the results shown here have only undergone minor manual sanity checks. Finally, due to time constraints, the current demonstration did not include opinion pieces and editorials, despite it being relevant for this kind of studies.
+The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.
+
+
+The pipeline has also not yet been validated against a manually labelled dataset; the results shown here have only undergone minor manual sanity checks.
+
+
+Finally, due to time constraints, the current demonstration did not include opinion pieces and editorials, despite it being relevant for this kind of studies.
 
 
 <div class="text-box">
@@ -120,3 +134,5 @@ I am interested in hearing from others working on similar problems or exploring 
 [^dna]: This approach is inspired by Discourse Network Analysis (DNA), a method developed by Philip Leifeld for studying policy discourse. The specific representation and clustering choices here — cosine similarity on stance vectors, PCA projection, Louvain community detection — are one of several possible implementations. Alternative approaches might use different similarity measures, network construction methods, or clustering algorithms, and could yield different coalition structures.
 
 [^outlets]: **UK** — The Guardian, The Telegraph, The Independent, The Economist · **Ireland** — Irish Independent · **Pan-European / International** — EUobserver, Euractiv, Deutsche Welle · **Germany** — Süddeutsche Zeitung, Der Spiegel, Die Welt, Frankfurter Allgemeine Zeitung · **France** — Le Monde, Le Figaro, Les Echos · **Italy** — Corriere della Sera, La Repubblica, Il Sole 24 Ore · **Spain** — El País · **Netherlands** — NRC Handelsblad, de Volkskrant · **Poland** — Gazeta Wyborcza, Rzeczpospolita
+
+[^socialmedia]: Social media integration is still being assessed. API access costs and restrictions vary widely across platforms, and we may initially settle for a more targeted approach e.g. tracking a curated set of key accounts rather than broad keyword-based monitoring.

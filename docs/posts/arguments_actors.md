@@ -89,7 +89,7 @@ A caveat: the corpus is sourced via MediaCloud, whose coverage of European outle
 
 The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, or political manifestos**, in virtually any language LLMs are sufficiently trained on. 
 
-Below are potential applications of the overall method:
+Below are potential applications of the method:
 
 
 <span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear — before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.

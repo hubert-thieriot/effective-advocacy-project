@@ -72,7 +72,7 @@ The clustering is algorithmic, but interpreting what each coalition *means* stil
 
 The sharpest insight here is the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this distinction matters: Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests.
 
-Notably, all of the 242 actors were identified automatically from the text — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
+Notably, all of the 242 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
 
 
@@ -87,7 +87,9 @@ A caveat: the corpus is sourced via MediaCloud, whose coverage of European outle
 
 # Looking forward
 
-The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, or political manifestos**. 
+The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, or political manifestos**, in virtually any language LLMs are sufficiently trained on. 
+
+Below are potential applications of the overall method:
 
 
 <span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear — before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.

@@ -4,14 +4,14 @@ permalink: /posts/arguments_actors/
 title: Arguments & Actors Mapping
 subtitle: Exploring tools for Effective Advocacy
 description: Mapping key arguments, media trends, and actor coalitions in the EU alternative proteins debate
-date: 2025-12-17 09:00:00 +0000
-last_modified_at: 2025-12-17 00:00:00 +0000
+date: 2026-03-04 09:00:00 +0000
+# last_modified_at: 2025-12-17 00:00:00 +0000
 author: Hubert Thieriot
 tags: [discourse-analysis, actors-mapping]
 ---
 
 
-<div class="tldr">I prototyped a method to identify the key arguments for and against alternative proteins in EU media, map which actors champion or contest them, and measure how positions shift across outlets and over time. The approach aims to give advocates the intelligence and the lead time needed to prepare responses or shape the conversation.
+<div class="tldr">I prototyped a method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 10,000 articles in seven languages, the approach is topic-agnostic and could potentially support several advocacy applications: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring campaign impact.
 </div>
 
 
@@ -31,13 +31,18 @@ tags: [discourse-analysis, actors-mapping]
 
 Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — have become one of the more contested food policy questions in Europe. The debate sits at the intersection of several ongoing conflicts: EU climate policy (the Farm to Fork strategy explicitly promoted protein diversification), Common Agricultural Policy reform, food labelling disputes, public health concerns about ultra-processing, and industrial policy for the food tech sector. This makes it a particularly rich test case for arguments and actors mapping: the fault lines are relatively clear, the stakeholders are vocal, and the regulatory stakes are real.
 
-In this demo analysis, the corpus covers around 10,000 articles referring to alternative protein, published betweem 2015 and 2025 (included) across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions. The method overview at the end of this post describes each step in more detail.
+In this demo analysis, the corpus covers around 10,000 articles referring to alternative proteins, published between 2015 and 2025 (inclusive) across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions. The method overview at the end of this post describes each step in more detail.
 
 
 ## The arguments: how is the debate structured?
 
-Claims — specific, debatable positions that actors either support, oppose, or remain neutral on — were first induced from a sample of actor statements in the corpus, then refined into two families: **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
+In this approach, debates on a given topic are structured around *claims*: specific, debatable propositions that actors may support, oppose, or simply not address. Taken together, claims define an n-dimensional “stance space” that we can use to represent and compare actors.
 
+In the present case, claims were first induced from a sample of actor statements in the corpus, then refined into two families: **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
+
+This is a critical design step: it defines both what we track and how we map actors & coalitions. The right set of claims should be informed by the analysis objective, and may differ radically depending on whether we are looking at broad-based campaigning or targeted lobbying.
+
+The chart below shows the claims used in this demo analysis.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -50,80 +55,59 @@ Claims — specific, debatable positions that actors either support, oppose, or 
 </div>
 
 
-## Coalitions
+## Coalitions: who aligns with whom?
 
-These claims define an n-dimensional space in which each actor can be positioned based on their support or opposition to each proposition. Using clustering and dimensionality reduction, we can then map how actors form coalitions and which positions those coalitions are organised around.
+With 16 claims and more than a hundred identified actors, the natural next question is whether actors cluster into coherent coalitions — groups that tend to support and oppose the same things. To find out, we use a technique from discourse network analysis: each actor is represented as a vector of their positions across all 16 claims (support = +1, oppose = −1, no clear stance = 0). We then compute the similarity between every pair of actors based on these stance profiles, and apply community detection to identify groups of actors whose positions systematically align.
 
-{% include arguments_actors/eu_alt_proteins/coalition_pca.html %}
+The scatter plot below projects this 16-dimensional stance space down to two dimensions (via PCA), so that actors with similar positions appear close together. Each point is an actor; colours indicate the detected coalition.
 
-In this case, we detected three broad coalitions.
+{% include arguments_actors/eu_alt_proteins/interactive_pca.html %}
+
+Three broad coalitions emerge. But what do they actually stand for? The heatmap below shows each coalition’s average position on each of the 16 claims — revealing what unites and what separates them.
+
+{% include arguments_actors/eu_alt_proteins/coalition_stance_heatmap.html %}
 
 
+Feeding that table and the actors list to Claude Opus 4.6, I was able to quickly build some "user personas", reflecting the centroid of each coalition:
+
+- **Coalition A (n=82) — Skeptics & traditionalists**
+This coalition leans into the "ultra-processed/not real food" critique (0.39), favors stricter UPF regulation (0.26), transparent labeling (0.26), and values traditional food culture (0.32). It's skeptical of alt proteins' health claims (-0.33) and doubts both the sector's market potential (-0.24) and the transformative promise of food technology (-0.24). Top actors here include Ron DeSantis, Jim Pillen (both US politicians who've pushed back on cultivated meat), Marco Springmann, Van Tulleken, Marion Nestle, and Giorgia Meloni — a mix of food processing critics, nutrition academics, and political figures who've taken skeptical or protectionist positions.
+
+- **Coalition B (n=83) — Innovation & market optimists**
+The strongest signals here are enthusiasm for food technology's transformative potential (0.83) and the sector's market opportunity (0.86). It's moderately pro-environment (0.24) and rejects the ultra-processed framing (-0.13), but is essentially neutral on meat reduction (0.01), protecting farming (0.01), and traditional food culture (0.12). Top actors include Uma Valeti (Upside Foods), Didier Toubia (Aleph Farms), various startup founders and investors like Eitan Fischer, Benjamina Bollag, and Leonardo DiCaprio. This is largely the industry and investor voice — bullish on the technology and market, without pushing strongly on dietary change.
+
+- **Coalition C (n=77) — Systemic change advocates**
+This coalition combines pro-technology positions (0.48, 0.53) with a strong push for reduced meat consumption and plant-based diets (0.53). It's the most forceful in rejecting the ultra-processed framing (-0.69) and traditional food culture (-0.35), and the most positive on environmental (0.40) and health (0.39) claims. Top actors include Josh Tetrick (Eat Just/GOOD Meat), Patrick Brown (Impossible Foods), Bruce Friedrich (GFI), George Monbiot, Seren Kell, Chris Bryant, and Bill Gates — a mix of high-profile founders, advocates, and public intellectuals pushing for broader food system transformation.
 
 
-## How arguments trend over time and across outlets
+Importantly, all actors shown here were identified automatically from the text — no names were pre-listed or manually selected. The pipeline extracts whatever named entities are attributed statements in the corpus. This means the method can surface actors an analyst might not have thought to look for, making it potentially useful for detecting emerging or unexpected voices in a debate. The full actor-level stance heatmap is available in the [appendix](#actor-level-stance-heatmap) below.
 
-- The time series shows how the balance of support and opposition for each claim evolves
-- This is where the analysis becomes actionable: detecting whether a specific argument is gaining or losing traction
-- **Early detection angle**: point to arguments that are now prominent but were barely visible N months/years ago — illustrating how the tool could have flagged them early, giving advocates lead time to respond
 
-<div class="chart-item">
-  <div class="chart-heading">
-    <div class="chart-title">Support and opposition to key claims over time</div>
-    <div class="chart-subtitle">Distribution of supports / opposes / neutral statements over time</div>
-  </div>
-  <!-- PLACEHOLDER: claims_timeseries.html
-       Interactive stacked area chart.
-       X-axis = time (monthly or yearly). Y-axis = statement count.
-       Three stacked areas: green (supports), red (opposes), grey (neutral).
-       Dropdown or filter to select individual claims.
-       Generated by report builder _render_claims_analysis (charts section)
-  -->
-  
-  <p class="chart-note">
-    <strong>Note:</strong> Each data point represents an agreement score between a statement attributed to a named actor and one of the induced claims. Statements are dated by their source article's publication date.
-    <br><br>
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. Further validation and methodological refinement are needed before drawing firm conclusions.
-  </p>
-</div>
-
-- Commentary on visible trends: which arguments are growing, which are fading
-- Highlight any emerging arguments that could be flagged early
-
-- Cross-outlet comparison reveals editorial positioning and audience differences
-- Which outlets host more supportive vs. oppositional discourse on alternative proteins
-
-<div class="chart-item">
-  <div class="chart-heading">
-    <div class="chart-title">How arguments distribute across EU media outlets</div>
-    <div class="chart-subtitle">Agreement distribution by outlet</div>
-  </div>
-  <!-- PLACEHOLDER: claims_domain_distribution.html
-       Grouped bar chart. X-axis = media outlets (top N).
-       Each outlet has bars for: supports (green), opposes (red), neutral (grey).
-       Dropdown to filter by claim and top-N outlets.
-       Generated by report builder _render_claims_analysis (domain section)
-  -->
-  
-  <p class="chart-note">
-    <strong>Note:</strong> Only outlets with a minimum number of scored statements are shown. The distribution reflects how actors quoted by each outlet position themselves on the claims.
-    <br><br>
-    <strong>Disclaimer:</strong> These results are for demonstration purposes only. Further validation and methodological refinement are needed before drawing firm conclusions.
-  </p>
-</div>
 
 ## Looking forward
 
-- **Spot emerging arguments early**: detect claims gaining traction before they become mainstream, giving advocates time to prepare responses or preemptive messaging
-- **Target outlet engagement**: identify which outlets host more supportive vs. oppositional discourse, guiding media outreach
-- **Measure intervention impact**: repeat the analysis post-campaign to see if the balance of arguments shifted
+The alternative proteins case above is a demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be tailored to the application: news media for public discourse, parliamentary records for legislative debates, social media for grassroots movements, or industry publications for sector-specific lobbying.
 
+<style>
+.highlight-marker {
+  background: linear-gradient(104deg, rgba(255,100,100,0) 0.9%, rgba(255,100,100,0.25) 2.4%, rgba(255,100,100,0.2) 5.8%, rgba(255,100,100,0.25) 93%, rgba(255,100,100,0.15) 96%, rgba(255,100,100,0) 98%);
+  padding: 0.05em 0.2em;
+  margin: -0.05em -0.1em;
+  border-radius: 7.5px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+</style>
 
+<span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear — before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
 
-- Extending to other policy domains beyond alternative proteins
-- Combining with narrative framing analysis to get both "how an issue is framed" and "what positions actors take"
-- Longitudinal tracking to measure whether coalitions shift over time in response to events or campaigns
-- Validation against expert assessments and ground-truth actor positions
+<span class="highlight-marker">**Surfacing unexpected actors.**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar.
+
+<span class="highlight-marker">**Regular landscape assessments.**</span> Running the analysis on a quarterly or yearly cycle would produce a structured, comparable snapshot of the argument landscape and coalition structure over time. This could serve as an intelligence product for advocacy organisations or funders seeking to understand how a debate is evolving.
+
+<span class="highlight-marker">**Guiding media outreach.**</span> The cross-outlet analysis (which arguments appear where, and with what stance) can inform where to pitch stories, which outlets are more receptive to certain framings, and where there are gaps in coverage that could be filled.
+
+<span class="highlight-marker">**Measuring campaign impact.**</span> Mapping the argument landscape before and after an intervention — a campaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
 
 
 <div class="text-box">
@@ -132,8 +116,9 @@ I am interested in hearing from others working on similar problems or exploring 
 </div>
 
 
+<div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">
 
-# Method overview
+<!-- # Method overview
 
 This analysis builds on the same foundational pipeline described in the [Narrative Framing Analysis]({{ '/posts/narrative_framing/' | relative_url }}) post. Shared steps — content discovery, scraping, text extraction, and chunking — are described there. This section covers the additional steps specific to arguments and actors mapping.
 
@@ -177,9 +162,17 @@ This analysis builds on the same foundational pipeline described in the [Narrati
 - Cluster via k-means with silhouette score for optimal k selection
 - Reveals broader coalitions and the claim positions that define them
 
+## Actor-level stance heatmap
+
+The coalition-level heatmap above averages positions within each group. The chart below shows the full picture at individual actor level: each row is an actor, each column is a claim, and the colour indicates whether that actor supports, opposes, or has no clear stance. Actors are grouped by coalition.
+
+{% include arguments_actors/eu_alt_proteins/stance_heatmap.html %}
+
 ## Remaining improvements
 
-- OpEds not yet managed i.e. the attribution of statements to the article author is not yet fully managed
+- OpEds not yet managed i.e. the attribution of statements to the article author is not yet fully managed -->
+
+</div>
 
 ---
 

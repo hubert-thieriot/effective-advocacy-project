@@ -1,0 +1,49 @@
+---
+layout: null
+permalink: /posts/arguments_actors/actor_stances/
+---
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Actor-level stance heatmap — Arguments & Actors Mapping</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Open Sans', 'Segoe UI', sans-serif;
+      background: #fafafa;
+    }
+    .header {
+      max-width: 1200px;
+      margin: 0 auto 20px;
+    }
+    .header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0 0 6px;
+    }
+    .header p {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .header a {
+      color: #3d6b8e;
+      text-decoration: none;
+    }
+    .header a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Actor-level stance heatmap</h1>
+    <p>Each row is an actor, each column is a claim. Colours indicate support (green), opposition (red), or no clear stance (grey). Actors are grouped by coalition. <br><a href="{{ '/posts/arguments_actors/' | relative_url }}">← Back to Arguments & Actors Mapping</a></p>
+  </div>
+  {% include arguments_actors/eu_alt_proteins/stance_heatmap.html %}
+</body>
+</html>

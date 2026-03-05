@@ -221,9 +221,7 @@ a {
   margin-right: auto;
 }
 
-.post-content h2 {
-  margin-bottom: 1.5rem !important;
-}
+
 
 .post-title {
   line-height: 1.2 !important;
@@ -623,3 +621,12 @@ code.language-plaintext {
   color: var(--color-heading);
 }
 
+
+.highlight-marker {
+  background: linear-gradient(104deg, rgba(255,100,100,0) 0.9%, rgba(255,100,100,0.25) 2.4%, rgba(255,100,100,0.2) 5.8%, rgba(255,100,100,0.25) 93%, rgba(255,100,100,0.15) 96%, rgba(255,100,100,0) 98%);
+  padding: 0.05em 0.2em;
+  margin: -0.05em -0.1em;
+  border-radius: 7.5px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

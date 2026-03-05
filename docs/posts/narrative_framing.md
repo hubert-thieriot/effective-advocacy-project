@@ -282,7 +282,7 @@ These early experiments only scratch the surface of what narrative analysis coul
 
 <div class="text-box">
   <h3>Get in touch</h3>
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - <a href="mailto:hubert.thieriot@gmail.com" target="_blank" rel="noopener">reach out to me</a>.
+I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">reach out to me</a>.
 </div>
 
 <div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">

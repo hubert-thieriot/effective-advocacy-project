@@ -1,8 +1,8 @@
 ---
 layout: post
 permalink: /posts/arguments_actors/
-title: DRAFT - Arguments & Actors Mapping
-subtitle: Exploring tools for Effective Advocacy
+title: Arguments & Actors Mapping
+subtitle: "Who Says What, and Who Agrees: Mapping Debate Landscapes"
 description: Mapping key arguments, media trends, and actor coalitions in the EU alternative proteins debate
 date: 2026-03-04 09:00:00 +0000
 # last_modified_at: 2025-12-17 00:00:00 +0000
@@ -15,10 +15,9 @@ tags: [discourse-analysis, actors-mapping]
 </div>
 
 
-
 # From narratives to arguments and actors
 
-[Narrative framing analysis]({{ '/posts/narrative_framing/' | relative_url }}) reveals *how* an issue is discussed — which themes and angles dominate coverage. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
+In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is discussed — which themes and angles dominate coverage. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
 
 To illustrate the approach, we apply it to a live policy debate: alternative proteins in Europe.
 
@@ -100,7 +99,7 @@ The alternative proteins case above is a rapid demonstration, but the method its
 Below are potential applications of the underlying methodology:
 
 
-<span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear — before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
+<span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear, before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
 
 <span class="highlight-marker">**Surfacing unexpected actors.**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar. For an illustration, see the 242 actors <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">identified</a> in this demonstration.
 
@@ -111,20 +110,17 @@ Below are potential applications of the underlying methodology:
 <span class="highlight-marker">**Measuring campaign impact.**</span> Mapping the argument landscape before and after an intervention — a campaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
 
 
-# Limitations
+# About this demonstration
 
+This analysis is a prototype built to illustrate the method, not a finished intelligence product. The results shown here have undergone manual sanity checks but have not been systematically validated against hand-coded datasets. Due to time constraints, the current corpus excludes opinion pieces and editorials, which are particularly relevant for this kind of study.
+
+# Methodological limitations
 The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.
-
-
-The pipeline has also not yet been validated against a manually labelled dataset; the results shown here have only undergone minor manual sanity checks.
-
-
-Finally, due to time constraints, the current demonstration did not include opinion pieces and editorials, despite it being relevant for this kind of studies.
 
 
 <div class="text-box">
   <h3>Get in touch</h3>
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">reach out to me</a>.
+I'm looking for advocacy organisations interested in piloting this approach on a live campaign, and for funders who see value in building shared infrastructure for evidence-based advocacy strategy. If either describes you, I'd welcome a <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">conversation</a>.
 </div>
 
 

@@ -2,7 +2,7 @@
 layout: post
 permalink: /posts/arguments_actors/
 title: Arguments & Actors Mapping
-subtitle: "Who Says What, and Who Agrees: Mapping Debate Landscapes"
+subtitle: "Who Says What, Who Agrees, and How It Shifts"
 description: Mapping key arguments, media trends, and actor coalitions in the EU alternative proteins debate
 date: 2026-03-04 09:00:00 +0000
 # last_modified_at: 2025-12-17 00:00:00 +0000
@@ -42,9 +42,9 @@ The chart below shows the claims used in this demo analysis.
     <div class="chart-title">Key claims identified in the European alternative proteins debate</div>
   </div>
   {% include arguments_actors/eu_alt_proteins/claims_cards.html %}
-  <!-- <div class="chart-note">
-    <strong>Note:</strong> These claims were induced by the pipeline from a sample of actor statements in the corpus, then used to score all identified statements.
-  </div> -->
+  <div class="chart-note">
+    <strong>Note:</strong> Claims do not align neatly into "pro" and "anti" camps — even strong advocates of alternative proteins may disagree on specific product or policy claims, and vice versa. In what follows, "opposes" should not be read as "anti-alternative-proteins".
+  </div>
 </div>
 
 
@@ -89,9 +89,6 @@ The coalition map above is a snapshot — it shows where actors stand, but not h
 
 <div class="chart-item-lite">
   {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time.html %}
-  <p class="chart-note">
-    <strong>Note:</strong> The corpus is sourced via MediaCloud, whose coverage of European outlets has itself expanded over time. Some of the upward trend in earlier years may reflect growing corpus coverage rather than genuine shifts in the debate. Disentangling the two would require normalising against total article volume per outlet — a refinement for future work.
-  </p>
 </div>
 
 
@@ -120,7 +117,7 @@ Below are potential applications of the underlying methodology:
 
 # About this demonstration
 
-This analysis is a prototype built to illustrate the method, not a finished intelligence product. The results shown here have undergone manual sanity checks but have not been systematically validated against hand-coded datasets. Due to time constraints, the current corpus excludes opinion pieces and editorials, which are particularly relevant for this kind of study.
+This analysis is a prototype built to illustrate the method, not a finished intelligence product. The results shown here have undergone limited manual sanity checks and have not been systematically validated against hand-coded datasets. Due to time constraints, the current corpus excludes opinion pieces and editorials, which are particularly relevant for this kind of study.
 
 # Methodological limitations
 The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.

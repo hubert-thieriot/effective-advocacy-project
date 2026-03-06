@@ -11,7 +11,7 @@ tags: [discourse-analysis, actors-mapping]
 ---
 
 
-<div class="tldr">I prototyped a method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring campaign impact.
+<div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring campaign impact.
 </div>
 
 
@@ -53,10 +53,18 @@ The chart below shows the claims used in this demo analysis.
 To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions[^dna]. The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
 
 {% include arguments_actors/eu_alt_proteins/interactive_pca.html %}
+<p class="chart-note">
+  <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning.
+</p>
 
 Three broad coalitions emerge. The heatmap below shows what defines each one — each coalition’s average position on each of the 16 claims.
 
-{% include arguments_actors/eu_alt_proteins/coalition_stance_heatmap.html %}
+<div class="heatmap-embed heatmap-embed--desktop">
+  {% include arguments_actors/eu_alt_proteins/coalition_stance_heatmap.html %}
+</div>
+<div class="heatmap-embed heatmap-embed--mobile">
+  {% include arguments_actors/eu_alt_proteins/coalition_stance_heatmap_mobile.html %}
+</div>
 
 
 
@@ -69,7 +77,7 @@ The clustering is algorithmic, but interpreting what each coalition *means* stil
 
 - <span class="highlight-marker">**Coalition C (77 actors) — "Systemic change advocates."** </span>Founders, advocates, and public intellectuals pushing for broader food-system transformation — Patrick Brown (Impossible Foods), Bruce Friedrich (GFI), George Monbiot, Bill Gates. Similar to Coalition B on most product claims, but sharply different on one front: they actively challenge traditional farming and meat culture, and push strongly for reduced meat consumption.
 
-The sharpest insight here is the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this distinction matters: Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests.
+The sharpest insight here is the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition B actors could be moved on meat-reduction messaging.
 
 Notably, all of the 242 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for, in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 

@@ -1,7 +1,7 @@
 # website
 docs/_includes_cayman/
 docs/_sass/bourbon
-docs/assets/
+
 
 # Except for the following directories:
 # Doesn't work??

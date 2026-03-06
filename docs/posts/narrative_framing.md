@@ -13,6 +13,10 @@ author: Hubert Thieriot
 tags: [narrative-framing]
 ---
 
+<figure style="margin: 0 auto 2em; max-width: 600px;">
+  <img src="{{ '/assets/images/kandinsky-composition-v.webp' | relative_url }}" alt="" style="width: 100%; display: block;">
+  <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Composition V (1911)</figcaption>
+</figure>
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets or messages to prioritize.
 

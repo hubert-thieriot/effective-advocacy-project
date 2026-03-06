@@ -293,6 +293,20 @@ a {
   font-family: 'Open Sans', 'Segoe UI', sans-serif !important;
 }
 
+.heatmap-embed--mobile {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .heatmap-embed--desktop {
+    display: none;
+  }
+
+  .heatmap-embed--mobile {
+    display: block;
+  }
+}
+
 .chart-item iframe {
   width: 100%;
   border: none;

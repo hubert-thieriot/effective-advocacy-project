@@ -130,18 +130,19 @@ Below are potential applications of the underlying methodology:
 <span class="highlight-marker">**Measuring campaign impact.**</span> Mapping the argument landscape before and after an intervention — a campaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
 
 
+
+<div class="text-box">
+  <h3>Get in touch</h3>
+I'm looking for advocacy organisations interested in piloting this approach on an existing intervention, and for funders who see value in building shared infrastructure for evidence-based advocacy strategy. If either describes you, I'd welcome a <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">conversation</a>.
+</div>
+
+
 # About this demonstration
 
 This analysis is a prototype built to illustrate the method, not a finished intelligence product. The results shown here have undergone limited manual sanity checks and have not been systematically validated against hand-coded datasets. Due to time constraints, the current corpus excludes opinion pieces and editorials, which are particularly relevant for this kind of study.
 
 # Methodological limitations
 The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.
-
-
-<div class="text-box">
-  <h3>Get in touch</h3>
-I'm looking for advocacy organisations interested in piloting this approach on a live campaign, and for funders who see value in building shared infrastructure for evidence-based advocacy strategy. If either describes you, I'd welcome a <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">conversation</a>.
-</div>
 
 
 

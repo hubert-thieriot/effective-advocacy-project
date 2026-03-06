@@ -2,7 +2,7 @@
 layout: post
 permalink: /posts/narrative_framing/
 title: Narrative Framing Analysis
-subtitle: Tracking How Media Frame the Issues We Care About
+subtitle: Tracking How Issues We Care About Are Being Framed
 description: Exploring narrative framing workflows across air pollution and animal welfare corpora
 image_caption: "Peinture (2012), by Pierre Soulages"
 date: 2025-11-12 09:00:00 +0000

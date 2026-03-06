@@ -56,10 +56,19 @@ The chart below shows the claims used in this demo analysis.
 
 To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions[^dna]. The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
 
+<div class="chart-item">
+<div class="chart-heading">
+    <div class="chart-title">Who aligns with whom on alternative proteins in European media?</div>
+    <div class="chart-subtitle">357 actors positioned by their stance profiles across 16 claims</div>
+  </div>
 {% include arguments_actors/eu_alt_proteins/interactive_pca.html %}
+<p class="chart-note">
+  <strong>Note:</strong> Each actor is represented as a vector of stances across 16 claims. Coalitions are detected via Louvain community detection on cosine similarity; the 2D projection uses PCA.
+</p>
 <p class="chart-note">
   <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning.
 </p>
+</div>
 
 Three broad coalitions emerge. The heatmap below shows what defines each one — each coalition’s average position on each of the 16 claims.
 
@@ -76,16 +85,16 @@ Three broad coalitions emerge. The heatmap below shows what defines each one —
 The clustering is algorithmic, but interpreting what each coalition *means* still requires some form of judgement. In this case, I fed the stance centroids and actor lists to Claude Opus 4.6 to draft coalition profiles, to illustrate how much of this analysis could be produced at scale with modest human oversight. Here is what the model produced:
 
 
-- <span class="highlight-marker">**Coalition A (89 actors) — "Systemic change advocates."** </span>Founders, advocates, and public intellectuals pushing for broader food-system transformation — Patrick Brown (Impossible Foods), Bruce Friedrich (GFI), George Monbiot, Bill Gates. Similar to Coalition B on most product claims, but sharply different on one front: they actively challenge traditional farming and meat culture, and push strongly for reduced meat consumption.
+- <span class="highlight-marker">**Coalition A (133 actors) — "Skeptics & food quality critics."** </span>Nutrition academics, food-culture advocates, and political opponents of alternative proteins — Marco Springmann, Van Tulleken, Monteiro on the UPF research side; Ron DeSantis, Jim Pillen, Giorgia Meloni on the political side; Richard Berman and Piers Morgan in media. United more by what they're against than a shared positive vision: alternative proteins are ultra-processed, health claims are overstated, and traditional food culture deserves protection. Internally diverse — UPF researchers and populist politicians arrive at similar positions from very different starting points.
 
-- <span class="highlight-marker">**Coalition B (107 actors) — "Innovation & market optimists."** </span>Startup founders, investors, and industry voices — Uma Valeti (Upside Foods), Didier Toubia (Aleph Farms), Leonardo DiCaprio. Strongly enthusiastic about food technology and the sector’s market potential, but notably neutral on meat reduction, farming livelihoods, and food culture. This is the industry pitch: bullish on the technology without picking fights over dietary change.
+- <span class="highlight-marker">**Coalition B (96 actors) — "Diet change & animal welfare advocates."** </span>High-profile alt-protein founders and advocates pushing for dietary transformation — Patrick Brown (Impossible Foods), Josh Tetrick (GOOD Meat), Bruce Friedrich (GFI), Ethan Brown (Beyond Meat), George Monbiot, Chris Bryant, Molly Scott Cato. Shares Coalition C's pro-technology, pro-market stance, but goes much further: by far the strongest support for EU-promoted meat reduction (0.84), and actively challenges traditional food culture and farming protections. This is the food-system transformation coalition.
 
-- <span class="highlight-marker">**Coalition C (119 actors) — "Skeptics & traditionalists."** </span>Farming lobbies, food-culture advocates, and political figures who have pushed back against alternative proteins — from Coldiretti and Slow Food to Ron DeSantis and Giorgia Meloni, alongside nutrition academics like Marco Springmann and Marion Nestle. What unites them is less a shared programme than a shared set of objections: alternative proteins are ultra-processed, their health claims are overstated, and traditional food culture deserves protection.
+- <span class="highlight-marker">**Coalition C (128 actors) — "Technology & market optimists."** </span>Startup founders, industry figures, and investors — Uma Valeti (Upside Foods), Mark Post, Didier Toubia (Aleph Farms), Seren Kell, Sandhya Sriram, Bill Gates. The strongest enthusiasm for food technology and market potential of any coalition, but notably neutral on meat reduction, farming livelihoods, and traditional food culture. This is the industry and investment voice: bullish on the technology and business opportunity without pushing a dietary change message.
 
 
-The sharpest insight here is the **A–B split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition B actors could be moved on meat-reduction messaging.
+The sharpest insight here is the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition C actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
 
-Notably, all of the 315 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for, in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
+Notably, all of the 357 actors were identified automatically from the corpus — no names were pre-listed or manually selected. This means the method can surface voices an analyst might not have thought to look for, in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
 
 
@@ -112,7 +121,7 @@ Below are potential applications of the underlying methodology:
 
 <span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear, before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
 
-<span class="highlight-marker">**Surfacing unexpected actors.**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar. For an illustration, see the 315 actors <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">identified</a> in this demonstration.
+<span class="highlight-marker">**Surfacing unexpected actors.**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar. For an illustration, see the 357 actors <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">identified</a> in this demonstration.
 
 <span class="highlight-marker">**Regular landscape assessments.**</span> Running the analysis on a quarterly or yearly cycle would produce a structured, comparable snapshot of the argument landscape and coalition structure over time. This could serve as an intelligence product for advocacy organisations or funders seeking to understand how a debate is evolving.
 

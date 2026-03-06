@@ -11,8 +11,8 @@ tags: [discourse-analysis, actors-mapping]
 ---
 
 <figure style="margin: 0 auto 2em; max-width: 600px;">
-  <img src="{{ '/assets/images/kandinsky-color-study.jpg' | relative_url }}" alt="" style="width: 100%; display: block;">
-  <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Color Study: Squares with Concentric Circles (1913)</figcaption>
+  <img src="{{ '/assets/images/actors-ap-eu-map.jpg' | relative_url }}" alt="" style="width: 100%; display: block;">
+  <!-- <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Color Study: Squares with Concentric Circles (1913)</figcaption> -->
 </figure>
 
 <div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring campaign impact.

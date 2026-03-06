@@ -67,6 +67,8 @@ To summarize how actors align across the 16 claims, we define similarity between
 </p>
 <p class="chart-note">
   <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning.
+</p>
+<p class="chart-note">
   <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of actors positioning. Further validation and methodological refinement are needed before these results can be used for strategy purposes.
 </p>
 </div>

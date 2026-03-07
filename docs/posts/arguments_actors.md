@@ -106,7 +106,7 @@ Notably, all of the 357 actors were identified automatically from the corpus —
 The coalition map above is a snapshot — it shows where actors stand, but not how the debate got there. The chart below tracks how often each claim is invoked over time, broken down by stance (support vs. opposition). This is another potential way for the analysis to be actionable: a claim that was barely mentioned two years ago but is now rapidly gaining traction is the kind of signal an advocate may want to catch early.
 
 <div class="chart-item-lite">
-  {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time.html %}
+  {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time_facets.html %}
 </div>
 
 

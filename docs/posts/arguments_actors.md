@@ -159,7 +159,7 @@ To map actor alignments, these statement-claim scores are aggregated into actor-
 
 ## Limitations
 
-The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.
+The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity. The current implementation also does not yet handle **opinion pieces and editorials** where the author speaks in their own voice rather than quoting others.
 </div>
 
 

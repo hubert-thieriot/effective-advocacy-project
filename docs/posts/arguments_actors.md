@@ -54,7 +54,7 @@ The chart below shows the claims used in this demo analysis.
 
 ## Coalitions: who aligns with whom?
 
-To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions[^dna]. The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
+To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions (see [Method overview](#method-overview) below). The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
 
 <div class="chart-item">
 <div class="chart-heading">
@@ -109,18 +109,19 @@ The coalition map above is a snapshot — it shows where actors stand, but not h
   {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time_facets.html %}
 </div>
 
+The analyses above are a starting point. Several deeper cuts on the same data could unlock more strategic value for advocacy organisations:
 
-
-One could go deeper and analyse how coalitions evolve over time: do they harden into stable blocs, fracture into subgroups, or blur as actors shift positions?
+- **Bridging coalitions.** Identifying the divisive claims that keep coalitions apart and/or the actors who sit between coalitions. The first suggests which issues to downplay or reframe to build broader alliances; the second points to potential messengers who could carry an argument across coalition lines.
+- **Argument diffusion.** Tracking how a specific claim spreads across outlets, countries, or actor types over time. Which actors or outlets pick up an argument first, and through what path does it propagate? 
+- **Actor trajectories.** Rather than a single snapshot, tracking how individual actors move through stance space over time reveals who is shifting, who is entrenching, and in which direction. An actor drifting from Coalition C toward Coalition B on meat-reduction messaging, for instance, could signal an opening for engagement.
 
 
 
 # Looking forward
 
-The alternative proteins case above is a rapid demonstration, but the method itself is topic-agnostic — it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on. 
+The alternative proteins case above is one potential application, but the method itself is topic-agnostic: it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, policy consultations, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on.
 
-Below are potential applications of the underlying methodology:
-
+Below are some of the ways this could support advocacy organisations:
 
 <span class="highlight-marker">**Early detection of emerging arguments.**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear, before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
 
@@ -140,19 +141,36 @@ I'm looking for advocacy organisations interested in piloting this approach on a
 </div>
 
 
-# About this demonstration
+# Disclaimer
 
-This analysis is a prototype built to illustrate the method, not a finished intelligence product. The results shown here have undergone limited manual sanity checks and have not been systematically validated against hand-coded datasets. Due to time constraints, the current corpus excludes opinion pieces and editorials, which are particularly relevant for this kind of study.
+This analysis is a prototype built to illustrate the method, not a finished intelligence product. The analysis should not be relied upon to provide accurate estimates of actors positioning: the results shown here have undergone limited manual sanity checks and have not been systematically validated against hand-coded datasets. Further validation and methodological refinement are needed before these results can be used for strategy purposes.
 
-# Methodological limitations
+
+
+<div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">
+
+# Method overview
+
+Articles are first collected upstream from MediaCloud using custom queries, then cleaned, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
+
+Named entities are then extracted from these high-scoring chunks using Stanza-based NER, and an entity-consolidation step merges different surface forms of the same actor into a single canonical entity. Where automatic consolidation is imperfect, manual merge rules can be added to correct cases in which the same actor appears under multiple names or aliases. For chunks containing identified actors, an LLM extracts attributable statements, a set of recurring claims is induced from a sample of those statements, and another LLM scores each statement against each claim as supporting, opposing, or neutral.
+
+To map actor alignments, these statement-claim scores are aggregated into actor-by-claim stance profiles. Actors are then compared using cosine similarity, producing a congruence network in which positive ties indicate similar positions and negative ties indicate opposing ones. After weak ties are thresholded, Louvain community detection is applied to the positive side of the network to identify clusters of actors who tend to align around the same set of claims. This approach is inspired by Discourse Network Analysis (DNA), developed by Philip Leifeld to study policy discourse. The specific representation and clustering choices used here are only one possible implementation: different similarity measures, network construction rules, or clustering methods could yield somewhat different coalition structures.
+
+## Limitations
+
 The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity.
-
+</div>
 
 
 ---
 
-[^dna]: This approach is inspired by Discourse Network Analysis (DNA), a method developed by Philip Leifeld for studying policy discourse. The specific representation and clustering choices here — cosine similarity on stance vectors, PCA projection, Louvain community detection — are one of several possible implementations. Alternative approaches might use different similarity measures, network construction methods, or clustering algorithms, and could yield different coalition structures.
-
 [^outlets]: **UK** — The Guardian, The Telegraph, The Independent, The Economist · **Ireland** — Irish Independent · **Pan-European / International** — EUobserver, Euractiv, Deutsche Welle · **Germany** — Süddeutsche Zeitung, Der Spiegel, Die Welt, Frankfurter Allgemeine Zeitung · **France** — Le Monde, Le Figaro, Les Echos · **Italy** — Corriere della Sera, La Repubblica, Il Sole 24 Ore · **Spain** — El País · **Netherlands** — NRC Handelsblad, de Volkskrant · **Poland** — Gazeta Wyborcza, Rzeczpospolita
 
 [^socialmedia]: Social media integration is still being assessed. API access costs and restrictions vary widely across platforms, and we may initially settle for a more targeted approach e.g. tracking a curated set of key accounts rather than broad keyword-based monitoring.
+
+
+
+
+
+

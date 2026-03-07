@@ -636,7 +636,7 @@ code.language-plaintext {
 .post-content h1 {
   font-size: 2.2rem;
   font-weight: 600;
-  margin: 2.5rem 0 1.2rem 0;
+  /* margin: 2.5rem 0 1.2rem 0; */
   color: var(--color-heading);
   letter-spacing: -0.02em;
 }

@@ -28,9 +28,9 @@ To illustrate the approach, we apply it to a live policy debate: alternative pro
 
 # Alternative proteins in European media
 
-Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — have become one of the more contested food policy questions in Europe. The debate sits at the intersection of several ongoing conflicts: EU climate policy (the Farm to Fork strategy explicitly promoted protein diversification), Common Agricultural Policy reform, food labelling disputes, public health concerns about ultra-processing, and industrial policy for the food tech sector. This makes it a particularly relevant test case for arguments and actors mapping, one where the stakeholders are relatively vocal and the regulatory stakes are real.
+Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — have become one of the more contested food policy questions in Europe. The debate sits at the intersection of several ongoing tensions: EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns about ultra-processing, and industrial policy for the food tech sector. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
-In this analysis, the corpus covers more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 (inclusive) across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions.
+In this analysis, the corpus covers more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions.
 
 
 ## The arguments: how is the debate structured?
@@ -53,8 +53,7 @@ The chart below shows the claims used in this demo analysis.
 
 
 ## Coalitions: who aligns with whom?
-
-To summarize how actors align across the 16 claims, we define similarity between every pair of actors from their stance profiles and then use community detection to produce a partition of actors into coalitions (see [Method overview](#method-overview) below). The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
+We then estimate to what extent **each actor supports or opposes these claims**, based on their collected statements. Finally, we define similarity between every pair of actors from their stance profiles and use community detection to produce a partition of actors into coalitions (see [Method overview](#method-overview) below). The scatter plot below visualizes this induced structure — each point is an actor, projected from the full 16-dimensional stance space down to two dimensions, with colours indicating the detected coalition.
 
 <div class="chart-item">
 <div class="chart-heading">

@@ -31,6 +31,7 @@ figcaption {
   --color-heading: var(--grey-text);
   --color-link: var(--dark-red);
   --color-chart-accent: var(--dark-red);
+  --font-ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .back-to-main {
@@ -56,8 +57,6 @@ figcaption {
 .teaserimage .teaserimage-image {
   display: none !important;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
 
 /* Custom CSS overrides for Mediator theme.
    Previous Cayman-specific rules backed up in custom.css.cayman.bak */
@@ -423,7 +422,7 @@ a {
   letter-spacing: -0.04em !important;
   line-height: 1.1 !important;
   margin-bottom: 16px !important;
-  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-family: "Figtree Variable", var(--font-ui);
   padding: 0 !important;
   margin-left: 0 !important;
 }
@@ -435,7 +434,7 @@ a {
   letter-spacing: 0.01em !important;
   line-height: 1.2 !important;
   margin: 1rem 0 !important;
-  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   padding: 0 !important;
   margin-left: 0 !important;
 }
@@ -445,7 +444,7 @@ a {
   font-size: 14px !important;
   letter-spacing: -0.01em !important;
   font-weight: 400 !important;
-  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   line-height: 1.4;
   padding: 0 !important;
   padding-top: 10px !important;
@@ -482,10 +481,10 @@ a {
 .post-subtitle {
   margin: 1rem 0;
   font-size: 2.5rem;
-  font-weight: 400;
+  font-weight: 300;
   color: var(--color-accent);
   letter-spacing: 0.01em;
-  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   line-height: 1.2 !important;
 }
 
@@ -635,7 +634,6 @@ code.language-plaintext {
 /* Shift heading hierarchy: H1 stays, H2→H3 styling, H3→H4 styling */
 .post-content h1 {
   font-size: 2.2rem;
-  font-weight: 600;
   /* margin: 2.5rem 0 1.2rem 0; */
   color: var(--color-heading);
   letter-spacing: -0.02em;
@@ -643,7 +641,6 @@ code.language-plaintext {
 
 .post-content h2 {
   font-size: 1.5rem;
-  font-weight: 600;
   margin: 1.2rem 0 1rem 0;
   color: var(--color-heading);
   letter-spacing: -0.01em;
@@ -651,9 +648,16 @@ code.language-plaintext {
 
 .post-content h3 {
   font-size: 1.2rem;
-  font-weight: 600;
-  margin: 1.5rem 0 0.8rem 0;
+  margin: 1.5rem 0 0.2rem 0;
   color: var(--color-heading);
+}
+
+.post-content h3 + p {
+  margin-top: 0;
+}
+
+.post-content h1 + h3 {
+  margin-top: 0.8rem;
 }
 
 

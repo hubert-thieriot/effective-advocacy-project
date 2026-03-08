@@ -105,7 +105,11 @@ Notably, all of the 357 actors were identified automatically from the corpus —
 
 The coalition map above is a snapshot — it shows where actors stand, but not how the debate got there. The chart below tracks how often each claim is invoked over time, broken down by stance (support vs. opposition). This is another potential way for the analysis to be actionable: a claim that was barely mentioned two years ago but is now rapidly gaining traction is the kind of signal an advocate may want to catch early.
 
-<div class="chart-item-lite">
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Support and opposition trends by claim</div>
+    <div class="chart-subtitle">Yearly count of supporting and opposing statements extracted from European media coverage</div>
+  </div>
   {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time_facets.html %}
 </div>
 
@@ -151,13 +155,16 @@ This analysis is a prototype built to illustrate the method, not a finished inte
 
 # Method overview
 
-Articles are first collected upstream from MediaCloud using custom queries, then cleaned, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
+### Collecting relevant chunks
+Articles are first identified from MediaCloud using custom queries, then scraped, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
 
+### Extracting actors, statements, claims and agreements
 Named entities are then extracted from these high-scoring chunks using Stanza-based NER, and an entity-consolidation step merges different surface forms of the same actor into a single canonical entity. Where automatic consolidation is imperfect, manual merge rules can be added to correct cases in which the same actor appears under multiple names or aliases. For chunks containing identified actors, an LLM extracts attributable statements, a set of recurring claims is induced from a sample of those statements, and another LLM scores each statement against each claim as supporting, opposing, or neutral.
 
+### Coalition mapping
 To map actor alignments, these statement-claim scores are aggregated into actor-by-claim stance profiles. Actors are then compared using cosine similarity, producing a congruence network in which positive ties indicate similar positions and negative ties indicate opposing ones. After weak ties are thresholded, Louvain community detection is applied to the positive side of the network to identify clusters of actors who tend to align around the same set of claims. This approach is inspired by Discourse Network Analysis (DNA), developed by Philip Leifeld to study policy discourse. The specific representation and clustering choices used here are only one possible implementation: different similarity measures, network construction rules, or clustering methods could yield somewhat different coalition structures.
 
-## Limitations
+### Limitations
 
 The approach has clear limitations. It requires topics with **enough media coverage** to produce a meaningful corpus — niche or emerging debates with only a handful of articles may not yield relevant results. By definition, it also lacks access to **private documents** and the associated arguments which in certain cases may be more relevant to the associated lobbying activity. The current implementation also does not yet handle **opinion pieces and editorials** where the author speaks in their own voice rather than quoting others.
 </div>

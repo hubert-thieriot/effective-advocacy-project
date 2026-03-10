@@ -5,7 +5,7 @@ title: Arguments & Actors Mapping
 subtitle: "Who Says What, Who Agrees, and How It Shifts"
 description: Mapping key arguments, media trends, and actor coalitions in the EU alternative proteins debate
 date: 2026-03-06 09:00:00 +0000
-# last_modified_at: 2025-12-17 00:00:00 +0000
+last_modified_at: 2026-03-08 09:00:00 +0000
 author: Hubert Thieriot
 tags: [discourse-analysis, actors-mapping]
 ---
@@ -21,7 +21,7 @@ tags: [discourse-analysis, actors-mapping]
 
 # From narratives to arguments and actors
 
-In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is discussed — which themes and angles dominate coverage. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
+In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is being discussed — which themes and angles dominate coverage. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
 
 To illustrate the approach, we apply it to a live policy debate: alternative proteins in Europe.
 
@@ -65,7 +65,7 @@ We then estimate to what extent **each actor supports or opposes these claims**,
   <strong>Note:</strong> Each actor is represented as a vector of stances across 16 claims. Coalitions are detected via Louvain community detection on cosine similarity; the 2D projection uses PCA.
 </p>
 <p class="chart-note">
-  <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning.
+  <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning. For the whole list of actors and their respective stance positioning, click <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">here</a>.
 </p>
 <p class="chart-note">
   <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of actors positioning. Further validation and methodological refinement are needed before these results can be used for strategy purposes.

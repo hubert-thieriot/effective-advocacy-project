@@ -15,20 +15,20 @@ tags: [discourse-analysis, actors-mapping]
   <!-- <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Color Study: Squares with Concentric Circles (1913)</figcaption> -->
 </figure>
 
-<div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring campaign impact.
+<div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring impact.
 </div>
 
 
 # From narratives to arguments and actors
 
-In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is being discussed — which themes and angles dominate coverage. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
+In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is being discussed. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
 
 To illustrate the approach, we apply it to a live policy debate: alternative proteins in Europe.
 
 
 # Alternative proteins in European media
 
-Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — have become one of the more contested food policy questions in Europe. The debate sits at the intersection of several ongoing tensions: EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns about ultra-processing, and industrial policy for the food tech sector. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
+Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy for the food tech sector. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
 In this analysis, the corpus covers more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions.
 
@@ -39,7 +39,7 @@ In this approach, debates on a given topic are structured around *claims*: speci
 
 Choosing the right set of claims is a critical design step — it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families — **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
 
-The chart below shows the claims used in this demo analysis.
+The chart below shows the claims identified and adopted in this analysis.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -72,7 +72,7 @@ We then estimate to what extent **each actor supports or opposes these claims**,
 </p>
 </div>
 
-Three broad coalitions emerge. The heatmap below shows what defines each one — each coalition’s average position on each of the 16 claims.
+Three broad coalitions emerge. The heatmap below shows each coalition’s average position on each of the 16 claims.
 
 <div class="heatmap-embed heatmap-embed--desktop">
   {% include arguments_actors/eu_alt_proteins/coalition_stance_heatmap_person.html %}
@@ -82,7 +82,7 @@ Three broad coalitions emerge. The heatmap below shows what defines each one —
 </div>
 
 
-The clustering is algorithmic, but interpreting what each coalition *means* still requires some form of judgement. In this case, I fed the stance centroids and actor lists to Claude Opus 4.6 to draft coalition profiles, to illustrate how much of this analysis could be produced at scale with modest human oversight. Here is what the model produced:
+To interpret what each coalition represents, I fed the stance centroids and actor lists to Claude Opus 4.6 and asked it draft their positioning profiles. Here is what the model produced:
 
 
 - <span class="highlight-marker">**Coalition A (133 actors) — "Skeptics & food quality critics."** </span>Nutrition academics, food-culture advocates, and political opponents of alternative proteins — Marco Springmann, Van Tulleken, Monteiro on the UPF research side; Ron DeSantis, Jim Pillen, Giorgia Meloni on the political side; Richard Berman and Piers Morgan in media. United more by what they're against than a shared positive vision: alternative proteins are ultra-processed, health claims are overstated, and traditional food culture deserves protection. Internally diverse — UPF researchers and populist politicians arrive at similar positions from very different starting points.
@@ -106,7 +106,7 @@ The same analysis can be run at the organisation level rather than individual ac
 {% include arguments_actors/eu_alt_proteins/interactive_pca_org.html %}
 </div>
 
-The stance analysis by Claude produces a similar structure: a three-way split between skeptics, market-focused players, and transformation advocates (though B & C are swapped):
+The stance analysis by Claude produces a similar set of profiles: a three-way split between skeptics, market-focused players, and transformation advocates (though B & C are swapped):
 
 - <span class="highlight-marker">**Coalition A (62 organisations) — "Skeptics & food quality watchdogs."** </span>Academic institutions, consumer bodies, farming lobbies, and food regulators — University of Oxford, Coldiretti, Slow Food, FSA, The Lancet, Greenpeace, WHO, Copa-Cogeca, Dairy UK. Leans into the ultra-processed critique (0.40), stricter UPF regulation (0.37), and transparent labeling (0.37). Skeptical of alt proteins' health claims (-0.24) and food technology's transformative potential (-0.27). Also includes some alt-protein-adjacent names (Vegan Society, the Vegetarian Butcher) that may sit here due to UPF or labeling positions rather than outright opposition.
 
@@ -116,11 +116,11 @@ The stance analysis by Claude produces a similar structure: a three-way split be
 
 ## How arguments evolve over time
 
-Beside mapping the coalition, we may want to track whether claims become more or less prominent over time. We look at yearly supporting/opposing staements per claim in the chart below. Some observations:
+Beside mapping the coalition, we may want to track whether claims become more or less prominent over time. This is done in the chart below, showing the evolution of supporting/opposing statements per claim. Some observations:
 - optimist claims about alternative proteins technology and market potential peaked around 2020
 - statements supporting stricter regulation of UPF and labeling of AP continue to rise.
 
-However, before drawing any conclusion, I would consider normalising such trends (e.g. by number of captured articles) or weighing them (e.g. weighing media by their readership or importance) and see if the findings hold.
+Note: before drawing any conclusion, I would consider normalising such trends (e.g. by number of captured articles) or weighing them (e.g. weighing media by their readership or importance) and see if the findings hold.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -140,7 +140,7 @@ The analyses above are a starting point. Several deeper cuts on the same data co
 
 # Looking forward
 
-The alternative proteins case above is one potential application, but the method itself is topic-agnostic: it can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, policy consultations, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on.
+The alternative proteins case above is one potential application, but the method itself is topic-agnostic and can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, policy consultations, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on.
 
 Below are some of the ways this could support advocacy organisations or their funders:
 

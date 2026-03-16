@@ -152,7 +152,7 @@ This analysis is a prototype built to illustrate the method, not a finished inte
 
 # Acknowledgements
 
-Thanks to <a href="https://www.linkedin.com/in/moputera/" target="_blank" rel="noopener">Mo Putera</a> and <a href="https://www.linkedin.com/in/evolving-richie" target="_blank" rel="noopener">Thomas Manandhar-Richardson</a> for their insightful feedback.
+I am very grateful to <a href="https://www.linkedin.com/in/moputera/" target="_blank" rel="noopener">Mo Putera</a> and <a href="https://www.linkedin.com/in/evolving-richie" target="_blank" rel="noopener">Thomas Manandhar-Richardson</a> for their insightful feedback.
 
 
 <div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">

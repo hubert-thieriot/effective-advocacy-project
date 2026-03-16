@@ -37,6 +37,25 @@
   .claims-mentions-family-header:first-child {
     margin-top: 0;
   }
+  .claims-mentions-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    color: #444;
+  }
+  .claims-mentions-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .claims-mentions-legend-swatch {
+    width: 14px;
+    height: 4px;
+    border-radius: 2px;
+    display: inline-block;
+  }
   @media (max-width: 900px) {
     .claims-mentions-facets-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -48,6 +67,10 @@
     }
   }
 </style>
+<div class="claims-mentions-legend">
+  <span class="claims-mentions-legend-item"><span class="claims-mentions-legend-swatch" style="background:#c1443a"></span> Opposes</span>
+  <span class="claims-mentions-legend-item"><span class="claims-mentions-legend-swatch" style="background:#2c8f5b"></span> Supports</span>
+</div>
 <div class="claims-mentions-facets-grid"></div>
 <div class="chart-note"></div>
 <script>
@@ -175,6 +198,7 @@
       const titleEl = document.createElement('div');
       titleEl.className = 'claims-mentions-facet-title';
       titleEl.textContent = shortName || fullText || claimId;
+      titleEl.title = fullText || claimId;
       facetEl.appendChild(titleEl);
 
       const chartEl = document.createElement('div');

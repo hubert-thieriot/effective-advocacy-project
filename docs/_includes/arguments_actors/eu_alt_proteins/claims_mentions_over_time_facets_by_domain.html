@@ -349,6 +349,7 @@
       const titleEl = document.createElement('div');
       titleEl.className = 'claims-mentions-facet-title';
       titleEl.textContent = shortName || fullText || claimId;
+      titleEl.title = fullText || claimId;
       facetEl.appendChild(titleEl);
 
       const chartEl = document.createElement('div');

@@ -18,7 +18,7 @@ layout: default
     <div class="custom-links">
       {% for social in site.social %}
         {% if social.url %}
-            <a class="icon-{{ social.icon }}" href="{{ social.url }}" {% if social.desc %} title="{{ social.desc }}"{% endif %}">
+            <a class="icon-{{ social.icon }}" href="{{ social.url }}" target="_blank" rel="noopener" {% if social.desc %} title="{{ social.desc }}"{% endif %}">
               <i class="fa fa-{{ social.icon }}"></i>
             </a>
             {% unless forloop.last %}&nbsp;&nbsp;·&nbsp;&nbsp;{% endunless %}
@@ -34,11 +34,11 @@ layout: default
     <p class="landing-card__copy">Identify and track changes in narrative framing to inform and measure impact of narrative-shaping interventions.</p>
     <span class="landing-card__cta">Read walkthrough →</span>
   </a>
-  <div class="landing-card landing-card--disabled">
-    <h3 class="landing-card__title">Actors Mapping</h3>
-    <p class="landing-card__copy">Map key actors and coalitions shaping specific policy debates.</p>
-    <span class="landing-card__cta">Coming soon</span>
-  </div>
+  <a class="landing-card" href="{{ '/posts/arguments_actors/' | relative_url }}">
+    <h3 class="landing-card__title">Arguments & Actors Mapping</h3>
+    <p class="landing-card__copy">Identify the key arguments for and against a policy issue, track how they trend over time, and map the actors and coalitions behind them.</p>
+    <span class="landing-card__cta">Read walkthrough →</span>
+  </a>
   <div class="landing-card landing-card--disabled">
     <h3 class="landing-card__title">Research Dissemination Tracking</h3>
     <p class="landing-card__copy">Follow how research outputs travel across organisations and media.</p>

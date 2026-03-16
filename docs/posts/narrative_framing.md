@@ -2,7 +2,7 @@
 layout: post
 permalink: /posts/narrative_framing/
 title: Narrative Framing Analysis
-subtitle: Exploring tools for Effective Advocacy
+subtitle: Tracking How Issues We Care About Are Being Framed
 description: Exploring narrative framing workflows across air pollution and animal welfare corpora
 image_caption: "Peinture (2012), by Pierre Soulages"
 date: 2025-11-12 09:00:00 +0000
@@ -13,6 +13,10 @@ author: Hubert Thieriot
 tags: [narrative-framing]
 ---
 
+<figure style="margin: 0 auto 2em; max-width: 600px;">
+  <img src="{{ '/assets/images/kandinsky-composition-v.webp' | relative_url }}" alt="" style="width: 100%; display: block;">
+  <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Composition V (1911)</figcaption>
+</figure>
 
 <div class="tldr">I prototyped a method to identify and track narrative framings across various corpora (e.g. news articles, TV news, radio programs, parliamentary debates, court decisions). The ambition is to support effective advocacy organisations in both their strategy and impact monitoring, through better understanding how issues are discussed, detecting trends and surfacing outlets or messages to prioritize.
 
@@ -118,7 +122,7 @@ This type of analysis could inform advocacy and funding strategies in several wa
 </div>
 
 # Example 2: Did the Grand National protest shift media framing?
-In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
+In April 2023, Animal Rising activists [disrupted](https://www.theguardian.com/sport/2023/apr/15/grand-national-delay-start-animal-rights-protest-extinction-rebellion) the Grand National[^grand-national]—the UK's most-watched horse race—by entering the course and delaying the start. The action generated substantial media coverage and and aimed to reignite public debate about the ethics of horse racing.
 
 Social Change Lab conducted an [evaluation](https://www.socialchangelab.org/shortandlongtermeffects) of the protest's effects, combining longitudinal panels with cross-sectional surveys. Their findings were nuanced: awareness of the protest was initially linked to *worse* attitudes toward animals, but these negative effects faded within six months. Cross-sectional comparisons suggested that overall attitudes toward animals had actually improved over that period.
 
@@ -282,10 +286,10 @@ These early experiments only scratch the surface of what narrative analysis coul
 
 <div class="text-box">
   <h3>Get in touch</h3>
-I am interested in hearing from others working on similar problems or exploring how these tools could be applied in new contexts or further developed to be more useful. Whether you have ideas for improvements, questions about the approach, or want to collaborate on applications, I'd love to hear from you - <a href="mailto:hubert.thieriot@gmail.com">reach out to me</a>.
+I'm looking for advocacy organisations interested in piloting this approach on an existing intervention, and for funders who see value in building shared infrastructure for evidence-based advocacy strategy. If either describes you, I'd welcome a <a href="https://www.linkedin.com/in/hubertthieriot/" target="_blank" rel="noopener">conversation</a>.
 </div>
 
-
+<div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">
 
 # Method overview
 
@@ -463,3 +467,6 @@ Finally, we aggregate chunk‑level predictions to document‑level profiles and
 
 
 </div>
+</div>
+
+[^grand-national]: Thanks to [Michael Johnston](https://www.linkedin.com/in/michaeljohnston0) for suggesting to look at the Grand National Protest.

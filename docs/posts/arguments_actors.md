@@ -37,7 +37,7 @@ In this analysis, the corpus covers more than 5,000 articles referring to altern
 
 In this approach, debates on a given topic are structured around *claims*: specific, debatable propositions that actors may support, oppose, or simply not address. Taken together, claims define an n-dimensional “stance space” that we can use to represent and compare actors.
 
-Choosing the right set of claims is a critical design step — it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families — **product claims** (the *benefits* and *dangers* of alternative proteins and conventional agriculture) and **policy claims** (what governments and regulators *should do*).
+Choosing the right set of claims is a critical design step — it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families — **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
 
 The chart below shows the claims identified and adopted in this analysis.
 

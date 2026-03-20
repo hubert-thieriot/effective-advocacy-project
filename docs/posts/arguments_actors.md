@@ -5,7 +5,7 @@ title: Arguments & Actors Mapping
 subtitle: "Who Says What, Who Agrees, and How It Shifts"
 description: Mapping key arguments, media trends, and actor coalitions in the EU alternative proteins debate
 date: 2026-03-06 09:00:00 +0000
-last_modified_at: 2026-03-16 09:00:00 +0000
+last_modified_at: 2026-03-20 09:00:00 +0000
 author: Hubert Thieriot
 tags: [discourse-analysis, actors-mapping]
 ---
@@ -21,25 +21,24 @@ tags: [discourse-analysis, actors-mapping]
 
 # From narratives to arguments and actors
 
-In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is being discussed. Here, we go a step further and ask: **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
+In the [Narrative framing approach]({{ '/posts/narrative_framing/' | relative_url }}), we looked at *how* an issue is being discussed. Here, we go a step further and ask **what specific positions are being taken, by whom, and who aligns with whom?** Rather than tracking broad themes, we extract concrete claims from the debate, identify which actors support or oppose them, and map the resulting coalitions.
 
-To illustrate the approach, we apply it to a live policy debate: alternative proteins in Europe.
+To illustrate the approach, I applied this approach to a live policy debate: alternative proteins in Europe.
 
 
 # Alternative proteins in European media
 
-Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy for the food tech sector. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
+Alternative proteins — hear plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
-In this analysis, the corpus covers more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets], in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on shared and opposing positions.
+In this analysis, I collected a corpus of more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets] in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
 
 
 ## The arguments: how is the debate structured?
 
 In this approach, debates on a given topic are structured around *claims*: specific, debatable propositions that actors may support, oppose, or simply not address. Taken together, claims define an n-dimensional “stance space” that we can use to represent and compare actors.
 
-Choosing the right set of claims is a critical design step — it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families — **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
+Choosing the right set of claims is a critical design step: it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families: **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
 
-The chart below shows the claims identified and adopted in this analysis.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -53,12 +52,12 @@ The chart below shows the claims identified and adopted in this analysis.
 
 
 ## Coalitions: who aligns with whom?
-We then estimate to what extent **each actor supports or opposes these claims**, based on their collected statements. We are then able to form **coalitions of actors** that share similar positions on alternative proteins (see [Method overview](#method-overview) below). The scatter plot below visualizes these induced structure: each point is an actor with colours indicating their detected coalition.
+We then estimate to what extent **each actor supports or opposes these claims**, based on their collected statements. This allows us to derive **coalitions of actors** that share similar positions on alternative proteins (see [Method overview](#method-overview) below). The scatter plot below visualizes these induced structure: each point is an actor with colours indicating detected coalitions.
 
 <div class="chart-item">
 <div class="chart-heading">
     <div class="chart-title">Who aligns with whom on alternative proteins in European media?</div>
-    <div class="chart-subtitle">357 actors positioned by their stance profiles across 16 claims</div>
+    <div class="chart-subtitle">457 actors positioned by their stance profiles across 16 claims</div>
   </div>
 {% include arguments_actors/eu_alt_proteins/interactive_pca_person.html %}
 <p class="chart-note">
@@ -85,16 +84,25 @@ Three broad coalitions emerge. The heatmap below shows each coalition’s averag
 To interpret what each coalition represents, I fed the stance centroids and actor lists to Claude Opus 4.6 and asked it draft their positioning profiles. Here is what the model produced:
 
 
-- <span class="highlight-marker">**Coalition A (133 actors) — "Skeptics & food quality critics."** </span>Nutrition academics, food-culture advocates, and political opponents of alternative proteins — Marco Springmann, Van Tulleken, Monteiro on the UPF research side; Ron DeSantis, Jim Pillen, Giorgia Meloni on the political side; Richard Berman and Piers Morgan in media. United more by what they're against than a shared positive vision: alternative proteins are ultra-processed, health claims are overstated, and traditional food culture deserves protection. Internally diverse — UPF researchers and populist politicians arrive at similar positions from very different starting points.
+- <span class="highlight-marker">**Coalition A (160 actors) — "Skeptics & food quality critics."** </span>Nutrition researchers, food-culture defenders, and political opponents — Chris Van Tulleken, Carlos Monteiro, Marco Springmann on the UPF research side; Ron DeSantis, Giorgia Meloni, Viktor Orbán, Jim Pillen in politics; Piers Morgan, Joanna Blythman, Marion Nestle in food media and commentary. Strongest on the ultra-processed critique (0.36), stricter UPF regulation (0.36), transparent labeling (0.32), and traditional food culture (0.34). Skeptical of health claims (-0.28), food technology (-0.30), and market potential (-0.21). Mildly protective of farming livelihoods (0.09) but the identity is more about food quality and naturalness than economic protectionism.
 
-- <span class="highlight-marker">**Coalition B (96 actors) — "Diet change & animal welfare advocates."** </span>High-profile alt-protein founders and advocates pushing for dietary transformation — Patrick Brown (Impossible Foods), Josh Tetrick (GOOD Meat), Bruce Friedrich (GFI), Ethan Brown (Beyond Meat), George Monbiot, Chris Bryant, Molly Scott Cato. Shares Coalition C's pro-technology, pro-market stance, but goes much further: by far the strongest support for EU-promoted meat reduction (0.84), and actively challenges traditional food culture and farming protections. This is the food-system transformation coalition.
+- <span class="highlight-marker">**Coalition B (133 actors) — "Industry & market optimists."** </span>Startup founders, investors, food-industry executives, and some scientists — Mark Post, Sandhya Sriram, Decker Walker, Benjamina Bollag, Tomer Halevy, Justin Kolbeck, Miyoko Schinner, Emmanuel Macron, Boris Johnson. By far the strongest signal on market potential (0.91) and food technology (0.67). Mildly positive on traditional food culture (0.15) and essentially neutral on meat reduction (0.10), farming protection (0.03), and the ultra-processed debate (-0.14). The commercial and pragmatic voice: enthusiastic about the opportunity without taking strong positions on the cultural or dietary politics.
 
-- <span class="highlight-marker">**Coalition C (128 actors) — "Technology & market optimists."** </span>Startup founders, industry figures, and investors — Uma Valeti (Upside Foods), Mark Post, Didier Toubia (Aleph Farms), Seren Kell, Sandhya Sriram, Bill Gates. The strongest enthusiasm for food technology and market potential of any coalition, but notably neutral on meat reduction, farming livelihoods, and traditional food culture. This is the industry and investment voice: bullish on the technology and business opportunity without pushing a dietary change message.
+- <span class="highlight-marker">**Coalition C (164 actors) — "Systemic transformation advocates."** </span>Mission-driven founders, advocacy figures, public intellectuals, and policy voices — Patrick Brown, Bruce Friedrich, Josh Tetrick, Uma Valeti, Seren Kell, Ethan Brown, Bill Gates, George Monbiot, Paul Shapiro, Chris Bryant, Molly Scott Cato. Strong across product and policy claims: food technology (0.59), meat reduction (0.55), environment (0.47), market potential (0.43), health (0.32), animal welfare (0.23). Firmly rejects the ultra-processed framing (-0.67), traditional food culture (-0.32), and farming protections (-0.18). The most ideologically coherent coalition — pairs product enthusiasm with an explicit push for dietary and systemic change.
 
+To browse coalition actors by coalition and explore their individual positions, use the interactive browser below.
 
-Maybe the sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition C actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+<div class="chart-item">
+  <div class="chart-heading">
+    <div class="chart-title">Browse coalition actors</div>
+    <div class="chart-subtitle">Search and explore actors by coalition; hover for stance details</div>
+  </div>
+  {% include arguments_actors/eu_alt_proteins/coalition_actor_browser_person.html %}
+</div>
 
-Notably, all of **the 357 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
+Maybe the sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+
+Notably, all of **the 457 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
 The same analysis can also be run at the organisation level rather than individual actors — applied to the same corpus, it yields a broadly similar coalition structure (see [Appendix: Organisation-level coalitions](#appendix-organisation-level-coalitions) below).
 
@@ -104,7 +112,10 @@ Beside mapping the coalition, we may want to track whether claims become more or
 - optimist claims about alternative proteins technology and market potential peaked around 2020
 - statements supporting stricter regulation of UPF and labeling of AP continue to rise.
 
-Before drawing any conclusion, I would consider normalising these trends (e.g. by number of captured articles or by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold.
+One may want to normalise these trends (e.g. by number of captured articles or by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold.
+
+Also worth noting: claims around ultra-processed foods may conflate UPF with alternative proteins — many UPF criticisms in media address conventional processed foods (e.g. sugary snacks, industrial bread) rather than plant-based or cultivated meat directly.
+
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -115,7 +126,6 @@ Before drawing any conclusion, I would consider normalising these trends (e.g. b
 </div>
 
 
-
 # Looking forward
 
 The alternative proteins case above is one potential application, but the method itself is topic-agnostic and can be applied to any policy debate where actors take public positions. The corpus can also be extended to broader types of documents, including **TV and radio broadcasts, podcasts, parliamentary debates, policy consultations, political manifestos or social media**[^socialmedia], in virtually any language LLMs are sufficiently trained on.
@@ -124,7 +134,7 @@ Below are some of the ways this could support advocacy organisations or their fu
 
 <span class="highlight-marker">**Early detection of emerging arguments:**</span> By running the pipeline regularly on a rolling corpus, new claims can be detected as they first appear, before they gain traction. This could give advocates lead time to prepare responses or preemptive messaging, rather than reacting once a narrative is already established.
 
-<span class="highlight-marker">**Surfacing unexpected actors:**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar. For an illustration, see the 357 actors <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">identified</a> in this demonstration.
+<span class="highlight-marker">**Surfacing unexpected actors:**</span> Because the pipeline identifies actors automatically from the text, it can flag voices that an analyst might not have thought to look for — new entrants in a debate, unusual alliances, or actors whose influence is growing but who aren't yet on anyone's radar. For an illustration, see the 457 actors <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">identified</a> in this demonstration.
 
 <span class="highlight-marker">**Regular landscape assessments:**</span> Running the analysis on a quarterly or yearly cycle would produce a structured, comparable snapshot of the argument landscape and coalition structure over time. This could serve as an intelligence product for advocacy organisations or funders seeking to understand how a debate is evolving.
 
@@ -184,13 +194,13 @@ The same coalition analysis can be run at the organisation level. Applied to the
 {% include arguments_actors/eu_alt_proteins/interactive_pca_org.html %}
 </div>
 
-The stance analysis by Claude produces a similar set of profiles: a three-way split between skeptics, market-focused players, and transformation advocates (though B & C are swapped relative to the person-level analysis):
+The stance analysis by Claude produces a similar set of profiles: a three-way split between skeptics, market-focused players, and transformation advocates:
 
-- <span class="highlight-marker">**Coalition A (62 organisations) — "Skeptics & food quality watchdogs."** </span>Academic institutions, consumer bodies, farming lobbies, and food regulators — University of Oxford, Coldiretti, Slow Food, FSA, The Lancet, Greenpeace, WHO, Copa-Cogeca, Dairy UK. Leans into the ultra-processed critique (0.40), stricter UPF regulation (0.37), and transparent labeling (0.37). Skeptical of alt proteins' health claims (-0.24) and food technology's transformative potential (-0.27). Also includes some alt-protein-adjacent names (Vegan Society, the Vegetarian Butcher) that may sit here due to UPF or labeling positions rather than outright opposition.
+- <span class="highlight-marker">**Coalition A (57 organisations) — "Skeptics & food quality watchdogs."** </span>Farming lobbies, consumer bodies, regulators, public health institutions, and some academic centres — Coldiretti, Slow Food, Copa-Cogeca, Dairy UK, WHO, The Lancet, FSA, Unicef, European Parliament, European Court of Justice. The strongest scores on stricter UPF regulation (0.46), transparent labeling (0.42), traditional food culture (0.37), ultra-processed critique (0.35), and protecting farming livelihoods (0.26). Skeptical of health claims (-0.23) and food technology (-0.18). A genuinely diverse bloc — it brings together farming protectionists (Coldiretti, Copa-Cogeca), public health bodies (WHO, Unicef), and food quality institutions (Slow Food, The Food Foundation) whose objections to alt proteins come from quite different places.
 
-- <span class="highlight-marker">**Coalition B (65 organisations) — "Industry & market optimists."** </span>Alt-protein startups, food multinationals, investors, and consultancies — Aleph Farms, Shiok Meats, Mosa Meat, Burger King, Tyson Foods, McKinsey, Barclays, Nestlé, Unilever. By far the strongest signal on market potential (0.95) and food technology (0.74). Broadly neutral on meat reduction (0.12), farming protection (0.09), and traditional food culture (0.14). This is the commercial coalition: enthusiastic about the opportunity, without strongly taking sides on the cultural or dietary politics.
+- <span class="highlight-marker">**Coalition B (73 organisations) — "Industry & market optimists."** </span>Alt-protein startups, food multinationals, fast-food chains, investors, and consultancies — Shiok Meats, Burger King, KFC, McDonald's, McKinsey, Barclays, Upside Foods, Mosa Meat, Vow, Nestlé (via European Commission, Unilever sits in C), Lidl, Asda, Walmart. By far the strongest on market potential (0.99) and food technology (0.64). Essentially neutral on meat reduction (0.11), farming protection (-0.01), and traditional food culture (0.04). The commercial coalition: enthusiastic about the business opportunity, cautious about taking sides on dietary politics.
 
-- <span class="highlight-marker">**Coalition C (62 organisations) — "Systemic transformation advocates."** </span>Advocacy groups, think tanks, research bodies, and mission-driven companies — GFI, Eat Just, Impossible Foods, Beyond Meat, PETA, Humane Society, Chatham House, Green Alliance, RethinkX. Strong across the board: food technology (0.68), environment (0.68), meat reduction (0.66), market potential (0.52), health (0.39), and animal welfare (0.32). Actively rejects ultra-processed framing (-0.63), traditional food culture (-0.44), and farming protections (-0.42). The most ideologically coherent coalition — combines product enthusiasm with an explicit push for dietary and policy change.
+- <span class="highlight-marker">**Coalition C (54 organisations) — "Systemic transformation advocates."** </span>Mission-driven companies, advocacy organisations, think tanks, and research bodies — Impossible Foods, Eat Just, GFI, Beyond Meat, PETA, Chatham House, RethinkX, Social Market Foundation, University of Oxford, IPCC, United Nations. Strong across the board: environment (0.72), meat reduction (0.61), food technology (0.54), health (0.39), animal welfare (0.32). Firmly rejects ultra-processed framing (-0.48), traditional food culture (-0.35), and farming protections (-0.35). The smallest but most ideologically coherent coalition — product and policy advocacy are tightly bundled.
 
 </div>
 

@@ -28,7 +28,7 @@ To illustrate the approach, I applied this approach to a live policy debate: alt
 
 # Alternative proteins in European media
 
-Alternative proteins — hear plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
+Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
 In this analysis, I collected a corpus of more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets] in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
 
@@ -66,9 +66,9 @@ We then estimate to what extent **each actor supports or opposes these claims**,
 <p class="chart-note">
   <strong>Tip:</strong> Hover (desktop) or click/tap (mobile) points to see each actor’s individual positioning. For the whole list of actors and their respective stance positioning, click <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">here</a>.
 </p>
-<p class="chart-note">
+<!-- <p class="chart-note">
   <strong>Disclaimer:</strong> These results are for demonstration purposes only. The analysis should not be relied upon to provide accurate estimates of actors positioning. Further validation and methodological refinement are needed before these results can be used for strategy purposes.
-</p>
+</p> -->
 </div>
 
 Three broad coalitions emerge. The heatmap below shows each coalition’s average position on each of the 16 claims.
@@ -100,7 +100,7 @@ To browse coalition actors by coalition and explore their individual positions, 
   {% include arguments_actors/eu_alt_proteins/coalition_actor_browser_person.html %}
 </div>
 
-Maybe the sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
 
 Notably, all of **the 457 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
@@ -108,13 +108,7 @@ The same analysis can also be run at the organisation level rather than individu
 
 ## How arguments evolve over time
 
-Beside mapping the coalition, we may want to track whether claims become more or less prominent over time. This is done in the chart below, showing the evolution of supporting/opposing statements per claim. Some observations:
-- optimist claims about alternative proteins technology and market potential peaked around 2020
-- statements supporting stricter regulation of UPF and labeling of AP continue to rise.
-
-One may want to normalise these trends (e.g. by number of captured articles or by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold.
-
-Also worth noting: claims around ultra-processed foods may conflate UPF with alternative proteins — many UPF criticisms in media address conventional processed foods (e.g. sugary snacks, industrial bread) rather than plant-based or cultivated meat directly.
+Beside mapping the coalition, we may want to track whether claims become more or less prominent over time. This is done in the chart below, showing the evolution of supporting/opposing statements per claim.
 
 
 <div class="chart-item">
@@ -125,6 +119,11 @@ Also worth noting: claims around ultra-processed foods may conflate UPF with alt
   {% include arguments_actors/eu_alt_proteins/claims_mentions_over_time_facets.html %}
 </div>
 
+The charts show a debate that has shifted over the past decade. Early coverage was dominated by product-level claims: the environmental case, food technology, market potential. These peaked around 2020 — roughly the alt-protein <a href="https://www.greenqueen.com.hk/alternative-protein-funding-q4-2025-plant-based-investment" target="_blank">investment boom</a> — and have since declined.
+
+Since then, a different set of arguments has been gaining ground: the ultra-processed critique, the dispute around labeling and the protection of traditional food culture. This is essentially Coalition A's vocabulary.
+
+A note of caution: one may want to normalise these trends (e.g. by number of captured articles or by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold. Also worth noting: claims around ultra-processed foods may conflate UPF with alternative proteins — many UPF criticisms in media address conventional processed foods (e.g. sugary snacks, industrial bread) rather than plant-based or cultivated meat directly.
 
 # Looking forward
 

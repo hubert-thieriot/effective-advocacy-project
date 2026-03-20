@@ -15,7 +15,7 @@ tags: [discourse-analysis, actors-mapping]
   <!-- <figcaption style="text-align: right; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; font-style: italic;">Wassily Kandinsky — Color Study: Squares with Concentric Circles (1913)</figcaption> -->
 </figure>
 
-<div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 5,000 articles in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring impact.
+<div class="tldr">I prototyped a semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Applied here to the EU alternative proteins debate across 10 years, 21 media in seven languages, the approach is topic-agnostic and could potentially support advocacy organisations in various ways: detecting emerging arguments early, surfacing unexpected actors, producing regular landscape assessments, guiding media outreach, and measuring impact.
 </div>
 
 
@@ -30,7 +30,7 @@ To illustrate the approach, I applied this approach to a live policy debate: alt
 
 Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
-In this analysis, I collected a corpus of more than 5,000 articles referring to alternative proteins, published between 2015 and 2025 across 23 major European media outlets[^outlets] in seven languages. The analysis identifies statements attributed to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
+In this analysis, I analysed articles referring to alternative proteins published between 2015 and 2025 across 21 major European media outlets[^outlets] in seven languages. This represents a corpus of 3,500 documents. The analysis identifies statements, attributes them to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
 
 
 ## The arguments: how is the debate structured?
@@ -123,7 +123,7 @@ The charts show a debate that has shifted over the past decade. Early coverage w
 
 Since then, a different set of arguments has been gaining ground: the ultra-processed critique, the dispute around labeling and the protection of traditional food culture. This is essentially Coalition A's vocabulary.
 
-A note of caution: one may want to normalise these trends (e.g. by number of captured articles or by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold. Also worth noting: claims around ultra-processed foods may conflate UPF with alternative proteins — many UPF criticisms in media address conventional processed foods (e.g. sugary snacks, industrial bread) rather than plant-based or cultivated meat directly.
+One may want to normalise these trends (e.g. by means of a separate topic acting as a "control-group") or weighing them (e.g. by the media readership or importance) and see if the findings hold.
 
 # Looking forward
 
@@ -169,7 +169,7 @@ I am very grateful to <a href="https://www.linkedin.com/in/moputera/" target="_b
 # Method overview
 
 ### Collecting relevant chunks
-Articles are first identified from MediaCloud using custom queries, then scraped, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
+Articles are first identified from MediaCloud using custom queries, further filtered, then scraped, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
 
 ### Extracting actors, statements, claims and agreements
 Named entities are then extracted from these high-scoring chunks using Stanza-based NER, and an entity-consolidation step merges different surface forms of the same actor into a single canonical entity. Where automatic consolidation is imperfect, manual merge rules can be added to correct cases in which the same actor appears under multiple names or aliases. For chunks containing identified actors, an LLM extracts attributable statements, a set of recurring claims is induced from a sample of those statements, and another LLM scores each statement against each claim as supporting, opposing, or neutral.

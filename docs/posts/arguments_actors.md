@@ -143,6 +143,10 @@ Below are some of the ways this could support advocacy organisations or their fu
 
 <span class="highlight-marker">**Testing positioning:**</span> An advocate could feed a message or position and be indicated which actors and coalitions would likely support or oppose it, and how to adjust the framing to appeal to a broader coalition. This turns the landscape map into a design tool.
 
+<span class="highlight-marker">Assessing actors' influence:**</span> The current analysis maps who says what, but treats all actors equally. A natural extension is to estimate **how important actors are in shaping the debate**. This could be done by analysing actors' reach, their network position, and tracking how their arguments are picked up by others over time.
+
+<span class="highlight-marker">Assessing actors' influence.</span> The current analysis maps who says what, but treats all actors equally. A natural extension is to estimate how important actors are in shaping the debate. This could be done by analysing actors' reach, the temporal precedence of their statements, their network position, and tracking how their arguments are picked up by others.
+
 <!-- 
 - **Argument diffusion.** Tracking how a specific claim spreads across outlets, countries, or actor types over time. Which actors or outlets pick up an argument first, and through what path does it propagate? -->
 

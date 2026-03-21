@@ -30,14 +30,14 @@ To illustrate the approach, I applied this approach to a live policy debate: alt
 
 Alternative proteins — plant-based meat, cultivated meat, and fermentation-derived products — are a deeply contested food policy question in Europe. The debate sits at the intersection of EU climate policy, Common Agricultural Policy reform, food labelling disputes, public health concerns and industrial policy. This makes it a relevant test case for arguments and actors mapping, one where the stakeholders are relatively diverse and the regulatory stakes are real.
 
-In this analysis, I analysed articles referring to alternative proteins published between 2015 and 2025 across 21 major European media outlets[^outlets] in seven languages. This represents a corpus of 3,500 documents. The analysis identifies statements, attributes them to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
+To understand how the debate is structured and how it evolved, I analysed articles referring to alternative proteins published between 2015 and 2025 across 21 major European media outlets[^outlets] in seven languages. This represents a corpus of 3,500 documents. The analysis identifies statements, attributes them to named actors, induces a set of recurring claims from those statements, scores each statement's relationship to each claim (supports, opposes, or neutral), and then maps actor relationships based on their respective positions.
 
 
 ## The arguments: how is the debate structured?
 
 In this approach, debates on a given topic are structured around *claims*: specific, debatable propositions that actors may support, oppose, or simply not address. Taken together, claims define an n-dimensional “stance space” that we can use to represent and compare actors.
 
-Choosing the right set of claims is a critical design step: it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a mixed approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families: **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
+Choosing the right set of claims is a critical design step: it defines both what we track and how we map actors & coalitions. Claims could be left to automation when the goal is to surface new and unexpected arguments, or manually defined as a narrow set to inform very targeted advocacy. Here, we adopted a hybrid approach: claims were first automatically induced from actor statements in the corpus, then manually refined into two families: **product claims** (what alternative proteins and conventional agriculture *are* and *do*) and **policy claims** (what governments and regulators *should do*).
 
 
 <div class="chart-item">
@@ -90,7 +90,7 @@ To interpret what each coalition represents, I fed the stance centroids and acto
 
 - <span class="highlight-marker">**Coalition C (164 actors) — "Systemic transformation advocates."** </span>Mission-driven founders, advocacy figures, public intellectuals, and policy voices — Patrick Brown, Bruce Friedrich, Josh Tetrick, Uma Valeti, Seren Kell, Ethan Brown, Bill Gates, George Monbiot, Paul Shapiro, Chris Bryant, Molly Scott Cato. Strong across product and policy claims: food technology (0.59), meat reduction (0.55), environment (0.47), market potential (0.43), health (0.32), animal welfare (0.23). Firmly rejects the ultra-processed framing (-0.67), traditional food culture (-0.32), and farming protections (-0.18). The most ideologically coherent coalition — pairs product enthusiasm with an explicit push for dietary and systemic change.
 
-To browse coalition actors by coalition and explore their individual positions, use the interactive browser below.
+To browse coalition actors by coalition and explore their individual positions, you can use the interactive browser below.
 
 <div class="chart-item">
   <div class="chart-heading">
@@ -143,14 +143,14 @@ Below are some of the ways this could support advocacy organisations or their fu
 
 <span class="highlight-marker">**Testing positioning:**</span> An advocate could feed a message or position and be indicated which actors and coalitions would likely support or oppose it, and how to adjust the framing to appeal to a broader coalition. This turns the landscape map into a design tool.
 
-<span class="highlight-marker">Assessing actors' influence:**</span> The current analysis maps who says what, but treats all actors equally. A natural extension is to estimate **how important actors are in shaping the debate**. This could be done by analysing actors' reach, their network position, and tracking how their arguments are picked up by others over time.
+<span class="highlight-marker">**Following actors trajectories:**</span> Rather than a single snapshot, tracking how individual actors move through stance space over time reveals who is shifting, who is entrenching, and in which direction.
 
-<span class="highlight-marker">Assessing actors' influence.</span> The current analysis maps who says what, but treats all actors equally. A natural extension is to estimate how important actors are in shaping the debate. This could be done by analysing actors' reach, the temporal precedence of their statements, their network position, and tracking how their arguments are picked up by others.
+
+<span class="highlight-marker">**Assessing actors' influence:**</span> The current analysis maps who says what, but treats all actors equally. A natural extension is to estimate how important actors are in shaping the debate. This could be done by analysing actors' reach, their network position, and tracking how their arguments are picked up by others over time.
 
 <!-- 
 - **Argument diffusion.** Tracking how a specific claim spreads across outlets, countries, or actor types over time. Which actors or outlets pick up an argument first, and through what path does it propagate? -->
 
-<span class="highlight-marker">**Following actors trajectories:**</span> Rather than a single snapshot, tracking how individual actors move through stance space over time reveals who is shifting, who is entrenching, and in which direction.
 
 <div class="text-box">
   <h3>Get in touch</h3>
@@ -172,7 +172,7 @@ I am very grateful to <a href="https://www.linkedin.com/in/moputera/" target="_b
 
 # Method overview
 
-### Collecting relevant chunks
+### Collecting relevant segments
 Articles are first identified from MediaCloud using custom queries, further filtered, then scraped, extracted, and split into chunks. The pipeline then induces a domain-specific framing schema from a sample of chunks, annotates a further sample with frame labels, and trains a multi-label transformer classifier to predict frame probabilities at chunk level. Chunks whose frame scores exceed a chosen threshold are treated as substantively relevant and passed to the downstream stages.
 
 ### Extracting actors, statements, claims and agreements

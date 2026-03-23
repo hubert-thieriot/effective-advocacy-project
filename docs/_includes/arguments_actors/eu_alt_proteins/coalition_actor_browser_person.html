@@ -52,19 +52,16 @@
     padding: 12px 14px 10px;
     font-weight: 700;
     font-size: 0.88rem;
+    line-height: 1.35;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     border-bottom: 1px solid #e8e2d8;
     position: sticky;
     top: 0;
     z-index: 1;
-  }
-  .cab-col-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
+    min-height: calc(12px + 10px + 3 * 1.35em);
+    box-sizing: border-box;
   }
   .cab-col-count {
     font-weight: 400;
@@ -243,6 +240,12 @@
   // Determine coalitions present (sorted by id)
   const coalitionIds = [...new Set(actors.map(a => a.coalition))].sort((a, b) => a - b);
 
+  const coalitionTitles = [
+    'Skeptics & food quality critics',
+    'Industry & market optimists',
+    'Systemic transformation advocates'
+  ];
+
   // Global max for bar scaling
   const maxStmts = Math.max(1, ...actors.map(a => a.stmts || 0));
 
@@ -272,8 +275,7 @@
       headerEl.className = 'cab-col-header';
       headerEl.style.background = color + '0a';
       headerEl.innerHTML =
-        '<span class="cab-col-dot" style="background:' + color + '"></span>' +
-        'Coalition ' + (cid + 1) +
+        (coalitionTitles[cid] != null ? coalitionTitles[cid] : 'Coalition ' + (cid + 1)) +
         '<span class="cab-col-count">' + (q ? members.length + '/' : '') + totalMembers + ' actors</span>';
       colEl.appendChild(headerEl);
 

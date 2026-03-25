@@ -1,7 +1,11 @@
+{% assign asset_version = site.github.build_revision %}
+{% unless asset_version %}
+  {% assign asset_version = site.time | date: "%s" %}
+{% endunless %}
 <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
-<script type="text/javascript" src="{{ "/assets/js/jquery.fitvids.js" | prepend: site.baseurl  }}"></script>
-<script type="text/javascript" src="{{ "/assets/js/index.js" | prepend: site.baseurl  }}"></script>
-<script type="text/javascript" src="{{ "/assets/js/readingTime.min.js" | prepend: site.baseurl  }}"></script>
+<script type="text/javascript" src="{{ "/assets/js/jquery.fitvids.js?v=" | append: asset_version | prepend: site.baseurl }}"></script>
+<script type="text/javascript" src="{{ "/assets/js/index.js?v=" | append: asset_version | prepend: site.baseurl }}"></script>
+<script type="text/javascript" src="{{ "/assets/js/readingTime.min.js?v=" | append: asset_version | prepend: site.baseurl }}"></script>
 <script>
 (function ($) {
   "use strict";

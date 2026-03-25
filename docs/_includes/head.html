@@ -4,6 +4,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- (1) force latest IE rendering engine: bit.ly/1c8EiC9 -->
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  {% assign asset_version = site.github.build_revision %}
+  {% unless asset_version %}
+    {% assign asset_version = site.time | date: "%s" %}
+  {% endunless %}
 
   {% if jekyll.environment == "production" %}
     <!-- Google tag (gtag.js) -->
@@ -62,7 +66,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap">
   <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
-  <link rel="stylesheet" type="text/css" media="screen" href="{{ "/css/main.css"  | prepend: site.baseurl  }}" />
-  <link rel="stylesheet" type="text/css" media="print" href="{{ "/css/print.css"  | prepend: site.baseurl  }}" />
-  <link rel="stylesheet" type="text/css" media="screen" href="{{ '/assets/css/custom.css' | relative_url }}" />
+  <link rel="stylesheet" type="text/css" media="screen" href="{{ "/css/main.css?v=" | append: asset_version | prepend: site.baseurl }}" />
+  <link rel="stylesheet" type="text/css" media="print" href="{{ "/css/print.css?v=" | append: asset_version | prepend: site.baseurl }}" />
+  <link rel="stylesheet" type="text/css" media="screen" href="{{ '/assets/css/custom.css?v=' | append: asset_version | relative_url }}" />
 </head>

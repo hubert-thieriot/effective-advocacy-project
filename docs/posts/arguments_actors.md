@@ -4,7 +4,7 @@ permalink: /posts/arguments_actors/
 title: Arguments & Actors Mapping
 subtitle: "Who Says What, Who Agrees, and How It Shifts"
 description: A semi-automated method to extract the key arguments in a policy debate, identify which actors champion or contest them, and map how they cluster into coalitions. Tested on the EU alternative proteins debate across 10 years, 21 media in seven languages.
-image: /assets/images/actors-ap-eu-map-wide.jpg
+image: /assets/images/actors-ap-eu-map-wide.png
 date: 2026-03-06 09:00:00 +0000
 last_modified_at: 2026-03-20 09:00:00 +0000
 author: Hubert Thieriot

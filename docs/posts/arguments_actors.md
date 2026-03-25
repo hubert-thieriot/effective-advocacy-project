@@ -46,13 +46,13 @@ Choosing the right set of claims is a critical design step: it defines both what
   </div>
   {% include arguments_actors/eu_alt_proteins/claims_cards.html %}
   <div class="chart-note">
-    <strong>Note:</strong> Claims do not align neatly into "pro" and "anti" camps — even strong advocates of alternative proteins may disagree on specific product or policy claims, and vice versa. In what follows, "opposes" should not be read as "anti-alternative-proteins".
+    <strong>Note:</strong> Claims do not align neatly into "pro" and "anti" coalitions — even strong advocates of alternative proteins may disagree on specific product or policy claims, and vice versa. In what follows, "opposes" should not be read as "anti-alternative-proteins".
   </div>
 </div>
 
 
 ## Coalitions: who aligns with whom?
-We then estimate to what extent **each actor supports or opposes these claims**, based on their collected statements. This allows us to derive **coalitions of actors** that share similar positions on alternative proteins (see [Method overview](#method-overview) below). The scatter plot below visualizes these induced structure: each point is an actor with colours indicating detected coalitions.
+We then estimate to what extent **each actor supports or opposes these claims** based on their collected statements. This allows us to derive **coalitions of actors** i.e. groups whose positions align, whether or not they coordinate or even know of each other[^coalitions] (see [Method overview](#method-overview) below). The scatter plot below visualizes these induced structure: each point is an actor with colours indicating detected coalitions.
 
 <div class="chart-item">
 <div class="chart-heading">
@@ -100,7 +100,7 @@ To browse coalition actors by coalition and explore their individual positions, 
   {% include arguments_actors/eu_alt_proteins/coalition_actor_browser_person.html %}
 </div>
 
-The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for coalitionaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
 
 Notably, all of **the 457 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
@@ -139,7 +139,7 @@ Below are some of the ways this could support advocacy organisations or their fu
 
 <span class="highlight-marker">**Guiding media outreach:**</span> The cross-outlet analysis (which arguments appear where, and with what stance) can inform where to pitch stories, which outlets are more receptive to certain framings, and where there are gaps in coverage that could be filled.
 
-<span class="highlight-marker">**Measuring campaign impact:**</span> Mapping the argument landscape before and after an intervention — a campaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
+<span class="highlight-marker">**Measuring coalitionaign impact:**</span> Mapping the argument landscape before and after an intervention — a coalitionaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
 
 <span class="highlight-marker">**Testing positioning:**</span> An advocate could feed a message or position and be indicated which actors and coalitions would likely support or oppose it, and how to adjust the framing to appeal to a broader coalition. This turns the landscape map into a design tool.
 
@@ -165,7 +165,7 @@ This analysis is a prototype built to illustrate the method, not a finished inte
 
 # Acknowledgements
 
-I am very grateful to <a href="https://www.linkedin.com/in/moputera/" target="_blank" rel="noopener">Mo Putera</a> and <a href="https://www.linkedin.com/in/evolving-richie" target="_blank" rel="noopener">Thomas Manandhar-Richardson</a> for their insightful feedback.
+I am very grateful to <a href="https://www.linkedin.com/in/moputera/" target="_blank" rel="noopener">Mo Putera</a> and <a href="https://www.linkedin.com/in/evolving-richie" target="_blank" rel="noopener">Thomas Manandhar-Richardson</a> for their insightful feedback. Thanks also to <a href="https://www.linkedin.com/in/carl-frederick-luthin/" target="_blank" rel="noopener">Carl Frederick Luthin</a> for suggesting to work on this topic.
 
 
 <div style="background-color: rgba(255, 0, 0, 0.03); margin: 2em calc(-50vw + 50%) 0; padding: 0 calc(50vw - 50%) 2em; border-radius: 8px;" markdown="1">
@@ -210,6 +210,8 @@ The stance analysis by Claude produces a similar set of profiles: a three-way sp
 ---
 
 [^outlets]: **UK** — The Guardian, The Telegraph, The Independent, The Economist · **Ireland** — Irish Independent · **Pan-European / International** — EUobserver, Euractiv, Deutsche Welle · **Germany** — Süddeutsche Zeitung, Der Spiegel, Die Welt, Frankfurter Allgemeine Zeitung · **France** — Le Monde, Le Figaro, Les Echos · **Italy** — Corriere della Sera, La Repubblica, Il Sole 24 Ore · **Spain** — El País · **Netherlands** — NRC Handelsblad, de Volkskrant · **Poland** — Gazeta Wyborcza, Rzeczpospolita
+
+[^coalitions]: We use "coalition" in the sense adopted by Philip Leifeld in his work on Discourse Network Analysis: "A coalition, however, is not a formal arrangement. It is rather constituted by the similarity of 'belief systems' between actors" (<a href="https://d-nb.info/1098190300/34" target="_blank">Leifeld, 2014</a>).
 
 [^socialmedia]: Social media integration is still being assessed. API access costs and restrictions vary widely across platforms, and we may initially settle for a more targeted approach e.g. tracking a curated set of key accounts rather than broad keyword-based monitoring.
 

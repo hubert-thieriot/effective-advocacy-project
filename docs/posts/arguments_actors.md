@@ -101,7 +101,7 @@ To browse coalition actors by coalition and explore their individual positions, 
   {% include arguments_actors/eu_alt_proteins/coalition_actor_browser_person.html %}
 </div>
 
-The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for coalitionaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
 
 Notably, all of **the 457 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
@@ -140,7 +140,7 @@ Below are some of the ways this could support advocacy organisations or their fu
 
 <span class="highlight-marker">**Guiding media outreach:**</span> The cross-outlet analysis (which arguments appear where, and with what stance) can inform where to pitch stories, which outlets are more receptive to certain framings, and where there are gaps in coverage that could be filled.
 
-<span class="highlight-marker">**Measuring coalitionaign impact:**</span> Mapping the argument landscape before and after an intervention — a coalitionaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
+<span class="highlight-marker">**Measuring campaign impact:**</span> Mapping the argument landscape before and after an intervention — a campaign, a policy event, a controversy — could help detect whether anything shifted: new arguments emerging, actors moving, coalitions reconfiguring. This is more speculative and would require careful methodological work to distinguish signal from noise, but the structured nature of the data makes it a plausible direction.
 
 <span class="highlight-marker">**Testing positioning:**</span> An advocate could feed a message or position and be indicated which actors and coalitions would likely support or oppose it, and how to adjust the framing to appeal to a broader coalition. This turns the landscape map into a design tool.
 

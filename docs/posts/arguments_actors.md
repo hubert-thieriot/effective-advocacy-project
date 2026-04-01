@@ -101,7 +101,10 @@ To browse coalition actors by coalition and explore their individual positions, 
   {% include arguments_actors/eu_alt_proteins/coalition_actor_browser_person.html %}
 </div>
 
-The sharpest insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
+
+A first observation is that the **coalition A bring together people with very different perspectives**: researchers like Marco Springmann may be critical of certain forms of processed alternative proteins, but are otherwise strong [proponents](https://www.oxfordmartin.ox.ac.uk/news/beans-and-peas-best-meat-alternative-finds-oxford-research#:~:text=Dr%20Springmann%20noted%3A%20'Unprocessed%20legumes,health%2C%20environmental%2C%20and%20cost.) of plant-based diets centered on unprocessed legumes. This contrasts with [other actors](https://www.bbc.co.uk/news/world-us-canada-68947766) in this coalition whose opposition to alternative proteins comes from a defense of the livestock and meat industry. One reason this coalition appears so broad is that the 16 claims lack the granularity to separate these actors' positions: they don't distinguish between types of alternative proteins (which atttract different criticisms) or clarify what APs are being compared to (meat, or plant-based diets). I am currently working on a methodological refinement to better capture such differences.
+
+Another insight lies in the **B–C split**. Both coalitions are pro-alternative-proteins, but they seem to (at least in appearance) disagree on whether the goal is to *add new products to the market* or to *replace the existing food system*. For an advocate, this could mean that Coalition B actors are potential allies on technology and investment, but unlikely partners for campaigns framed around meat reduction or challenging farming interests. Or the other way around, it could help identify which Coalition C actors could be moved on meat-reduction messaging.
 
 Notably, all of **the 457 actors were identified automatically from the corpus** — no names were pre-listed or manually selected. This means that the method can surface voices an analyst might not have thought of, and do so in virtually any language. To see each individual actor's positioning across all 16 claims, <a href="{{ '/posts/arguments_actors/actor_stances/' | relative_url }}" target="_blank">open the full actor-level stance heatmap</a>.
 
@@ -207,6 +210,12 @@ The stance analysis by Claude produces a similar set of profiles: a three-way sp
 - <span class="highlight-marker">**Coalition C (54 organisations) — "Systemic transformation advocates."** </span>Mission-driven companies, advocacy organisations, think tanks, and research bodies — Impossible Foods, Eat Just, GFI, Beyond Meat, PETA, Chatham House, RethinkX, Social Market Foundation, University of Oxford, IPCC, United Nations. Strong across the board: environment (0.72), meat reduction (0.61), food technology (0.54), health (0.39), animal welfare (0.32). Firmly rejects ultra-processed framing (-0.48), traditional food culture (-0.35), and farming protections (-0.35). The smallest but most ideologically coherent coalition — product and policy advocacy are tightly bundled.
 
 </div>
+
+---
+
+# Changelog
+
+- **2026-04-01** — Added comments on Coalition A heterogeneity.
 
 ---
 

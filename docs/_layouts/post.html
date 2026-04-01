@@ -17,7 +17,7 @@
             <div class="cf post-meta-text">
               <!-- <div class="author-image" style="background-image: url({{ site.author_image | prepend: site.baseurl }})">Blog Logo</div> -->
               <h4 class="author-name" itemprop="author" itemscope itemtype="http://schema.org/Person" style="margin: 0;">{{ page.author | default: site.author }}</h4>
-              <p class="published" style="margin: 4px 0 0 0;">First published on <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date_to_string }}</time></p>
+              <p class="published" style="margin: 4px 0 0 0;">First published on <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date_to_string }}</time><br>Last updated on <time datetime="{{ page.last_modified_at | default: page.date | date_to_xmlschema }}">{{ page.last_modified_at | default: page.date | date_to_string }}</time></p>
             </div>
           </div>
         </div>

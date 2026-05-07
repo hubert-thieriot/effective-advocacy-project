@@ -181,6 +181,65 @@ a {
   color: rgba(0, 0, 0, 0.55);
 }
 
+.presentation-embed {
+  max-width: 1200px;
+  margin: 4rem auto 5rem;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.presentation-embed__title {
+  font-family: "Figtree Variable", 'Open Sans', sans-serif;
+  font-size: 1.3rem;
+  margin: 0 0 1.5rem;
+  color: var(--color-accent);
+}
+
+.presentation-embed__frame {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 — matches deck-stage 1920x1080 so there's no letterbox */
+  border-radius: 6px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.presentation-embed__frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.presentation-embed__link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-weight: 600;
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+.presentation-embed__link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .presentation-embed {
+    padding: 0 1rem;
+  }
+}
+
+.newsletter-embed {
+  max-width: 1200px;
+  margin: 4rem auto 0;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+  text-align: center;
+}
+
 .tldr {
   margin: 0 0 1.5rem;
   padding: 0 0 0.75rem 0;

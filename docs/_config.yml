@@ -9,8 +9,8 @@ author: Hubert Thieriot
 author_image: "/assets/images/author.jpg"
 paginate: 5
 paginate_path: "/page:num"
-url: "https://effectiveadvocacyproject.org"
-baseurl: ""
+url: "https://hubert-thieriot.github.io"
+baseurl: "/effective-advocacy-project"
 twitter_handle: "@hubert_thieriot"
 remote_theme: dirkfabisch/mediator
 

@@ -5,6 +5,8 @@
   {% include head.html %}
   <body itemscope itemtype="http://schema.org/Article">
     {% include header.html %}
+    {% include marks.svg %}
+    {% include site-header.html %}
     <main class="content" role="main">
       <article class="post">
         {% if page.image %}
@@ -43,16 +45,7 @@
         </section>
       </article>
     </main>
-    <div class="bottom-closer">
-      <div class="background-closer-image" {%if site.cover %} style="background-image: url({{ site.cover | prepend: site.baseurl }})"{% endif %}>
-        Image
-      </div>
-      <div class="inner">
-        <h1 class="blog-title">{{ site.title }}</h1>
-        <h2 class="blog-description">{{ site.description }}</h2>
-        <a href={{ "/" | prepend: site.baseurl }} class="btn">Home</a>
-      </div>
-    </div>
+    {% include site-footer.html %}
     {% include javascripts.html %}
   </body>
 </html>

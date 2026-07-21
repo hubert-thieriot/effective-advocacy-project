@@ -1,0 +1,46 @@
+{% assign home = '/' | relative_url %}
+<header class="site-bar">
+  <div class="wrap nav">
+    <a href="{% if page.layout == 'landing' %}#top{% else %}{{ home }}{% endif %}" aria-label="Effective Advocacy Project home">{% include logo.html %}</a>
+    <nav>
+      {% for item in site.data.nav %}<a href="{% if page.layout == 'landing' %}{{ item.href }}{% else %}{{ home }}{{ item.href }}{% endif %}">{{ item.label }}</a>{% endfor %}
+    </nav>
+    <a href="{% if page.layout == 'landing' %}#contact{% else %}{{ home }}#contact{% endif %}" class="btn">Let's talk</a>
+  </div>
+</header>
+<script>
+  /* Hide the bar while scrolling down, bring it back on the way up. */
+  (function () {
+    var bar = document.querySelector('.site-bar');
+    if (!bar) return;
+
+    var last = window.scrollY;
+    var ticking = false;
+    var JITTER = 6;   // ignore trackpad micro-movements
+    var TOP_ZONE = 90; // always visible near the top of the page
+
+    function update() {
+      var y = window.scrollY;
+      var diff = y - last;
+
+      if (Math.abs(diff) > JITTER) {
+        if (diff > 0 && y > TOP_ZONE) {
+          bar.classList.add('is-hidden');
+        } else {
+          bar.classList.remove('is-hidden');
+        }
+        last = y;
+      } else if (y <= TOP_ZONE) {
+        bar.classList.remove('is-hidden');
+      }
+      ticking = false;
+    }
+
+    window.addEventListener('scroll', function () {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(update);
+      }
+    }, { passive: true });
+  })();
+</script>

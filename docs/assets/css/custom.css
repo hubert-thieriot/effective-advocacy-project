@@ -733,6 +733,13 @@ code.language-plaintext {
    Everything is scoped under .site-bar / .site-foot, with brand vars and
    Sora declared locally, so post typography stays untouched.
    Colours use !important to beat the global `a { color: … !important }`. */
+
+/* The bar below is sticky and 78px tall (+1px border), so anchor targets
+   would otherwise land underneath it. Matches landing.css. */
+html {
+  scroll-padding-top: 96px;
+}
+
 .site-bar,
 .site-foot {
   --ink: #1f1f22;

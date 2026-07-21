@@ -1,0 +1,90 @@
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    
+    <g id="iris">
+      <polygon points="12,0 19.78,27.66 34,0" fill="var(--brand-light)"></polygon>
+      <polygon points="6,10.39 -14.14,30.92 17,29.44" fill="var(--brand-deep)"></polygon>
+      <polygon points="-6,10.39 -33.84,3.29 -17,29.44" fill="var(--brand-light)"></polygon>
+      <polygon points="-12,0 -19.78,-27.66 -34,0" fill="var(--brand-deep)"></polygon>
+      <polygon points="-6,-10.39 14.14,-30.92 -17,-29.44" fill="var(--brand-light)"></polygon>
+      <polygon points="6,-10.39 33.84,-3.29 17,-29.44" fill="var(--brand-deep)"></polygon>
+    </g>
+    
+    <g id="mark-comms" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="-24" cy="0" r="5.5" fill="currentColor" stroke="none"></circle>
+      <path d="M-8 -14 L7 0 L-8 14"></path>
+      <path d="M8 -24 L26 0 L8 24"></path>
+    </g>
+    
+    <g id="mark-affairs" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-26 -13 L0 -28 L26 -13"></path>
+      <path d="M-19 -13 L-19 18"></path>
+      <path d="M0 -13 L0 18"></path>
+      <path d="M19 -13 L19 18"></path>
+      <path d="M-28 18 L28 18"></path>
+    </g>
+    
+    <g id="mark-animal" fill="currentColor" stroke="none" transform="translate(0 -1) scale(0.95)">
+      <ellipse cx="0" cy="12" rx="14" ry="11"></ellipse>
+      <ellipse cx="-15" cy="-3" rx="5.5" ry="7.5"></ellipse>
+      <ellipse cx="-5.5" cy="-13" rx="5.5" ry="8"></ellipse>
+      <ellipse cx="5.5" cy="-13" rx="5.5" ry="8"></ellipse>
+      <ellipse cx="15" cy="-3" rx="5.5" ry="7.5"></ellipse>
+    </g>
+    
+    <g id="mark-energy" fill="currentColor" stroke="none" transform="translate(-0.75 0) scale(0.75)">
+      <path d="M7 -28 L-14 5 L-1 5 L-6 28 L16 -6 L2 -6 Z"></path>
+    </g>
+    
+    <g id="mark-ai" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" transform="scale(0.875)">
+      <rect x="-15" y="-15" width="30" height="30" rx="6"></rect>
+      <circle cx="0" cy="0" r="4.5" fill="currentColor" stroke="none"></circle>
+      <path d="M-8 -15 L-8 -24"></path><path d="M0 -15 L0 -24"></path><path d="M8 -15 L8 -24"></path>
+      <path d="M-8 15 L-8 24"></path><path d="M0 15 L0 24"></path><path d="M8 15 L8 24"></path>
+      <path d="M-15 -8 L-24 -8"></path><path d="M-15 0 L-24 0"></path><path d="M-15 8 L-24 8"></path>
+      <path d="M15 -8 L24 -8"></path><path d="M15 0 L24 0"></path><path d="M15 8 L24 8"></path>
+    </g>
+    
+    <g id="mark-health" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" transform="scale(0.8)">
+      <path d="M-26 0 L-11 0 L-4 -17 L4 17 L11 0 L26 0"></path>
+    </g>
+
+    <!-- source bubbles (24x24 viewBox) — stroke attrs sit on each group so <use> clones them -->
+    <g id="i-news" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4.5" width="16" height="15" rx="1.5"/><line x1="7" y1="8.5" x2="14" y2="8.5"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15.5" x2="14" y2="15.5"/><rect x="15.5" y="11.5" width="3" height="4"/>
+    </g>
+    <g id="i-tv" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="15" r="1.6"/><path d="M8.5 11.5a5 5 0 0 1 7 0"/><path d="M6 9a8.5 8.5 0 0 1 12 0"/>
+    </g>
+    <g id="i-social" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="7" cy="7.5" r="2"/><circle cx="17" cy="7.5" r="2"/><circle cx="12" cy="16.5" r="2"/><line x1="8.7" y1="8.6" x2="10.4" y2="15.2"/><line x1="15.3" y1="8.6" x2="13.6" y2="15.2"/><line x1="9" y1="7.5" x2="15" y2="7.5"/>
+    </g>
+    <g id="i-speech" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9.5" y="3" width="5" height="9" rx="2.5"/><path d="M6.5 11a5.5 5.5 0 0 0 11 0M12 16.5V20M9 20h6"/>
+    </g>
+    <g id="i-vote" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="M8 12l2.8 2.8L16.5 9"/>
+    </g>
+    <g id="i-debate" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 6.5h9v5.5H8l-2.8 2.2v-2.2H3.5z"/><path d="M14 10h6.5v5h-1.6v2.2L16 15h-2z"/>
+    </g>
+    <g id="i-committee" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="8" cy="8.5" r="2.2"/><circle cx="16" cy="8.5" r="2.2"/><path d="M3.5 18a4.5 4.5 0 0 1 9 0M11.5 18a4.5 4.5 0 0 1 9 0"/>
+    </g>
+    <g id="i-pub" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 6.5C10.5 5.2 8.5 5 5 5v12c3.5 0 5.5.2 7 1.5"/><path d="M12 6.5C13.5 5.2 15.5 5 19 5v12c-3.5 0-5.5.2-7 1.5z"/>
+    </g>
+    <g id="i-sub" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 14v4a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-4"/><path d="M12 3.5v10M8 8l4-4 4 4"/>
+    </g>
+
+    <!-- CTA button icons -->
+    <g id="i-calendar" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M3.5 10.5h17"/><path d="M8 3.5v4M16 3.5v4"/>
+    </g>
+    <g id="i-mail" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.8 7 12 12.9 20.2 7"/>
+    </g>
+  </defs>
+</svg>

@@ -1,7 +1,9 @@
 title: Effective Advocacy Project
 description: Exploring tools for effective advocacy
-email: hubert.thieriot@gmail.com
+email: hubert@effectiveadvocacyproject.org
 logo: "/assets/images/eap-logo.png"
+# Default og:image / twitter:image — 1200x630 card, overridden per-page by `image:`
+social_image: "/assets/images/eap-social-card.png"
 float_logo: false
 cover: "/assets/images/soulages.jpg"
 name: Hubert Thieriot

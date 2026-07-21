@@ -728,3 +728,170 @@ code.language-plaintext {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
+
+/* ── shared site bars (same markup/design as the landing) ──────────────
+   Everything is scoped under .site-bar / .site-foot, with brand vars and
+   Sora declared locally, so post typography stays untouched.
+   Colours use !important to beat the global `a { color: … !important }`. */
+
+/* The bar below is sticky and 78px tall (+1px border), so anchor targets
+   would otherwise land underneath it. Matches landing.css. */
+html {
+  scroll-padding-top: 79px;
+}
+
+.site-bar,
+.site-foot {
+  --ink: #1f1f22;
+  --soft: #56575c;
+  --mute: #97989e;
+  --line: #e7e7ea;
+  --brand-light: #e6a175;
+  --brand-deep: #ab4747;
+  --sora: "Sora", system-ui, -apple-system, sans-serif;
+  font-family: var(--sora);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.site-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-bar .wrap,
+.site-foot .wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+  box-sizing: border-box;
+}
+
+.site-bar .nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 78px;
+}
+
+.site-bar .nav nav {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-left: auto;
+  margin-right: 28px;
+}
+
+.site-bar .nav nav a {
+  font-size: 14.5px;
+  font-weight: 400;
+  color: var(--soft) !important;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.site-bar .nav nav a:hover {
+  color: var(--ink) !important;
+}
+
+.site-bar .logo,
+.site-foot .logo {
+  display: block;
+  height: 46px;
+  width: auto;
+}
+
+.site-foot .logo--footer {
+  height: 40px;
+}
+
+.site-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 8px;
+  background: var(--brand-deep);
+  color: #fff !important;
+  font-family: var(--sora);
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.18s;
+}
+
+.site-bar .btn:hover {
+  background: #8f3a3a;
+  color: #fff !important;
+}
+
+.site-foot {
+  padding: 56px 0 46px;
+  margin-top: 72px;
+  border-top: 1px solid var(--line);
+}
+
+.site-foot .foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.site-foot .meta {
+  font-size: 13.5px;
+  color: var(--mute);
+}
+
+.site-foot nav {
+  display: flex;
+  gap: 24px;
+}
+
+.site-foot nav a {
+  font-size: 14px;
+  color: var(--soft) !important;
+  text-decoration: none;
+}
+
+.site-foot nav a:hover {
+  color: var(--ink) !important;
+}
+
+/* keep the theme's floating "x min read" clear of the sticky bar */
+.post-reading {
+  top: 96px !important;
+}
+
+@media (max-width: 760px) {
+  .site-bar .nav nav {
+    display: none;
+  }
+
+  .site-bar .wrap,
+  .site-foot .wrap {
+    padding: 0 20px;
+  }
+}
+
+/* auto-hide the bar while scrolling down (see _includes/site-header.html) */
+.site-bar {
+  transition: transform 0.3s ease;
+}
+
+.site-bar.is-hidden {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-bar {
+    transition: none;
+  }
+}

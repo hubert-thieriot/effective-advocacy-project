@@ -4,7 +4,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- (1) force latest IE rendering engine: bit.ly/1c8EiC9 -->
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  {% assign asset_version = site.github.build_revision %}
+  {% if jekyll.environment == "production" %}
+    {% assign asset_version = site.github.build_revision %}
+  {% endif %}
   {% unless asset_version %}
     {% assign asset_version = site.time | date: "%s" %}
   {% endunless %}
@@ -28,10 +30,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   {% if site.twitter_handle %}
-    <meta name="twitter:card" content="{% if page.image %}summary_large_image{% else %}summary{% endif %}" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="{{ site.twitter_handle }}" />
     <meta name="twitter:title" content="{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}" />
-    <meta name="twitter:image" content="{% if page.image %}{{ page.image | prepend: site.baseurl | prepend: site.url }}{% else %}{{ site.logo | prepend: site.baseurl | prepend: site.url }}{% endif %}" />
+    <meta name="twitter:image" content="{{ page.image | default: site.social_image | default: site.logo | prepend: site.baseurl | prepend: site.url }}" />
     {% if page.description %}
     <meta name="twitter:description"  content="{{ page.description }}" />
     {% elsif page.excerpt %}
@@ -50,20 +52,23 @@
   {% elsif site.description %}
   <meta property="og:description" content="{{ site.description | strip_html | strip_newlines | truncate: 200 }}" />
   {% endif %}
-  <meta property="og:image" content="{% if page.image %}{{ page.image | prepend: site.baseurl | prepend: site.url }}{% else %}{{ site.logo | prepend: site.baseurl | prepend: site.url }}{% endif %}" />
+  <meta property="og:image" content="{{ page.image | default: site.social_image | default: site.logo | prepend: site.baseurl | prepend: site.url }}" />
   <meta property="og:url" content="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}" >
   <meta property="og:type" content="blog" />
   {% if page.date %}<meta property="article:published_time" content="{{ page.date | date_to_xmlschema }}">{% endif %}
   <meta property="article:author" content="{{ page.author | default: site.author }}" />
 
   <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}"/>
-  <link rel="icon" href="{{ "/assets/images/flow-logo-red-symmetric-v12-mirrored-bands-transparent.svg?v=20260304" | prepend: site.baseurl }}" type="image/svg+xml"/>
-  <link rel="icon" href="{{ "/assets/images/favicon.png?v=20260304" | prepend: site.baseurl }}" type="image/png"/>
-  <link rel="shortcut icon" href="{{ "/assets/images/favicon.png?v=20260304" | prepend: site.baseurl }}" type="image/png"/>
+  <link rel="icon" href="{{ "/assets/images/favicon.svg?v=20260721" | prepend: site.baseurl }}" type="image/svg+xml"/>
+  <link rel="icon" href="{{ "/assets/images/favicon.png?v=20260721" | prepend: site.baseurl }}" type="image/png"/>
+  <link rel="shortcut icon" href="{{ "/assets/images/favicon.png?v=20260721" | prepend: site.baseurl }}" type="image/png"/>
+  <link rel="apple-touch-icon" href="{{ "/assets/images/apple-touch-icon.png?v=20260721" | prepend: site.baseurl }}"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="//brick.a.ssl.fastly.net/Linux+Libertine:400,400i,700,700i">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap">
+  <!-- Sora is used only by the shared site bars (header/footer), not post body copy -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap">
   <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
   <link rel="stylesheet" type="text/css" media="screen" href="{{ "/css/main.css?v=" | append: asset_version | prepend: site.baseurl }}" />

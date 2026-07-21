@@ -1,0 +1,12 @@
+{% assign home = '/' | relative_url %}
+<footer class="site-foot">
+  <div class="wrap foot">
+    {% include logo.html class="logo--footer" %}
+    <nav>
+      <a href="{% if page.layout == 'landing' %}#comms{% else %}{{ home }}#comms{% endif %}">Communications</a>
+      <a href="{% if page.layout == 'landing' %}#affairs{% else %}{{ home }}#affairs{% endif %}">Public Affairs</a>
+      <a href="{% if page.layout == 'landing' %}#contact{% else %}{{ home }}#contact{% endif %}">Contact</a>
+    </nav>
+    <span class="meta">© {{ site.time | date: '%Y' }} {{ site.title }}</span>
+  </div>
+</footer>

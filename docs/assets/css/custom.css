@@ -832,9 +832,18 @@ html {
 }
 
 .site-foot {
-  padding: 56px 0 46px;
+  padding: 44px 0 46px;
   margin-top: 72px;
-  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+/* Short rule instead of a full-width border — matches landing.css. */
+.foot-rule {
+  display: block;
+  width: 64px;
+  height: 2px;
+  background: #e7e7ea;
+  margin-bottom: 38px;
 }
 
 .site-foot .foot {

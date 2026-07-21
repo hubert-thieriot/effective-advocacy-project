@@ -67,10 +67,13 @@ a:hover{color:var(--ink)}
 .prop--affairs{--accent-light:var(--affairs-light);--accent-deep:var(--affairs-deep)}
 
 /* ── feature sections ────────────────────────────────── */
+/* Sections are separated by alternating paper/wash backgrounds rather than
+   rules — stacking hairlines between same-coloured bands got noisy. The only
+   rule left is under the hero, where two paper bands meet. */
 section.svc{padding:72px 0}
-section.svc#comms{background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+section.svc#comms{background:var(--paper);border-top:1px solid var(--line);
   --accent-light:var(--comms-light);--accent-deep:var(--comms-deep)}
-section.svc#affairs{background:var(--wash);border-bottom:1px solid var(--line);
+section.svc#affairs{background:var(--wash);
   --accent-light:var(--affairs-light);--accent-deep:var(--affairs-deep)}
 .svc-head{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .svc-head .sh-l{max-width:60ch}
@@ -126,7 +129,7 @@ section.svc#affairs{background:var(--wash);border-bottom:1px solid var(--line);
 @media (max-width:520px){ .bub{height:40px;padding:0 14px;font-size:13.5px} .src-cloud{gap:9px} }
 
 /* ── CTA band ────────────────────────────────────────── */
-.cta{padding:66px 0;border-top:1px solid var(--line)}
+.cta{padding:66px 0;background:var(--paper)}
 .cta-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:40px;align-items:stretch}
 .cta-actions{display:flex;gap:12px;flex-wrap:wrap}
 .btn-ic{width:18px;height:18px;flex:none}
@@ -144,7 +147,7 @@ section.svc#affairs{background:var(--wash);border-bottom:1px solid var(--line);
 .note{font-size:12.5px;color:var(--mute);margin:12px 0 0}
 
 /* ── cause areas ─────────────────────────────────────── */
-.causes{padding:66px 0;border-top:1px solid var(--line)}
+.causes{padding:66px 0;background:var(--wash)}
 .causes .tag{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;font-weight:500;
   letter-spacing:.14em;text-transform:uppercase;color:var(--brand-deep);margin:0 0 14px}
 .causes h2{font-weight:300;font-size:34px;letter-spacing:-0.02em;margin:0 0 34px}
@@ -157,7 +160,7 @@ section.svc#affairs{background:var(--wash);border-bottom:1px solid var(--line);
 .cause h3{font-weight:500;font-size:18px;letter-spacing:-0.005em;margin:0}
 
 /* ── about ───────────────────────────────────────────── */
-.about{padding:76px 0;border-top:1px solid var(--line)}
+.about{padding:76px 0;background:var(--paper)}
 .about-grid{display:grid;grid-template-columns:150px 1fr;gap:44px;align-items:center}
 .about-photo{border-radius:10px;overflow:hidden;background:var(--wash);aspect-ratio:1/1}
 .about-photo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -169,7 +172,10 @@ section.svc#affairs{background:var(--wash);border-bottom:1px solid var(--line);
 .about-text strong{color:var(--ink);font-weight:600}
 
 /* ── footer ──────────────────────────────────────────── */
-.site-foot{padding:56px 0 46px;border-top:1px solid var(--line)}
+.site-foot{padding:44px 0 46px;background:var(--paper)}
+/* Short rule instead of a full-width border: marks the footer off from the
+   About band without adding another line across the page. */
+.foot-rule{display:block;width:64px;height:2px;background:var(--line);margin-bottom:38px}
 .foot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .foot .meta{font-size:13.5px;color:var(--mute)}
 .foot nav{display:flex;gap:24px}

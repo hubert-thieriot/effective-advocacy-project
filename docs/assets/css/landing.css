@@ -12,8 +12,9 @@
 }
 *{box-sizing:border-box}
 /* The 78px bar (+1px border) is sticky, so anchor targets would land underneath it.
-   scroll-padding-top pushes every in-page jump clear of it, plus breathing room. */
-html{scroll-behavior:smooth;scroll-padding-top:96px}
+   Offset by exactly the bar height: sections bring their own top padding, so
+   anything extra here just reads as dead space. */
+html{scroll-behavior:smooth;scroll-padding-top:79px}
 body{margin:0;font-family:var(--sora);color:var(--ink);background:var(--paper);
   font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:var(--brand-deep);text-decoration:none}

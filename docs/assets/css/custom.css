@@ -737,7 +737,7 @@ code.language-plaintext {
 /* The bar below is sticky and 78px tall (+1px border), so anchor targets
    would otherwise land underneath it. Matches landing.css. */
 html {
-  scroll-padding-top: 96px;
+  scroll-padding-top: 79px;
 }
 
 .site-bar,

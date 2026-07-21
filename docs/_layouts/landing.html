@@ -5,6 +5,35 @@
   <title>{{ page.title | default: site.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="{{ site.description }}" />
+
+  <!-- The landing layout keeps its own head (it must not pull in the theme CSS),
+       so the icons, canonical and analytics below are duplicated from _includes/head.html. -->
+  <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}" />
+  <link rel="icon" href="{{ '/assets/images/favicon.svg?v=20260721' | relative_url }}" type="image/svg+xml" />
+  <link rel="icon" href="{{ '/assets/images/favicon.png?v=20260721' | relative_url }}" type="image/png" />
+  <link rel="shortcut icon" href="{{ '/assets/images/favicon.png?v=20260721' | relative_url }}" type="image/png" />
+  <link rel="apple-touch-icon" href="{{ '/assets/images/apple-touch-icon.png?v=20260721' | relative_url }}" />
+
+  <meta property="og:site_name" content="{{ site.title }}" />
+  <meta property="og:title" content="{{ page.title | default: site.title }}" />
+  <meta property="og:description" content="{{ site.description }}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="{{ page.title | default: site.title }}" />
+  <meta name="twitter:description" content="{{ site.description }}" />
+
+  {% if jekyll.environment == "production" %}
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S7TGVXD4JT"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-S7TGVXD4JT');
+    </script>
+  {% endif %}
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">

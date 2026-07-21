@@ -841,9 +841,9 @@ html {
 .foot-rule {
   display: block;
   width: 64px;
-  height: 2px;
+  height: 1px;
   background: #e7e7ea;
-  margin-bottom: 38px;
+  margin: 0 auto 38px;
 }
 
 .site-foot .foot {

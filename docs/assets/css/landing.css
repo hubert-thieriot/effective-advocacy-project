@@ -175,7 +175,7 @@ section.svc#affairs{background:var(--wash);
 .site-foot{padding:44px 0 46px;background:var(--paper)}
 /* Short rule instead of a full-width border: marks the footer off from the
    About band without adding another line across the page. */
-.foot-rule{display:block;width:64px;height:2px;background:var(--line);margin-bottom:38px}
+.foot-rule{display:block;width:64px;height:1px;background:var(--line);margin:0 auto 38px}
 .foot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .foot .meta{font-size:13.5px;color:var(--mute)}
 .foot nav{display:flex;gap:24px}

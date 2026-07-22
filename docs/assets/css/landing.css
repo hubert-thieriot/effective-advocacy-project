@@ -182,6 +182,16 @@ section.svc#affairs{background:var(--wash);
 .foot nav a{font-size:14px;color:var(--soft)}
 
 @media (max-width:980px){ .nav nav{display:none} .cause-grid{grid-template-columns:1fr 1fr} }
+/* Phones: full-size logo + CTA no longer fit side by side, so the bar tightens
+   (scroll-padding-top follows the shorter bar so anchors still clear it). */
+@media (max-width:700px){
+  html{scroll-padding-top:65px}
+  .nav{height:64px}
+  .site-bar .logo{height:36px}
+  .site-bar .btn{height:38px;padding:0 14px;font-size:13.5px}
+}
+/* Narrowest phones: the logo crops to the mark alone. */
+@media (max-width:370px){ .site-bar .logo{width:36px} }
 @media (max-width:860px){
   .wrap{padding:0 24px}
   .props{grid-template-columns:1fr}

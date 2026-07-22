@@ -890,6 +890,39 @@ html {
   }
 }
 
+/* Phones: full-size logo + CTA no longer fit side by side, so the bar tightens
+   (scroll-padding-top follows the shorter bar so anchors still clear it). */
+@media (max-width: 700px) {
+  html {
+    scroll-padding-top: 65px;
+  }
+
+  .site-bar .nav {
+    height: 64px;
+  }
+
+  .site-bar .logo {
+    height: 36px;
+  }
+
+  .site-bar .btn {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 13.5px;
+  }
+
+  .post-reading {
+    top: 82px !important;
+  }
+}
+
+/* Narrowest phones: the logo crops to the mark alone. */
+@media (max-width: 370px) {
+  .site-bar .logo {
+    width: 36px;
+  }
+}
+
 /* auto-hide the bar while scrolling down (see _includes/site-header.html) */
 .site-bar {
   transition: transform 0.3s ease;

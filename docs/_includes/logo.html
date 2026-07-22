@@ -1,4 +1,6 @@
-<svg class="logo {{ include.class }}" viewBox="0 0 480 76.45" role="img" aria-label="Effective Advocacy Project">
+<!-- `slice` is a no-op at the natural ratio, but it lets a square box (narrow
+     phones, see the site bar rules) crop the wordmark away and keep the mark. -->
+<svg class="logo {{ include.class }}" viewBox="0 0 480 76.45" preserveAspectRatio="xMinYMid slice" role="img" aria-label="Effective Advocacy Project">
   <g transform="translate(38.22,38.22) scale(1.1242)"><use href="#iris"/></g>
   <text x="96" y="28.47" font-family="Sora" font-weight="500" font-size="39" letter-spacing="-0.39" fill="var(--ink)">Effective Advocacy</text>
   <text x="96" y="68.47" font-family="Sora" font-weight="300" font-size="39" letter-spacing="-0.39" fill="var(--ink)">Project</text>

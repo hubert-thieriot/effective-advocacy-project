@@ -33,6 +33,12 @@
       <ellipse cx="15" cy="-3" rx="5.5" ry="7.5"></ellipse>
     </g>
     
+    <g id="mark-protein" fill="currentColor" stroke="none" transform="scale(0.85)">
+      <path d="M-3 28 L-3 4 Q-3 -6 3 -12 L7 -8 Q2 -3 3 4 L3 28 Z"></path>
+      <path d="M-4 8 C-24 9 -30 -6 -29 -20 C-14 -21 -3 -12 -4 8 Z"></path>
+      <path d="M4 -6 C4 -24 16 -31 29 -30 C30 -15 20 -5 4 -6 Z"></path>
+    </g>
+
     <g id="mark-energy" fill="currentColor" stroke="none" transform="translate(-0.75 0) scale(0.75)">
       <path d="M7 -28 L-14 5 L-1 5 L-6 28 L16 -6 L2 -6 Z"></path>
     </g>

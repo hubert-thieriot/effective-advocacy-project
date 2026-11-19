@@ -152,9 +152,9 @@ section.svc#affairs{background:var(--wash);
   letter-spacing:.14em;text-transform:uppercase;color:var(--brand-deep);margin:0 0 14px}
 .causes h2{font-weight:300;font-size:34px;letter-spacing:-0.02em;margin:0 0 34px}
 .causes h2 b{font-weight:600}
-.cause-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-/* each icon+label group is centred in its column, so the group centres
-   sit at even intervals across the row */
+.cause-grid{display:grid;grid-template-columns:repeat(5,auto);justify-content:space-between;gap:20px}
+/* five causes on one row: columns size to their label and the free space
+   goes between them, so a long label (Alternative Proteins) never wraps */
 .cause{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0}
 .cause .ic{width:30px;height:30px;flex:none;color:var(--brand-deep)}
 .cause h3{font-weight:500;font-size:18px;letter-spacing:-0.005em;margin:0}

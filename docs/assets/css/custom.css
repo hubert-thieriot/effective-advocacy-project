@@ -831,6 +831,24 @@ html {
   color: #fff !important;
 }
 
+.site-bar .bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-bar .btn--ghost {
+  background: transparent;
+  color: var(--ink) !important;
+  border: 1.5px solid var(--line);
+}
+
+.site-bar .btn--ghost:hover {
+  background: #f6f6f7;
+  color: var(--ink) !important;
+  border-color: var(--brand-light);
+}
+
 .site-foot {
   padding: 44px 0 46px;
   margin-top: 72px;
@@ -895,6 +913,11 @@ html {
 @media (max-width: 700px) {
   html {
     scroll-padding-top: 65px;
+  }
+
+  /* Phones: one button only, the way in. */
+  .site-bar .bar-talk {
+    display: none;
   }
 
   .site-bar .nav {

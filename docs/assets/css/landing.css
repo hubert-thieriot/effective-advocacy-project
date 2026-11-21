@@ -41,6 +41,7 @@ a:hover{color:var(--ink)}
 .btn:hover{background:#8f3a3a;color:#fff}
 .btn--ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
 .btn--ghost:hover{background:var(--wash);color:var(--ink);border-color:var(--accent-light)}
+.site-bar .bar-actions{display:flex;align-items:center;gap:10px}
 .btn--accent{background:var(--brand-deep)}
 .btn--accent:hover{background:#8f3a3a;color:#fff}
 
@@ -189,6 +190,7 @@ section.svc#affairs{background:var(--wash);
   .nav{height:64px}
   .site-bar .logo{height:36px}
   .site-bar .btn{height:38px;padding:0 14px;font-size:13.5px}
+  .site-bar .bar-talk{display:none}
 }
 /* Narrowest phones: the logo crops to the mark alone. */
 @media (max-width:370px){ .site-bar .logo{width:36px} }

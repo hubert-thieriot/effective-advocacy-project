@@ -5,7 +5,10 @@
     <nav>
       {% for item in site.data.nav %}<a href="{% if page.layout == 'landing' %}{{ item.href }}{% else %}{{ home }}{{ item.href }}{% endif %}">{{ item.label }}</a>{% endfor %}
     </nav>
-    <a href="{% if page.layout == 'landing' %}#contact{% else %}{{ home }}#contact{% endif %}" class="btn">Let's talk</a>
+    <div class="bar-actions">
+      <a href="{% if page.layout == 'landing' %}#contact{% else %}{{ home }}#contact{% endif %}" class="btn btn--ghost bar-talk">Let's talk</a>
+      <a href="https://app.effectiveadvocacyproject.org" class="btn">Sign in</a>
+    </div>
   </div>
 </header>
 <script>
